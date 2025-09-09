@@ -18,6 +18,5 @@ export class UpdateNotificationDto extends PartialType(CreateNotificationDto) {
     required: false,
   })
   @IsOptional()
-  @IsDateString()
-  readAt?: string;
+  readAt?: Date | string | undefined;
 }

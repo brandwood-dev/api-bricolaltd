@@ -190,8 +190,8 @@ export class BookingsService {
         const tool = await this.toolsService.findOne(booking.toolId);
         updateBookingDto.totalPrice = this.calculateTotalPrice(
           tool.basePrice,
-          startDate,
-          endDate,
+          new Date(startDate),
+          new Date(endDate),
         );
       }
     }
