@@ -1,0 +1,7 @@
+export enum ToolStatus {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  UNDER_REVIEW = 'UNDER_REVIEW',
+  REJECTED = 'REJECTED',
+  ARCHIVED = 'ARCHIVED',
+}
