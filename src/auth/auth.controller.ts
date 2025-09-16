@@ -6,7 +6,7 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
-import { EmailSenderService } from '../emails/email-sender.service';
+import { SendGridService } from '../emails/sendgrid.service';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -14,7 +14,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
-    private readonly emailSenderService: EmailSenderService,
+    private readonly sendGridService: SendGridService,
   ) {}
 
   @Post('register')
@@ -25,12 +25,11 @@ export class AuthController {
   async register(@Body() createUserDto: CreateUserDto) {
     const user = await this.usersService.create(createUserDto);
     
-    // Générer le token et le code de vérification
-    const verifyToken = await this.usersService.generateVerificationToken(user.id);
+    // Générer uniquement le code de vérification
     const verifyCode = await this.usersService.generateVerificationCode(user.id);
     
-    // Envoyer l'email avec les deux options de vérification
-    await this.emailSenderService.sendVerificationEmail(user.email, verifyToken, verifyCode);
+    // Envoyer l'email avec SendGrid (code uniquement)
+    await this.sendGridService.sendVerificationEmail(user.email, verifyCode);
     
     return this.authService.login(user);
   }

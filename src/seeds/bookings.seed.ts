@@ -38,10 +38,10 @@ export async function seedBookings(dataSource: DataSource) {
     
     const status = faker.helpers.weightedArrayElement([
       { weight: 30, value: BookingStatus.COMPLETED },
-      { weight: 25, value: BookingStatus.CONFIRMED },
+      { weight: 25, value: BookingStatus.ACCEPTED },
       { weight: 15, value: BookingStatus.PENDING },
       { weight: 10, value: BookingStatus.CANCELLED },
-      { weight: 20, value: BookingStatus.APPROVED }
+      { weight: 20, value: BookingStatus.ONGOING },
     ]);
     
     const noteTemplates = [

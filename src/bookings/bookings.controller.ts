@@ -8,14 +8,18 @@ import {
   Delete,
   UseGuards,
   Query,
+  Request,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
+import { RejectBookingDto } from './dto/reject-booking.dto';
+import { ValidateCodeDto, ValidateCodeResponseDto } from './dto/validate-code.dto';
 import { CalculatePricingDto, PricingResponseDto } from './dto/calculate-pricing.dto';
 import { CheckAvailabilityDto, AvailabilityResponseDto } from './dto/check-availability.dto';
 import { BookingStatsQueryDto, BookingStatsResponseDto } from './dto/booking-stats.dto';
+import { ConfirmToolReturnDto } from './dto/confirm-tool-return.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import {
@@ -89,6 +93,20 @@ export class BookingsController {
     return this.bookingsService.findByUserId(userId);
   }
 
+  @Get('user/owner/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all bookings where the authenticated user is the owner' })
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all bookings where the user is the tool owner.',
+    type: [Booking],
+  })
+  findByOwnerId(@Param('userId') userId: string) {
+    return this.bookingsService.findByOwnerId(userId);
+  }
+
   @Get('tool/:toolId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -148,11 +166,7 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
   cancelBooking(@Param('id') id: string, @Body() cancelBookingDto: CancelBookingDto) {
-    return this.bookingsService.cancelBooking(
-      id,
-      cancelBookingDto.cancelledBy || 'renter',
-      cancelBookingDto.reason,
-    );
+    return this.bookingsService.cancelBooking(id, cancelBookingDto);
   }
 
   @Patch(':id/complete')
@@ -169,6 +183,102 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found.' })
   completeBooking(@Param('id') id: string) {
     return this.bookingsService.completeBooking(id);
+  }
+
+  @Patch(':id/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject a booking' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The booking has been successfully rejected.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  rejectBooking(@Param('id') id: string, @Body() rejectBookingDto: RejectBookingDto) {
+    return this.bookingsService.rejectBooking(id, rejectBookingDto);
+  }
+
+  @Patch(':id/accept')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Accept a booking and generate validation code' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The booking has been successfully accepted with validation code.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  acceptBooking(@Param('id') id: string) {
+    return this.bookingsService.acceptBooking(id);
+  }
+
+  @Patch(':id/validate-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Validate booking code and update status to ONGOING' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Validation code verified successfully and booking status updated to ONGOING.',
+    type: ValidateCodeResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid validation code.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  validateBookingCode(@Param('id') id: string, @Body() validateCodeDto: ValidateCodeDto) {
+    return this.bookingsService.validateBookingCode(id, validateCodeDto.validationCode);
+  }
+
+  @Patch(':id/confirm-return')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm tool return by renter' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tool return confirmed successfully and owner notified.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  confirmToolReturn(@Param('id') id: string, @Body() confirmToolReturnDto: ConfirmToolReturnDto, @Request() req) {
+    return this.bookingsService.confirmToolReturn(id, confirmToolReturnDto, req.user.id);
+  }
+
+  @Patch(':id/confirm-pickup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm tool pickup by owner' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tool pickup confirmed successfully and booking completed.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  confirmToolPickup(@Param('id') id: string, @Request() req) {
+    return this.bookingsService.confirmToolPickup(id, req.user.id);
+  }
+
+  @Post(':id/report-pickup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report issue with tool pickup by owner' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Pickup issue reported successfully and dispute created.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  reportToolPickup(@Param('id') id: string, @Body() reportData: any, @Request() req) {
+    return this.bookingsService.reportToolPickup(id, reportData, req.user.id);
   }
 
   @Post('calculate-pricing')
@@ -231,7 +341,7 @@ export class BookingsController {
   bulkUpdateBookings(@Body() bulkActionDto: { bookingIds: string[]; action: 'confirm' | 'cancel' | 'complete'; reason?: string; adminNotes?: string }) {
     return this.bookingsService.bulkUpdateBookings(bulkActionDto.bookingIds, bulkActionDto.action, {
       reason: bulkActionDto.reason,
-      adminNotes: bulkActionDto.adminNotes
+      message: bulkActionDto.adminNotes
     });
   }
 

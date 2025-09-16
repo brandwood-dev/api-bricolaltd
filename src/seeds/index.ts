@@ -20,7 +20,6 @@ import { seedBookmarks } from './bookmarks.seed';
 import { seedAccountDeletionRequests } from './account-deletion-request.seed';
 import { seedPaymentProviders } from './payment-providers.seed';
 import { seedPaymentTransactions } from './payment-transactions.seed';
-import { seedTestUser } from './test-user.seed';
 
 async function runSeeds() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -28,7 +27,7 @@ async function runSeeds() {
 
   try {
     console.log('🌱 Starting database seeding...');
-    
+
     // Disable foreign key checks temporarily
     console.log('🔓 Disabling foreign key checks...');
     await dataSource.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -41,9 +40,6 @@ async function runSeeds() {
     // Re-enable foreign key checks
     console.log('🔒 Re-enabling foreign key checks...');
     await dataSource.query('SET FOREIGN_KEY_CHECKS = 1');
-
-    // Seed test user with complete data
-    await seedTestUser(dataSource);
 
     // Seed users and related data
     await seedUsers(dataSource);

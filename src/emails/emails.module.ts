@@ -5,6 +5,7 @@ import { Email } from './entities/email.entity';
 import { EmailsService } from './emails.service';
 import { EmailsController } from './emails.controller';
 import { EmailSenderService } from './email-sender.service';
+import { SendGridService } from './sendgrid.service';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -14,7 +15,7 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [EmailsController],
-  providers: [EmailsService, EmailSenderService],
-  exports: [EmailsService, EmailSenderService],
+  providers: [EmailsService, EmailSenderService, SendGridService],
+  exports: [EmailsService, EmailSenderService, SendGridService],
 })
 export class EmailsModule {}

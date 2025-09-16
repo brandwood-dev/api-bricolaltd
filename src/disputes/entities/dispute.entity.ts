@@ -23,10 +23,10 @@ export class Dispute {
 
   @Column()
   @ApiProperty({
-    description: 'The title of the dispute',
+    description: 'The reason for the dispute',
     example: 'Service not provided',
   })
-  title: string;
+  reason: string;
 
   @Column({ type: 'text' })
   @ApiProperty({ description: 'The description of the dispute' })
@@ -138,6 +138,14 @@ export class Dispute {
     type: [String],
   })
   evidence?: string[];
+
+  @Column({ type: 'simple-array', nullable: true })
+  @ApiProperty({
+    description: 'Array of image URLs uploaded for the dispute',
+    required: false,
+    type: [String],
+  })
+  images?: string[];
 }
 
 // Export the enum for use in other modules

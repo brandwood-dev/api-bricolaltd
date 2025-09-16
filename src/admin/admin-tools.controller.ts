@@ -7,6 +7,7 @@ import {
   Body,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -97,12 +98,16 @@ export class AdminToolsController {
   @AdminPermissions('manage_tools')
   @ApiOperation({ summary: 'Reject a tool' })
   @ApiResponse({ status: 200, description: 'Tool rejected successfully.' })
+  @ApiResponse({ status: 400, description: 'Rejection reason is required.' })
   @ApiResponse({ status: 404, description: 'Tool not found.' })
   @ApiParam({ name: 'id', description: 'Tool ID' })
   async rejectTool(
     @Param('id') id: string,
     @Body() updateToolStatusDto: UpdateToolStatusDto,
   ) {
+    if (!updateToolStatusDto.reason || updateToolStatusDto.reason.trim() === '') {
+      throw new BadRequestException('Rejection reason is required');
+    }
     return this.adminToolsService.rejectTool(id, updateToolStatusDto.reason);
   }
 

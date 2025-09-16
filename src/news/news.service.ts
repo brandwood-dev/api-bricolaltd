@@ -54,6 +54,8 @@ export class NewsService {
       imageUrl,
       additionalImages:
         additionalImages.length > 0 ? additionalImages : undefined,
+      isPublic: createNewsDto.isPublic ?? true,
+      isFeatured: createNewsDto.isFeatured ?? false,
     });
 
     return this.newsRepository.save(news);

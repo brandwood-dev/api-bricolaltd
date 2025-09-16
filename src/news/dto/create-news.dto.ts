@@ -60,19 +60,21 @@ export class CreateNewsDto {
     description: 'Whether this news article is public',
     example: true,
     default: true,
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
-  isPublic: boolean = true;
+  isPublic?: boolean;
 
   @ApiProperty({
     description: 'Whether this news article is featured on the homepage',
     example: false,
     default: false,
+    required: false,
   })
   @IsOptional()
   @IsBoolean()
-  isFeatured: boolean = false;
+  isFeatured?: boolean;
 
   @ApiProperty({
     description: 'Brief summary of the news article',
@@ -92,4 +94,9 @@ export class CreateNewsDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ description: 'The category name of the news', required: false })
+  category?: string;
 }

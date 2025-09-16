@@ -8,7 +8,10 @@ import {
   Delete,
   UseGuards,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { DisputesService } from './disputes.service';
 import { CreateDisputeDto } from './dto/create-dispute.dto';
 import { UpdateDisputeDto } from './dto/update-dispute.dto';
@@ -41,6 +44,33 @@ export class DisputesController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   create(@Body() createDisputeDto: CreateDisputeDto) {
     return this.disputesService.create(createDisputeDto);
+  }
+
+  @Post('with-images')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('images', 5, {
+    limits: { fileSize: 1024 * 1024 }, // 1MB limit
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed!'), false);
+      }
+    },
+  }))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new dispute with images' })
+  @ApiResponse({
+    status: 201,
+    description: 'The dispute with images has been successfully created.',
+    type: Dispute,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  createWithImages(
+    @Body() createDisputeDto: CreateDisputeDto,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    return this.disputesService.createWithImages(createDisputeDto, files);
   }
 
   @Get()

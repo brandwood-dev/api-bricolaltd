@@ -9,7 +9,10 @@ import { ToolPhoto } from './entities/tool-photo.entity';
 import { CreateToolDto } from './dto/create-tool.dto';
 import { UpdateToolDto } from './dto/update-tool.dto';
 import { ToolPhotoDto } from './dto/tool-photo.dto';
+import { CreateToolPhotoDto } from './dto/create-tool-photo.dto';
 import { AvailabilityStatus } from './enums/availability-status.enum';
+import { ModerationStatus } from './enums/moderation-status.enum';
+import { ToolStatus } from './enums/tool-status.enum';
 import { Booking } from '../bookings/entities/booking.entity';
 import { S3Service } from '../common/services/s3.service';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
@@ -66,23 +69,33 @@ export class ToolsService {
 
   async findAll(query?: {
     search?: string;
-    isAvailable?: boolean;
-  }): Promise<Tool[]> {
+    includeUnconfirmed?: boolean;
+    toolStatus?: string;
+    moderationStatus?: string;
+  }): Promise<{ data: Tool[]; message: string }> {
     const whereCondition: any = {};
 
     if (query?.search) {
       whereCondition.title = Like(`%${query.search}%`);
     }
 
-    if (query?.isAvailable !== undefined) {
-      whereCondition.availabilityStatus = query.isAvailable
-        ? AvailabilityStatus.AVAILABLE
-        : AvailabilityStatus.UNAVAILABLE;
+    // Handle toolStatus filter
+    if (query?.toolStatus) {
+      whereCondition.toolStatus = query.toolStatus as ToolStatus;
+    }
+
+    // Handle moderationStatus filter
+    if (query?.moderationStatus) {
+      whereCondition.moderationStatus = query.moderationStatus;
+    }
+
+    // By default, only show confirmed tools unless explicitly requested
+    if (!query?.includeUnconfirmed && !query?.moderationStatus) {
+      whereCondition.moderationStatus = ModerationStatus.CONFIRMED;
     }
 
     const tools = await this.toolsRepository.find({
-      where:
-        Object.keys(whereCondition).length > 0 ? whereCondition : undefined,
+      where: Object.keys(whereCondition).length > 0 ? whereCondition : {},
       relations: {
         owner: true,
         category: true,
@@ -98,11 +111,44 @@ export class ToolsService {
       },
     });
 
-    // Transform tools to include isAvailable property
-    return tools.map(tool => ({
-      ...tool,
-      isAvailable: tool.availabilityStatus === AvailabilityStatus.AVAILABLE,
-    }));
+    // Return tools without transformation
+    const transformedTools = tools;
+
+    return {
+      data: transformedTools,
+      message: 'Request successful',
+    };
+  }
+
+  async getFeaturedTools(limit: number = 8): Promise<{ data: Tool[]; message: string }> {
+    const tools = await this.toolsRepository.find({
+      where: {
+        moderationStatus: ModerationStatus.CONFIRMED,
+        toolStatus: ToolStatus.PUBLISHED,
+      },
+      relations: {
+        owner: true,
+        category: true,
+        subcategory: true,
+        photos: true,
+      },
+      order: {
+        createdAt: 'DESC',
+        photos: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
+      take: limit,
+    });
+
+    // Return tools without transformation
+    const transformedTools = tools;
+
+    return {
+      data: transformedTools,
+      message: 'Request successful',
+    };
   }
 
   async findOne(id: string): Promise<Tool> {
@@ -126,10 +172,7 @@ export class ToolsService {
       throw new NotFoundException(`Tool with ID ${id} not found`);
     }
 
-    return {
-      ...tool,
-      isAvailable: tool.availabilityStatus === AvailabilityStatus.AVAILABLE,
-    } as Tool;
+    return tool;
   }
 
   async findByUser(userId: string): Promise<Tool[]> {
@@ -166,6 +209,10 @@ export class ToolsService {
 
     // Update the tool with the new data
     Object.assign(tool, updateToolDto);
+    
+    // Automatically set moderation status to Pending when tool is updated
+    tool.moderationStatus = ModerationStatus.PENDING;
+    
     await this.toolsRepository.save(tool);
 
     // If files are uploaded, process them
@@ -287,7 +334,7 @@ export class ToolsService {
       where: [
         {
           toolId: toolId,
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           startDate: LessThanOrEqual(endDate),
           endDate: MoreThanOrEqual(startDate),
         },
@@ -307,7 +354,7 @@ export class ToolsService {
   // Tool Photo Management Methods
 
   async addToolPhoto(
-    createToolPhotoDto: ToolPhotoDto,
+    createToolPhotoDto: CreateToolPhotoDto,
     file: Express.Multer.File,
   ) {
     // Check if the tool exists
@@ -395,7 +442,56 @@ export class ToolsService {
     const existingTool = await this.toolsRepository.findOne({
       where: { title: name },
     });
-    
     return { isUnique: !existingTool };
+  }
+
+  async updateModerationStatus(
+    id: string,
+    status: ModerationStatus,
+  ): Promise<Tool> {
+    const tool = await this.findOne(id);
+    
+    tool.moderationStatus = status;
+    await this.toolsRepository.save(tool);
+    
+    return this.findOne(id);
+  }
+
+  async findAllForAdmin(query?: {
+    search?: string;
+    moderationStatus?: ModerationStatus;
+  }): Promise<Tool[]> {
+    const whereCondition: any = {};
+
+    if (query?.search) {
+      whereCondition.title = Like(`%${query.search}%`);
+    }
+
+    if (query?.moderationStatus) {
+      whereCondition.moderationStatus = query.moderationStatus;
+    }
+
+    const tools = await this.toolsRepository.find({
+      where:
+        Object.keys(whereCondition).length > 0 ? whereCondition : undefined,
+      relations: {
+        owner: true,
+        category: true,
+        subcategory: true,
+        photos: true,
+      },
+      order: {
+        createdAt: 'DESC',
+        photos: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
+    });
+
+    return tools.map(tool => ({
+      ...tool,
+      isAvailable: tool.availabilityStatus === AvailabilityStatus.AVAILABLE,
+    }));
   }
 }

@@ -40,8 +40,12 @@ export class CategoriesController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  createCategory(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoriesService.createCategory(createCategoryDto);
+  async createCategory(@Body() createCategoryDto: CreateCategoryDto) {
+    const category = await this.categoriesService.createCategory(createCategoryDto);
+    return {
+      data: category,
+      message: 'Category created successfully'
+    };
   }
 
   @Get()
@@ -51,8 +55,12 @@ export class CategoriesController {
     description: 'Return all categories.',
     type: [Category],
   })
-  findAllCategories() {
-    return this.categoriesService.findAllCategories();
+  async findAllCategories() {
+    const categories = await this.categoriesService.findAllCategories();
+    return {
+      data: categories,
+      message: 'Categories retrieved successfully'
+    };
   }
 
   @Get('subcategories')
@@ -75,8 +83,12 @@ export class CategoriesController {
     type: Category,
   })
   @ApiResponse({ status: 404, description: 'Category not found.' })
-  findCategoryById(@Param('id') id: string) {
-    return this.categoriesService.findCategoryById(id);
+  async findCategoryById(@Param('id') id: string) {
+    const category = await this.categoriesService.findCategoryById(id);
+    return {
+      data: category,
+      message: 'Category retrieved successfully'
+    };
   }
 
   @Delete(':id')

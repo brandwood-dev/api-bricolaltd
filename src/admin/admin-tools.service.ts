@@ -6,6 +6,7 @@ import { Category } from '../categories/entities/category.entity';
 import { Subcategory } from '../categories/entities/subcategory.entity';
 import { User } from '../users/entities/user.entity';
 import { ToolStatus } from '../tools/enums/tool-status.enum';
+import { ModerationStatus } from '../tools/enums/moderation-status.enum';
 import { UpdateToolStatusDto } from './dto/update-tool-status.dto';
 
 export interface AdminToolFilters {
@@ -46,6 +47,7 @@ export class AdminToolsService {
       .leftJoinAndSelect('tool.category', 'category')
       .leftJoinAndSelect('tool.subcategory', 'subcategory')
       .leftJoinAndSelect('tool.owner', 'owner')
+      .leftJoinAndSelect('tool.photos', 'photos')
       .select([
         'tool.id',
         'tool.title',
@@ -58,10 +60,10 @@ export class AdminToolsService {
         'tool.imageUrl',
         'tool.toolStatus',
         'tool.availabilityStatus',
+        'tool.moderationStatus',
         'tool.createdAt',
         'tool.updatedAt',
         'tool.publishedAt',
-        'tool.moderatedAt',
         'category.id',
         'category.name',
         'subcategory.id',
@@ -70,7 +72,13 @@ export class AdminToolsService {
         'owner.firstName',
         'owner.lastName',
         'owner.email',
+        'photos.id',
+        'photos.url',
+        'photos.isPrimary',
+        'photos.createdAt',
       ])
+      .addOrderBy('photos.isPrimary', 'DESC')
+      .addOrderBy('photos.createdAt', 'ASC')
       .orderBy('tool.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
@@ -96,7 +104,8 @@ export class AdminToolsService {
         'subcategory',
         'owner',
         'bookings',
-        'bookings.user',
+        'bookings.renter',
+        'photos',
       ],
     });
 
@@ -108,22 +117,35 @@ export class AdminToolsService {
   }
 
   async getToolStats() {
-    const [total, published, underReview, rejected, archived, draft] = await Promise.all([
+    const [
+      total, 
+      published, 
+      underReview, 
+      archived, 
+      draft,
+      moderationPending,
+      moderationConfirmed,
+      moderationRejected
+    ] = await Promise.all([
       this.toolRepository.count(),
       this.toolRepository.count({ where: { toolStatus: ToolStatus.PUBLISHED } }),
       this.toolRepository.count({ where: { toolStatus: ToolStatus.UNDER_REVIEW } }),
-      this.toolRepository.count({ where: { toolStatus: ToolStatus.REJECTED } }),
       this.toolRepository.count({ where: { toolStatus: ToolStatus.ARCHIVED } }),
       this.toolRepository.count({ where: { toolStatus: ToolStatus.DRAFT } }),
+      this.toolRepository.count({ where: { moderationStatus: ModerationStatus.PENDING } }),
+      this.toolRepository.count({ where: { moderationStatus: ModerationStatus.CONFIRMED } }),
+      this.toolRepository.count({ where: { moderationStatus: ModerationStatus.REJECTED } }),
     ]);
 
     return {
       total,
       published,
       underReview,
-      rejected,
       archived,
       draft,
+      moderationPending,
+      moderationConfirmed,
+      moderationRejected,
     };
   }
 
@@ -136,23 +158,25 @@ export class AdminToolsService {
 
     tool.toolStatus = ToolStatus.PUBLISHED;
     tool.publishedAt = new Date();
-    tool.moderatedAt = new Date();
+    tool.moderationStatus = ModerationStatus.CONFIRMED;
 
     return this.toolRepository.save(tool);
   }
 
-  async rejectTool(id: string, reason?: string): Promise<Tool> {
+  async rejectTool(id: string, reason: string): Promise<Tool> {
+    if (!reason || !reason.trim()) {
+      throw new BadRequestException('Rejection reason is required');
+    }
+
     const tool = await this.findOneForAdmin(id);
     
-    if (tool.toolStatus === ToolStatus.REJECTED) {
+    if (tool.moderationStatus === ModerationStatus.REJECTED) {
       throw new BadRequestException('Tool is already rejected');
     }
 
-    tool.toolStatus = ToolStatus.REJECTED;
-    tool.moderatedAt = new Date();
-    
-    // You might want to store the rejection reason in a separate field or audit log
-    // For now, we'll just update the status
+    tool.toolStatus = ToolStatus.DRAFT;
+    tool.moderationStatus = ModerationStatus.REJECTED;
+    tool.rejectionReason = reason.trim();
 
     return this.toolRepository.save(tool);
   }
@@ -162,10 +186,10 @@ export class AdminToolsService {
     
     if (updateDto.status) {
       tool.toolStatus = updateDto.status;
-      tool.moderatedAt = new Date();
       
       if (updateDto.status === ToolStatus.PUBLISHED) {
         tool.publishedAt = new Date();
+        tool.moderationStatus = ModerationStatus.CONFIRMED;
       }
     }
 
@@ -201,7 +225,7 @@ export class AdminToolsService {
     }
 
     tool.toolStatus = ToolStatus.ARCHIVED;
-    tool.moderatedAt = new Date();
+    tool.moderationStatus = ModerationStatus.CONFIRMED;
 
     return this.toolRepository.save(tool);
   }
@@ -214,7 +238,7 @@ export class AdminToolsService {
     }
 
     tool.toolStatus = ToolStatus.PUBLISHED;
-    tool.moderatedAt = new Date();
+    tool.moderationStatus = ModerationStatus.CONFIRMED;
     tool.publishedAt = new Date();
 
     return this.toolRepository.save(tool);

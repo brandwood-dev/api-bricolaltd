@@ -75,7 +75,11 @@ export class User {
 
   @ManyToOne(() => Country, { nullable: true })
   @JoinColumn({ name: 'country_id' })
-  @ApiProperty({ description: 'The country of the user', type: () => Country, required: false })
+  @ApiProperty({
+    description: 'The country of the user',
+    type: () => Country,
+    required: false,
+  })
   country?: Country;
 
   @Column({ name: 'country_id', type: 'char', length: 2, nullable: true })
@@ -95,7 +99,7 @@ export class User {
     example: '+1',
     required: false,
   })
-  phonePrefix?: string;
+  prefix?: string;
 
   @Column({ nullable: true })
   @ApiProperty({ description: 'The address of the user', required: false })
@@ -180,7 +184,10 @@ export class User {
   isSuspended: boolean;
 
   @Column({ name: 'must_change_password', default: false })
-  @ApiProperty({ description: 'Whether the user must change password on next login', default: false })
+  @ApiProperty({
+    description: 'Whether the user must change password on next login',
+    default: false,
+  })
   mustChangePassword: boolean;
 
   @Column({ nullable: true, name: 'verified_at' })

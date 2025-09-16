@@ -28,6 +28,7 @@ import { Setting } from '../admin/entities/setting.entity';
 import { SecurityLog } from '../admin/entities/security-log.entity';
 import { BlockedIp } from '../admin/entities/blocked-ip.entity';
 import { Contact } from '../contact/entities/contact.entity';
+import { AdminNotification } from '../admin/entities/admin-notification.entity';
 
 export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
   type: 'mysql',
@@ -66,6 +67,7 @@ export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptio
     SecurityLog,
     BlockedIp,
     Contact,
+    AdminNotification,
   ],
   migrations: ['dist/migrations/*.js'],
   synchronize: configService.get('DB_SYNCHRONIZE') === 'true',

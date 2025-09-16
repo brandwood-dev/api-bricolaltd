@@ -3,7 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../users/entities/user.entity';
-import { EmailSenderService } from '../emails/email-sender.service';
+import { SendGridService } from '../emails/sendgrid.service';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 
@@ -12,7 +12,7 @@ export class AuthService {
  constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly emailSenderService: EmailSenderService,
+    private readonly sendGridService: SendGridService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -134,12 +134,11 @@ export class AuthService {
       throw new BadRequestException('Email déjà vérifié');
     }
     
-    // Générer un nouveau token et code de vérification
-    const verifyToken = await this.usersService.generateVerificationToken(user.id);
+    // Générer uniquement le code de vérification
     const verifyCode = await this.usersService.generateVerificationCode(user.id);
     
-    // Envoyer l'email de vérification avec les deux options
-    await this.emailSenderService.sendVerificationEmail(user.email, verifyToken, verifyCode);
+    // Envoyer l'email de vérification avec SendGrid (code uniquement)
+    await this.sendGridService.sendVerificationEmail(user.email, verifyCode);
     
     return { message: 'Email de vérification renvoyé' };
   }
@@ -156,7 +155,7 @@ export class AuthService {
     const resetToken = await this.usersService.generatePasswordResetToken(user.id);
     
     // Envoyer l'email de réinitialisation
-    await this.emailSenderService.sendPasswordResetEmail(user.email, resetToken);
+    await this.sendGridService.sendPasswordResetEmail(user.email, resetToken);
     
     return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
   }

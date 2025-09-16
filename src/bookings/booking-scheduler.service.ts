@@ -33,7 +33,7 @@ export class BookingSchedulerService {
     try {
       const bookingsStartingTomorrow = await this.bookingsRepository.find({
         where: {
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           startDate: Between(tomorrow, dayAfterTomorrow),
         },
         relations: ['user', 'tool'],
@@ -71,7 +71,7 @@ export class BookingSchedulerService {
     try {
       const bookingsEndingTomorrow = await this.bookingsRepository.find({
         where: {
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           endDate: Between(tomorrow, dayAfterTomorrow),
         },
         relations: ['user', 'tool'],
@@ -103,7 +103,7 @@ export class BookingSchedulerService {
     try {
       const overdueBookings = await this.bookingsRepository.find({
         where: {
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           endDate: LessThan(today),
         },
         relations: ['user', 'tool'],
@@ -136,7 +136,7 @@ export class BookingSchedulerService {
     try {
       const bookingsToComplete = await this.bookingsRepository.find({
         where: {
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           endDate: LessThan(threeDaysAgo),
         },
         relations: ['user', 'tool'],

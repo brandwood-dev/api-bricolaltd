@@ -37,6 +37,32 @@ export class NotificationsController {
     return this.notificationsService.create(createNotificationDto);
   }
 
+  @Post('system')
+  @ApiOperation({ summary: 'Create a system notification for current user' })
+  @ApiResponse({ status: 201, description: 'System notification created successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  createSystemNotification(
+    @Request() req,
+    @Body() body: {
+      type: string;
+      title: string;
+      message: string;
+      relatedId?: string;
+      relatedType?: string;
+      link?: string;
+    },
+  ) {
+    return this.notificationsService.createSystemNotification(
+      req.user.id,
+      body.type as NotificationType,
+      body.title,
+      body.message,
+      body.relatedId,
+      body.relatedType,
+      body.link,
+    );
+  }
+
   @Get()
   @UseGuards(AdminGuard)
   @ApiOperation({ summary: 'Get all notifications with pagination and filters (Admin only)' })

@@ -22,7 +22,7 @@ export async function seedDisputes(dataSource: DataSource) {
   }
   
   const disputeStatuses = Object.values(DisputeStatus);
-  const disputeTitles = [
+  const disputeReasons = [
     'Tool Damage Dispute', 'Tool Not Returned', 'Quality Issue', 'Payment Dispute',
     'Service Not Provided', 'Tool Malfunction', 'Late Return Fee', 'Cleaning Fee Dispute',
     'Booking Cancellation', 'Overcharge Dispute', 'Tool Missing Parts', 'Delivery Issue'
@@ -32,7 +32,7 @@ export async function seedDisputes(dataSource: DataSource) {
   for (let i = 0; i < 50; i++) {
     const status = faker.helpers.arrayElement(disputeStatuses);
     const disputeData = {
-      title: faker.helpers.arrayElement(disputeTitles),
+      reason: faker.helpers.arrayElement(disputeReasons),
       status,
       description: faker.lorem.sentences(faker.number.int({ min: 2, max: 4 })),
       refundAmount: faker.number.float({ min: 10, max: 500, fractionDigits: 2 }),
@@ -53,7 +53,7 @@ export async function seedDisputes(dataSource: DataSource) {
     
     if (!existingDispute) {
       const dispute = disputeRepository.create({
-        title: disputeData.title,
+        reason: disputeData.reason,
         description: disputeData.description,
         status: disputeData.status,
         refundAmount: disputeData.refundAmount,

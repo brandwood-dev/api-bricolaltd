@@ -75,6 +75,9 @@ export class News {
   })
   categoryId?: string;
 
+  @Column({ nullable: true })
+  category?: string;
+
   @CreateDateColumn()
   @ApiProperty({ description: 'The date when the news was created' })
   createdAt: Date;

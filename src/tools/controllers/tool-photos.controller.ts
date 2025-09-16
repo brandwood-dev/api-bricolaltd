@@ -22,6 +22,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { ToolPhotoDto } from '../dto/tool-photo.dto';
+import { CreateToolPhotoDto } from '../dto/create-tool-photo.dto';
 
 @ApiTags('tool-photos')
 @Controller('tool-photos')
@@ -40,12 +41,12 @@ export class ToolPhotosController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'No file uploaded.' })
-  addPhoto(@Body() ToolPhotoDto: ToolPhotoDto, @Req() req: any) {
+  addPhoto(@Body() createToolPhotoDto: CreateToolPhotoDto, @Req() req: any) {
     const file = req.file;
     if (!file) {
       throw new NotFoundException('No file uploaded');
     }
-    return this.toolsService.addToolPhoto(ToolPhotoDto, file);
+    return this.toolsService.addToolPhoto(createToolPhotoDto, file);
   }
 
   @Patch(':id/set-primary')

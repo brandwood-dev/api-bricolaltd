@@ -78,6 +78,68 @@ export class Booking {
   @Column({ name: 'renter_id' })
   renterId: string;
 
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'owner_id' })
+  @ApiProperty({
+    description: 'The owner of the tool',
+    type: () => User,
+  })
+  owner: User;
+
+  @Column({ name: 'owner_id' })
+  ownerId: string;
+
+  @Column({ name: 'validation_code', nullable: true })
+  @ApiProperty({
+    description: 'The validation code for the booking',
+    required: false,
+  })
+  validationCode?: string;
+
+  @Column({ name: 'has_active_claim', default: false })
+  @ApiProperty({
+    description: 'Indicates if there is an active claim for the booking',
+    default: false,
+  })
+  hasActiveClaim?: boolean;
+
+  @Column({ name: 'cancellation_reason', nullable: true })
+  @ApiProperty({ description: 'The reason for cancellation', required: false })
+  cancellationReason?: string;
+
+  @Column({ name: 'cancellation_message', nullable: true })
+  @ApiProperty({ description: 'The message for cancellation', required: false })
+  cancellationMessage?: string;
+
+  @Column({ name: 'renter_has_returned', default: false })
+  @ApiProperty({
+    description: 'Indicates if the renter has returned the tool',
+    default: false,
+  })
+  renterHasReturned?: boolean;
+
+  @Column({ name: 'has_used_return_button', default: false })
+  @ApiProperty({
+    description: 'Indicates if the renter has used the return button',
+    default: false,
+  })
+  hasUsedReturnButton?: boolean;
+
+  @Column({ name: 'refusal_reason', nullable: true })
+  @ApiProperty({ description: 'The reason for refusal', required: false })
+  refusalReason?: string;
+
+  @Column({ name: 'refusal_message', nullable: true })
+  @ApiProperty({ description: 'The message for refusal', required: false })
+  refusalMessage?: string;
+
+  @Column({ name: 'pickup_tool', default: false })
+  @ApiProperty({
+    description: 'Indicates if the tool has been picked up by the owner',
+    default: false,
+  })
+  pickupTool?: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   @ApiProperty({ description: 'The date when the booking was created' })
   createdAt: Date;

@@ -18,6 +18,7 @@ import { ToolPhoto } from './tool-photo.entity';
 import { ToolCondition } from '../enums/tool-condition.enum';
 import { ToolStatus } from '../enums/tool-status.enum';
 import { AvailabilityStatus } from '../enums/availability-status.enum';
+import { ModerationStatus } from '../enums/moderation-status.enum';
 
 @Entity('tools')  // Changed from 'tool' to 'tools'
 export class Tool {
@@ -185,12 +186,26 @@ export class Tool {
   })
   publishedAt?: Date;
 
-  @Column({ name: 'moderated_at', nullable: true })
+  @Column({
+    name: 'moderation_status',
+    type: 'enum',
+    enum: ModerationStatus,
+    default: ModerationStatus.PENDING,
+  })
   @ApiProperty({
-    description: 'The date when the tool was moderated',
+    description: 'The moderation status of the tool',
+    enum: ModerationStatus,
+    example: ModerationStatus.PENDING,
+  })
+  moderationStatus: ModerationStatus;
+
+  @Column({ name: 'rejection_reason', type: 'varchar', length: 500, nullable: true })
+  @ApiProperty({
+    description: 'The reason for rejection if the tool was rejected',
+    example: 'Contenu inapproprié',
     required: false,
   })
-  moderatedAt?: Date;
+  rejectionReason?: string;
 
   @OneToMany(() => Booking, (booking) => booking.tool)
   @ApiProperty({

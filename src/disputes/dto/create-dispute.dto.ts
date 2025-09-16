@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsUUID, IsString, IsOptional, IsArray } from 'class-validator';
 
 export class CreateDisputeDto {
   @ApiProperty({ description: 'The ID of the user who created the dispute' })
@@ -18,10 +18,30 @@ export class CreateDisputeDto {
   reason: string;
 
   @ApiProperty({
-    description: 'Additional details about the dispute',
+    description: 'The description of the dispute',
     required: false,
   })
   @IsOptional()
   @IsString()
-  details?: string;
+  description?: string;
+
+  @ApiProperty({ description: 'The specific reason for reporting the dispute' })
+  @IsNotEmpty()
+  @IsString()
+  reportReason: string;
+
+  @ApiProperty({ description: 'The detailed message explaining the dispute' })
+  @IsNotEmpty()
+  @IsString()
+  reportMessage: string;
+
+  @ApiProperty({
+    description: 'Array of image URLs uploaded for the dispute',
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 }

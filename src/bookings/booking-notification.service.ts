@@ -70,6 +70,34 @@ export class BookingNotificationService {
     );
   }
 
+  async notifyBookingAccepted(booking: Booking): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter with validation code
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_CONFIRMED,
+      'Réservation acceptée',
+      `Votre réservation pour "${tool.title}" a été acceptée ! Code de validation: ${booking.validationCode}. Présentez ce code lors de la récupération.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_CONFIRMED,
+      'Réservation acceptée',
+      `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}. Code de validation généré: ${booking.validationCode}`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+  }
+
   async notifyBookingCancelled(booking: Booking, cancelledBy: 'renter' | 'owner', reason?: string): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
@@ -98,6 +126,62 @@ export class BookingNotificationService {
         `/bookings/${booking.id}`,
       );
     }
+  }
+
+  async notifyBookingRejected(booking: Booking, refusalReason?: string): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_CANCELLED,
+      'Demande de réservation refusée',
+      `Votre demande de réservation pour "${tool.title}" a été refusée.${refusalReason ? ` Raison: ${refusalReason}` : ''}`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_CANCELLED,
+      'Demande de réservation refusée',
+      `Vous avez refusé la demande de réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName}.`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+  }
+
+  async notifyBookingStarted(booking: Booking): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_CONFIRMED,
+      'Réservation commencée',
+      `Votre réservation pour "${tool.title}" a commencé ! Profitez bien de votre location.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_CONFIRMED,
+      'Réservation commencée',
+      `La réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName} a commencé.`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
   }
 
   async notifyBookingCompleted(booking: Booking): Promise<void> {
@@ -246,6 +330,34 @@ export class BookingNotificationService {
       NotificationType.PAYMENT_FAILED,
       'Échec du paiement',
       `Le paiement pour votre réservation de "${tool.title}" a échoué. Veuillez réessayer.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+  }
+
+  async notifyToolReturned(booking: Booking, notes?: string): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify owner
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_COMPLETED,
+      'Outil retourné',
+      `${renter.firstName} ${renter.lastName} a confirmé le retour de "${tool.title}".${notes ? ` Notes: ${notes}` : ''}`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+
+    // Notify renter (confirmation)
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_COMPLETED,
+      'Retour confirmé',
+      `Vous avez confirmé le retour de "${tool.title}". Merci pour votre location !`,
       booking.id,
       'booking',
       `/bookings/${booking.id}`,

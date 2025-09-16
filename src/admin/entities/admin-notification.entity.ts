@@ -71,7 +71,7 @@ export class AdminNotification {
   userName?: string;
 
   @ApiProperty({ description: 'Additional metadata as JSON' })
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'json', nullable: true })
   metadata?: Record<string, any>;
 
   @ApiProperty({ description: 'When the notification was read' })

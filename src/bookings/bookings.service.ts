@@ -15,9 +15,21 @@ import {
 import { Booking } from './entities/booking.entity';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
-import { CalculatePricingDto, PricingResponseDto } from './dto/calculate-pricing.dto';
-import { CheckAvailabilityDto, AvailabilityResponseDto } from './dto/check-availability.dto';
-import { BookingStatsQueryDto, BookingStatsResponseDto } from './dto/booking-stats.dto';
+import { CancelBookingDto } from './dto/cancel-booking.dto';
+import { RejectBookingDto } from './dto/reject-booking.dto';
+import { ConfirmToolReturnDto } from './dto/confirm-tool-return.dto';
+import {
+  CalculatePricingDto,
+  PricingResponseDto,
+} from './dto/calculate-pricing.dto';
+import {
+  CheckAvailabilityDto,
+  AvailabilityResponseDto,
+} from './dto/check-availability.dto';
+import {
+  BookingStatsQueryDto,
+  BookingStatsResponseDto,
+} from './dto/booking-stats.dto';
 import { ToolsService } from '../tools/tools.service';
 import { UsersService } from '../users/users.service';
 import { AvailabilityStatus } from '../tools/enums/availability-status.enum';
@@ -37,7 +49,17 @@ export class BookingsService {
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    const { renterId, toolId, startDate, endDate } = createBookingDto;
+    const {
+      renterId,
+      toolId,
+      ownerId,
+      startDate,
+      endDate,
+      message,
+      paymentMethod,
+      totalPrice,
+      pickupHour,
+    } = createBookingDto;
 
     // Validate dates
     const start = new Date(startDate);
@@ -62,6 +84,9 @@ export class BookingsService {
       throw new BadRequestException('Tool is not available for booking');
     }
 
+    // Get ownerId from tool if not provided
+    const finalOwnerId = ownerId || tool.ownerId;
+
     // Validate user exists
     await this.usersService.findOne(renterId);
 
@@ -70,7 +95,7 @@ export class BookingsService {
       where: [
         {
           toolId,
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           startDate: LessThanOrEqual(end),
           endDate: MoreThanOrEqual(start),
         },
@@ -90,24 +115,41 @@ export class BookingsService {
     }
 
     // Create and save the booking
-    const booking = this.bookingsRepository.create({
+    const bookingData: any = {
       ...createBookingDto,
+      toolId: toolId,
       startDate: start,
       endDate: end,
       status: BookingStatus.PENDING,
-      totalPrice: this.calculateTotalPrice(
-        tool.basePrice,
-        start,
-        end,
-      ),
-    });
+      ownerId: finalOwnerId,
+      totalPrice: totalPrice,
+      paymentMethod: paymentMethod,
+      message: message,
+      pickupHour: pickupHour,
+    };
 
-    const savedBooking = await this.bookingsRepository.save(booking);
-    
+    // Convert pickupHour string to Date if provided
+    if (createBookingDto.pickupHour) {
+      // Create a date object with today's date and the specified time
+      const [hours, minutes] = createBookingDto.pickupHour.split(':');
+      const pickupDate = new Date();
+      pickupDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      bookingData.pickupHour = pickupDate;
+    }
+
+    const booking = this.bookingsRepository.create(bookingData);
+    const savedBookings = await this.bookingsRepository.save(booking);
+    const savedBooking = Array.isArray(savedBookings)
+      ? savedBookings[0]
+      : savedBookings;
+
     // Send notification
-    await this.bookingNotificationService.notifyBookingCreated(savedBooking);
-    await this.bookingNotificationsService.notifyBookingCreated(savedBooking);
-    
+    try {
+      await this.bookingNotificationService.notifyBookingCreated(savedBooking);
+    } catch (error) {
+      console.error('Failed to send booking notification:', error);
+    }
+
     return savedBooking;
   }
 
@@ -125,7 +167,7 @@ export class BookingsService {
 
   async findAll(): Promise<Booking[]> {
     return this.bookingsRepository.find({
-      relations: ['user', 'tool'],
+      relations: ['renter', 'tool', 'tool.photos', 'owner'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -133,7 +175,7 @@ export class BookingsService {
   async findOne(id: string): Promise<Booking> {
     const booking = await this.bookingsRepository.findOne({
       where: { id },
-      relations: ['user', 'tool'],
+      relations: ['renter', 'tool', 'tool.photos', 'owner'],
     });
 
     if (!booking) {
@@ -146,7 +188,7 @@ export class BookingsService {
   async findByUserId(userId: string): Promise<Booking[]> {
     return this.bookingsRepository.find({
       where: { renterId: userId },
-      relations: ['tool'],
+      relations: ['tool', 'tool.owner', 'tool.photos', 'owner', 'renter'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -154,7 +196,15 @@ export class BookingsService {
   async findByToolId(toolId: string): Promise<Booking[]> {
     return this.bookingsRepository.find({
       where: { toolId },
-      relations: ['user'],
+      relations: ['renter', 'owner'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async findByOwnerId(ownerId: string): Promise<Booking[]> {
+    return this.bookingsRepository.find({
+      where: { ownerId },
+      relations: ['tool', 'tool.owner', 'tool.photos', 'owner', 'renter'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -174,7 +224,9 @@ export class BookingsService {
         .createQueryBuilder('booking')
         .where('booking.toolId = :toolId', { toolId: booking.toolId })
         .andWhere('booking.id != :id', { id })
-        .andWhere('booking.status IN (:...statuses)', { statuses: [BookingStatus.CONFIRMED, BookingStatus.PENDING] })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: [BookingStatus.ACCEPTED, BookingStatus.PENDING],
+        })
         .andWhere('booking.startDate <= :endDate', { endDate })
         .andWhere('booking.endDate >= :startDate', { startDate })
         .getMany();
@@ -209,38 +261,57 @@ export class BookingsService {
       );
     }
 
-    booking.status = BookingStatus.CONFIRMED;
+    booking.status = BookingStatus.ACCEPTED;
     const savedBooking = await this.bookingsRepository.save(booking);
-    
+
     // Send notification
-    await this.bookingNotificationService.notifyBookingConfirmed(savedBooking);
-    await this.bookingNotificationsService.notifyBookingConfirmed(savedBooking);
-    
+    try {
+      await this.bookingNotificationService.notifyBookingConfirmed(
+        savedBooking,
+      );
+    } catch (error) {
+      console.error('Failed to send booking confirmation notification:', error);
+    }
+
     return savedBooking;
   }
 
-  async cancelBooking(id: string, cancelledBy: 'renter' | 'owner' = 'renter', reason?: string): Promise<Booking> {
+  async cancelBooking(
+    id: string,
+    cancelBookingDto: CancelBookingDto,
+  ): Promise<Booking> {
     const booking = await this.findOne(id);
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('Booking is already cancelled');
+    }
 
     if (booking.status === BookingStatus.COMPLETED) {
       throw new BadRequestException('Cannot cancel a completed booking');
     }
 
     booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = cancelBookingDto.reason;
+    booking.cancellationMessage = cancelBookingDto.cancellationMessage;
     const savedBooking = await this.bookingsRepository.save(booking);
-    
+
     // Send notification
-    await this.bookingNotificationService.notifyBookingCancelled(savedBooking, cancelledBy, reason);
-    const cancelType = cancelledBy === 'renter' ? 'client' : 'provider';
-    await this.bookingNotificationsService.notifyBookingCancelled(savedBooking, cancelType);
-    
+    await this.bookingNotificationService.notifyBookingCancelled(
+      savedBooking,
+      'renter',
+      cancelBookingDto.reason,
+    );
+
     return savedBooking;
   }
 
   async completeBooking(id: string): Promise<Booking> {
     const booking = await this.findOne(id);
 
-    if (booking.status !== BookingStatus.CONFIRMED) {
+    if (booking.status !== BookingStatus.ACCEPTED) {
       throw new BadRequestException(
         `Booking cannot be completed because it is ${booking.status}`,
       );
@@ -248,12 +319,159 @@ export class BookingsService {
 
     booking.status = BookingStatus.COMPLETED;
     const savedBooking = await this.bookingsRepository.save(booking);
-    
+
     // Send notification
-    await this.bookingNotificationService.notifyBookingCompleted(savedBooking);
-    await this.bookingNotificationsService.notifyBookingCompleted(savedBooking);
-    
+    try {
+      await this.bookingNotificationService.notifyBookingCompleted(
+        savedBooking,
+      );
+    } catch (error) {
+      console.error('Failed to send booking completion notification:', error);
+    }
+
     return savedBooking;
+  }
+
+  async rejectBooking(
+    id: string,
+    rejectBookingDto: RejectBookingDto,
+  ): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        `Booking cannot be rejected because it is ${booking.status}`,
+      );
+    }
+
+    booking.status = BookingStatus.REJECTED;
+    booking.refusalReason = rejectBookingDto.refusalReason;
+    booking.refusalMessage = rejectBookingDto.refusalMessage;
+
+    const savedBooking = await this.bookingsRepository.save(booking);
+
+    // Send notification
+    try {
+      await this.bookingNotificationService.notifyBookingRejected(
+        savedBooking,
+        rejectBookingDto.refusalReason,
+      );
+    } catch (error) {
+      console.error('Failed to send booking rejection notification:', error);
+    }
+
+    return savedBooking;
+  }
+
+  async acceptBooking(id: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        `Booking cannot be accepted because it is ${booking.status}`,
+      );
+    }
+
+    // Generate 6-character alphanumeric validation code
+    const validationCode = this.generateValidationCode();
+
+    booking.status = BookingStatus.ACCEPTED;
+    booking.validationCode = validationCode;
+
+    const savedBooking = await this.bookingsRepository.save(booking);
+
+    // Send notification with validation code
+    try {
+      await this.bookingNotificationService.notifyBookingAccepted(
+        savedBooking,
+      );
+    } catch (error) {
+      console.error('Failed to send booking acceptance notification:', error);
+    }
+
+    return savedBooking;
+  }
+
+  async validateBookingCode(id: string, validationCode: string): Promise<{ message: string; data: Booking }> {
+    const booking = await this.findOne(id);
+
+    if (booking.status !== BookingStatus.ACCEPTED) {
+      throw new BadRequestException(
+        `Booking cannot be validated because it is ${booking.status}. Only ACCEPTED bookings can be validated.`,
+      );
+    }
+
+    if (!booking.validationCode) {
+      throw new BadRequestException(
+        'No validation code found for this booking',
+      );
+    }
+
+    if (booking.validationCode !== validationCode) {
+      throw new BadRequestException(
+        'Invalid validation code provided',
+      );
+    }
+
+    // Start transaction to ensure data consistency
+    const queryRunner = this.bookingsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Update booking status to ONGOING
+      booking.status = BookingStatus.ONGOING;
+      
+      // If booking has active claim, close it and update related dispute
+      if (booking.hasActiveClaim) {
+        booking.hasActiveClaim = false;
+        
+        // Find and close the active dispute for this booking
+        const dispute = await queryRunner.manager.findOne('Dispute', {
+          where: { bookingId: id, status: 'PENDING' },
+        });
+        
+        if (dispute) {
+          await queryRunner.manager.update('Dispute', { bookingId: id, status: 'PENDING' }, {
+            status: 'CLOSED',
+            updatedAt: new Date(),
+          });
+        }
+      }
+      
+      const savedBooking = await queryRunner.manager.save(booking);
+      
+      // Commit transaction
+      await queryRunner.commitTransaction();
+      
+      // Send notifications to both parties
+      try {
+        await this.bookingNotificationService.notifyBookingStarted(savedBooking);
+      } catch (error) {
+        console.error('Failed to send booking started notification:', error);
+      }
+
+      return {
+        message: 'Validation code verified successfully. Booking status updated to ONGOING.',
+        data: savedBooking,
+      };
+    } catch (error) {
+      // Rollback transaction on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
+    }
+  }
+
+  private generateValidationCode(): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
   }
 
   async remove(id: string): Promise<void> {
@@ -261,63 +479,67 @@ export class BookingsService {
     await this.bookingsRepository.remove(booking);
   }
 
-  async calculatePricing(calculatePricingDto: CalculatePricingDto): Promise<PricingResponseDto> {
+  async calculatePricing(
+    calculatePricingDto: CalculatePricingDto,
+  ): Promise<PricingResponseDto> {
     const tool = await this.toolsService.findOne(calculatePricingDto.toolId);
-    
+
     const startDate = new Date(calculatePricingDto.startDate);
     const endDate = new Date(calculatePricingDto.endDate);
-    
+
     // Validate dates
     if (startDate >= endDate) {
       throw new BadRequestException('End date must be after start date');
     }
-    
+
     if (startDate < new Date()) {
       throw new BadRequestException('Start date cannot be in the past');
     }
-    
+
     const totalDays = this.calculateDays(startDate, endDate);
     const subtotal = tool.basePrice * totalDays;
-    
+
     // Calculate fees (5% platform fee)
     const fees = Math.round(subtotal * 0.05 * 100) / 100;
-    
+
     // Calculate deposit (20% of subtotal, minimum 50)
-    const deposit = Math.max(Math.round(subtotal * 0.20 * 100) / 100, 50);
-    
+    const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
+
     const totalAmount = subtotal + fees + deposit;
-    
+
     return {
       basePrice: tool.basePrice,
       totalDays,
       subtotal,
       fees,
       deposit,
-      totalAmount
+      totalAmount,
     };
   }
 
-  async checkAvailability(checkAvailabilityDto: CheckAvailabilityDto): Promise<AvailabilityResponseDto> {
+  async checkAvailability(
+    checkAvailabilityDto: CheckAvailabilityDto,
+  ): Promise<AvailabilityResponseDto> {
     const { toolId, startDate, endDate } = checkAvailabilityDto;
-    
+
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (start >= end) {
       throw new BadRequestException('End date must be after start date');
     }
-    
+
     if (start < new Date()) {
       throw new BadRequestException('Start date cannot be in the past');
     }
-    
+
     // Check for conflicting bookings
     const conflictingBookings = await this.bookingsRepository.find({
       where: [
         {
           toolId,
-          status: BookingStatus.CONFIRMED,
+          status: BookingStatus.ACCEPTED,
           startDate: LessThanOrEqual(end),
           endDate: MoreThanOrEqual(start),
         },
@@ -329,45 +551,53 @@ export class BookingsService {
         },
         {
           toolId,
-          status: BookingStatus.APPROVED,
+          status: BookingStatus.ONGOING,
           startDate: LessThanOrEqual(end),
           endDate: MoreThanOrEqual(start),
         },
       ],
       relations: ['user'],
     });
-    
+
     const available = conflictingBookings.length === 0;
     const unavailableDates: string[] = [];
-    
+
     // Generate list of unavailable dates
-    conflictingBookings.forEach(booking => {
+    conflictingBookings.forEach((booking) => {
       const bookingStart = new Date(booking.startDate);
       const bookingEnd = new Date(booking.endDate);
-      
-      for (let d = new Date(bookingStart); d <= bookingEnd; d.setDate(d.getDate() + 1)) {
+
+      for (
+        let d = new Date(bookingStart);
+        d <= bookingEnd;
+        d.setDate(d.getDate() + 1)
+      ) {
         unavailableDates.push(d.toISOString().split('T')[0]);
       }
     });
-    
-    const conflicts = conflictingBookings.map(booking => ({
+
+    const conflicts = conflictingBookings.map((booking) => ({
       id: booking.id,
       startDate: booking.startDate.toISOString(),
       endDate: booking.endDate.toISOString(),
-      status: booking.status
+      status: booking.status,
     }));
-    
+
     return {
       available,
       unavailableDates: [...new Set(unavailableDates)], // Remove duplicates
-      message: available ? 'Tool is available for the requested dates' : 'Tool has conflicting bookings',
-      conflicts: conflicts.length > 0 ? conflicts : undefined
+      message: available
+        ? 'Tool is available for the requested dates'
+        : 'Tool has conflicting bookings',
+      conflicts: conflicts.length > 0 ? conflicts : undefined,
     };
   }
 
-  async getBookingStats(queryDto?: BookingStatsQueryDto): Promise<BookingStatsResponseDto> {
+  async getBookingStats(
+    queryDto?: BookingStatsQueryDto,
+  ): Promise<BookingStatsResponseDto> {
     const whereCondition: any = {};
-    
+
     if (queryDto?.startDate || queryDto?.endDate) {
       whereCondition.createdAt = {};
       if (queryDto.startDate) {
@@ -377,26 +607,47 @@ export class BookingsService {
         whereCondition.createdAt.lte = new Date(queryDto.endDate);
       }
     }
-    
+
     const bookings = await this.bookingsRepository.find({
       where: whereCondition,
-      relations: ['tool']
+      relations: ['tool'],
     });
-    
+
     const totalBookings = bookings.length;
-    const pendingBookings = bookings.filter(b => b.status === BookingStatus.PENDING).length;
-    const confirmedBookings = bookings.filter(b => b.status === BookingStatus.CONFIRMED).length;
-    const completedBookings = bookings.filter(b => b.status === BookingStatus.COMPLETED).length;
-    const cancelledBookings = bookings.filter(b => b.status === BookingStatus.CANCELLED).length;
-    const rejectedBookings = bookings.filter(b => b.status === BookingStatus.REJECTED).length;
-    
-    const completedBookingsList = bookings.filter(b => b.status === BookingStatus.COMPLETED);
-    const totalRevenue = completedBookingsList.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
-    const averageBookingValue = completedBookingsList.length > 0 ? totalRevenue / completedBookingsList.length : 0;
-    
+    const pendingBookings = bookings.filter(
+      (b) => b.status === BookingStatus.PENDING,
+    ).length;
+    const confirmedBookings = bookings.filter(
+      (b) => b.status === BookingStatus.ACCEPTED,
+    ).length;
+    const completedBookings = bookings.filter(
+      (b) => b.status === BookingStatus.COMPLETED,
+    ).length;
+    const cancelledBookings = bookings.filter(
+      (b) => b.status === BookingStatus.CANCELLED,
+    ).length;
+    const rejectedBookings = bookings.filter(
+      (b) => b.status === BookingStatus.REJECTED,
+    ).length;
+
+    const completedBookingsList = bookings.filter(
+      (b) => b.status === BookingStatus.COMPLETED,
+    );
+    const totalRevenue = completedBookingsList.reduce(
+      (sum, booking) => sum + (booking.totalPrice || 0),
+      0,
+    );
+    const averageBookingValue =
+      completedBookingsList.length > 0
+        ? totalRevenue / completedBookingsList.length
+        : 0;
+
     // Popular tools
-    const toolCounts = new Map<string, { toolId: string; toolTitle: string; count: number }>();
-    bookings.forEach(booking => {
+    const toolCounts = new Map<
+      string,
+      { toolId: string; toolTitle: string; count: number }
+    >();
+    bookings.forEach((booking) => {
       if (booking.tool) {
         const key = booking.toolId;
         if (toolCounts.has(key)) {
@@ -405,30 +656,55 @@ export class BookingsService {
           toolCounts.set(key, {
             toolId: booking.toolId,
             toolTitle: booking.tool.title || 'Unknown Tool',
-            count: 1
+            count: 1,
           });
         }
       }
     });
-    
+
     const popularTools = Array.from(toolCounts.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
-      .map(item => ({
+      .map((item) => ({
         toolId: item.toolId,
         toolTitle: item.toolTitle,
-        bookingCount: item.count
+        bookingCount: item.count,
       }));
-    
+
     // Status breakdown
     const statusBreakdown = [
-      { status: 'PENDING', count: pendingBookings, percentage: totalBookings > 0 ? (pendingBookings / totalBookings) * 100 : 0 },
-      { status: 'CONFIRMED', count: confirmedBookings, percentage: totalBookings > 0 ? (confirmedBookings / totalBookings) * 100 : 0 },
-      { status: 'COMPLETED', count: completedBookings, percentage: totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0 },
-      { status: 'CANCELLED', count: cancelledBookings, percentage: totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0 },
-      { status: 'REJECTED', count: rejectedBookings, percentage: totalBookings > 0 ? (rejectedBookings / totalBookings) * 100 : 0 }
+      {
+        status: 'PENDING',
+        count: pendingBookings,
+        percentage:
+          totalBookings > 0 ? (pendingBookings / totalBookings) * 100 : 0,
+      },
+      {
+        status: 'ACCEPTED',
+        count: confirmedBookings,
+        percentage:
+          totalBookings > 0 ? (confirmedBookings / totalBookings) * 100 : 0,
+      },
+      {
+        status: 'COMPLETED',
+        count: completedBookings,
+        percentage:
+          totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0,
+      },
+      {
+        status: 'CANCELLED',
+        count: cancelledBookings,
+        percentage:
+          totalBookings > 0 ? (cancelledBookings / totalBookings) * 100 : 0,
+      },
+      {
+        status: 'REJECTED',
+        count: rejectedBookings,
+        percentage:
+          totalBookings > 0 ? (rejectedBookings / totalBookings) * 100 : 0,
+      },
     ];
-    
+
     return {
       totalBookings,
       pendingBookings,
@@ -439,7 +715,7 @@ export class BookingsService {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       averageBookingValue: Math.round(averageBookingValue * 100) / 100,
       popularTools,
-      statusBreakdown
+      statusBreakdown,
     };
   }
 
@@ -449,7 +725,9 @@ export class BookingsService {
   }
 
   // Admin-specific methods
-  async getBookingAnalytics(period: 'week' | 'month' | 'year'): Promise<{ date: string; bookings: number; revenue: number }[]> {
+  async getBookingAnalytics(
+    period: 'week' | 'month' | 'year',
+  ): Promise<{ date: string; bookings: number; revenue: number }[]> {
     const now = new Date();
     let startDate: Date;
     let groupBy: string;
@@ -471,18 +749,18 @@ export class BookingsService {
 
     const bookings = await this.bookingsRepository.find({
       where: {
-        createdAt: MoreThanOrEqual(startDate)
+        createdAt: MoreThanOrEqual(startDate),
       },
-      order: { createdAt: 'ASC' }
+      order: { createdAt: 'ASC' },
     });
 
     // Group bookings by period
     const analytics = new Map<string, { bookings: number; revenue: number }>();
-    
-    bookings.forEach(booking => {
+
+    bookings.forEach((booking) => {
       let key: string;
       const date = new Date(booking.createdAt);
-      
+
       switch (period) {
         case 'week':
           key = date.toISOString().split('T')[0];
@@ -494,11 +772,11 @@ export class BookingsService {
           key = date.getFullYear().toString();
           break;
       }
-      
+
       if (!analytics.has(key)) {
         analytics.set(key, { bookings: 0, revenue: 0 });
       }
-      
+
       const data = analytics.get(key)!;
       data.bookings++;
       if (booking.status === BookingStatus.COMPLETED) {
@@ -509,14 +787,14 @@ export class BookingsService {
     return Array.from(analytics.entries()).map(([date, data]) => ({
       date,
       bookings: data.bookings,
-      revenue: Math.round(data.revenue * 100) / 100
+      revenue: Math.round(data.revenue * 100) / 100,
     }));
   }
 
   async bulkUpdateBookings(
-    bookingIds: string[], 
-    action: 'confirm' | 'cancel' | 'complete', 
-    data?: { reason?: string; adminNotes?: string }
+    bookingIds: string[],
+    action: 'confirm' | 'cancel' | 'complete',
+    data?: { reason?: string; message?: string },
   ): Promise<{ success: number; failed: number; errors: string[] }> {
     const results = { success: 0, failed: 0, errors: [] as string[] };
 
@@ -527,7 +805,11 @@ export class BookingsService {
             await this.confirmBooking(bookingId);
             break;
           case 'cancel':
-            await this.cancelBooking(bookingId);
+            await this.cancelBooking(bookingId, {
+              reason: data?.reason || 'Cancelled by admin',
+              cancellationMessage:
+                data?.message || 'Booking cancelled through bulk operation',
+            });
             break;
           case 'complete':
             await this.completeBooking(bookingId);
@@ -543,7 +825,11 @@ export class BookingsService {
     return results;
   }
 
-  async getBookingHistory(id: string): Promise<{ action: string; timestamp: string; user: string; notes?: string }[]> {
+  async getBookingHistory(
+    id: string,
+  ): Promise<
+    { action: string; timestamp: string; user: string; notes?: string }[]
+  > {
     const booking = await this.findOne(id);
     if (!booking) {
       throw new NotFoundException('Booking not found');
@@ -556,8 +842,8 @@ export class BookingsService {
         action: 'CREATED',
         timestamp: booking.createdAt.toISOString(),
         user: 'System',
-        notes: 'Booking created'
-      }
+        notes: 'Booking created',
+      },
     ];
 
     if (booking.status !== BookingStatus.PENDING) {
@@ -565,7 +851,7 @@ export class BookingsService {
         action: booking.status,
         timestamp: booking.updatedAt.toISOString(),
         user: 'Admin',
-        notes: `Booking ${booking.status.toLowerCase()}`
+        notes: `Booking ${booking.status.toLowerCase()}`,
       });
     }
 
@@ -585,27 +871,151 @@ export class BookingsService {
         const now = new Date();
         const startDate = new Date(booking.startDate);
         const endDate = new Date(booking.endDate);
-        
+
         if (now < startDate) {
-          await this.bookingNotificationService.notifyBookingReminder(booking, 'start');
+          await this.bookingNotificationService.notifyBookingReminder(
+            booking,
+            'start',
+          );
         } else {
-          await this.bookingNotificationService.notifyBookingReminder(booking, 'end');
+          await this.bookingNotificationService.notifyBookingReminder(
+            booking,
+            'end',
+          );
         }
         break;
-        
+
       case 'confirmation':
         await this.bookingNotificationService.notifyBookingConfirmed(booking);
         break;
-        
+
       case 'update':
         // Send a custom notification with the provided message
         await this.bookingNotificationService.notifyBookingCreated(booking);
         break;
-        
+
       default:
         throw new BadRequestException('Invalid notification type');
     }
 
     return { message: 'Notification sent successfully' };
+  }
+
+  async confirmToolReturn(
+    id: string,
+    confirmToolReturnDto: ConfirmToolReturnDto,
+    userId: string,
+  ): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    // Verify that the user is the renter
+    if (booking.renterId !== userId) {
+      throw new BadRequestException('Only the renter can confirm tool return');
+    }
+
+    // Verify that the booking is in ONGOING status
+    if (booking.status !== BookingStatus.ONGOING) {
+      throw new BadRequestException('Tool return can only be confirmed for ongoing bookings');
+    }
+
+    // Verify that the tool hasn't already been returned
+    if (booking.renterHasReturned) {
+      throw new BadRequestException('Tool return has already been confirmed');
+    }
+
+    // Update the booking
+    booking.renterHasReturned = true;
+    booking.hasUsedReturnButton = true;
+    booking.updatedAt = new Date();
+
+    const updatedBooking = await this.bookingsRepository.save(booking);
+
+    // Send notification to the owner
+    try {
+      await this.bookingNotificationService.notifyToolReturned(updatedBooking);
+    } catch (error) {
+      console.error('Failed to send tool return notification:', error);
+    }
+
+    return updatedBooking;
+  }
+
+  async confirmToolPickup(id: string, userId: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    // Verify that the user is the owner
+    if (booking.ownerId !== userId) {
+      throw new BadRequestException('Only the owner can confirm tool pickup');
+    }
+
+    // Verify that the booking is in ONGOING status and tool has been returned
+    if (booking.status !== BookingStatus.ONGOING) {
+      throw new BadRequestException('Tool pickup can only be confirmed for ongoing bookings');
+    }
+
+    if (!booking.renterHasReturned) {
+      throw new BadRequestException('Tool must be returned by renter before pickup confirmation');
+    }
+
+    // Update the booking
+    booking.pickupTool = true;
+    booking.status = BookingStatus.COMPLETED;
+    booking.updatedAt = new Date();
+
+    const updatedBooking = await this.bookingsRepository.save(booking);
+
+    // Send notification
+    try {
+      await this.bookingNotificationService.notifyBookingCompleted(updatedBooking);
+    } catch (error) {
+      console.error('Failed to send pickup confirmation notification:', error);
+    }
+
+    return updatedBooking;
+  }
+
+  async reportToolPickup(id: string, reportData: any, userId: string): Promise<Booking> {
+    const booking = await this.findOne(id);
+
+    // Verify that the user is the owner
+    if (booking.ownerId !== userId) {
+      throw new BadRequestException('Only the owner can report pickup issues');
+    }
+
+    // Verify that the booking is in ONGOING status and tool has been returned
+    if (booking.status !== BookingStatus.ONGOING) {
+      throw new BadRequestException('Pickup issues can only be reported for ongoing bookings');
+    }
+
+    if (!booking.renterHasReturned) {
+      throw new BadRequestException('Tool must be returned by renter before reporting pickup issues');
+    }
+
+    // Update the booking
+    booking.pickupTool = true;
+    booking.updatedAt = new Date();
+    // Note: status remains ONGOING as there's a dispute
+
+    const updatedBooking = await this.bookingsRepository.save(booking);
+
+    // TODO: Create dispute with the provided data
+    // This would typically involve calling a disputes service
+    // await this.disputesService.create({
+    //   bookingId: id,
+    //   initiatorId: userId,
+    //   reason: reportData.reason,
+    //   description: reportData.description,
+    //   images: reportData.images
+    // });
+
+    // Send notification
+    try {
+      // TODO: Create specific notification for pickup dispute
+      console.log('Pickup issue reported for booking:', id);
+    } catch (error) {
+      console.error('Failed to send pickup issue notification:', error);
+    }
+
+    return updatedBooking;
   }
 }
