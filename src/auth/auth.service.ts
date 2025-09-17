@@ -48,16 +48,40 @@ export class AuthService {
   }
 
   async loginWithCredentials(loginDto: LoginDto) {
+    console.log('=== DEBUG loginWithCredentials ===');
+    console.log('Email reçu:', loginDto.email);
+    console.log('Password reçu:', loginDto.password ? '[MASQUÉ]' : 'VIDE');
+    
     const user = await this.validateUser(loginDto.email, loginDto.password);
+    console.log('Utilisateur retourné par validateUser:', user ? 'TROUVÉ' : 'NON TROUVÉ');
+    
     if (!user) {
+      console.log('ERREUR: Utilisateur non trouvé ou mot de passe incorrect');
       throw new UnauthorizedException('Invalid credentials');
     }
     
+    console.log('Statut utilisateur:', {
+      id: user.id,
+      email: user.email,
+      verifiedEmail: user.verifiedEmail,
+      isActive: user.isActive
+    });
+    
     // Check if user's email is verified
-    if (!user.verifiedEmail) {
+    // Exception: Allow login if user recently reset password (resetPasswordToken exists)
+    if (!user.verifiedEmail && !user.resetPasswordToken) {
+      console.log('ERREUR: Email non vérifié');
       throw new UnauthorizedException('Please verify your email address before logging in. Check your inbox for the verification email.');
     }
     
+    // If user has resetPasswordToken, clear it after successful login
+    if (user.resetPasswordToken) {
+      console.log('Utilisateur connecté après réinitialisation de mot de passe, nettoyage du token');
+      await this.usersService.clearPasswordResetTokens(user.id);
+    }
+    
+    console.log('Connexion réussie, génération du token');
+    console.log('=== FIN DEBUG loginWithCredentials ===');
     return this.login(user);
   }
 
@@ -148,41 +172,130 @@ export class AuthService {
     
     if (!user) {
       // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
-      return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
+      return { message: 'Si cet email existe, un code de réinitialisation a été envoyé' };
     }
     
-    // Générer un token de réinitialisation
-    const resetToken = await this.usersService.generatePasswordResetToken(user.id);
+    // Générer un code de réinitialisation
+    const resetCode = await this.usersService.generatePasswordResetCode(user.id);
     
     // Envoyer l'email de réinitialisation
-    await this.sendGridService.sendPasswordResetEmail(user.email, resetToken);
+    await this.sendGridService.sendPasswordResetEmail(user.email, resetCode);
     
-    return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé' };
+    return { message: 'Si cet email existe, un code de réinitialisation a été envoyé' };
   }
 
-  async verifyResetCode(code: string): Promise<{ message: string }> {
+  async verifyResetCode(code: string, email: string): Promise<{ message: string; resetToken: string }> {
+    console.log('=== DEBUG verifyResetCode ===');
+    console.log('Code reçu:', code, 'Type:', typeof code);
+    console.log('Email reçu:', email);
+    
     const users = await this.usersService.findAll();
-    const user = users.find(u => u.resetPasswordCode === code && u.resetPasswordCodeExpires && u.resetPasswordCodeExpires > new Date());
+    console.log('Nombre d\'utilisateurs trouvés:', users.length);
+    
+    // Trouver l'utilisateur par email d'abord
+    const userByEmail = users.find(u => u.email === email);
+    if (userByEmail) {
+      console.log('Utilisateur trouvé pour email:', {
+        id: userByEmail.id,
+        email: userByEmail.email,
+        resetPasswordCode: userByEmail.resetPasswordCode,
+        resetPasswordCodeExpires: userByEmail.resetPasswordCodeExpires,
+        codeType: typeof userByEmail.resetPasswordCode
+      });
+      
+      // Vérifier l'expiration
+      const now = new Date();
+      console.log('Date actuelle:', now);
+      console.log('Code expiré?', userByEmail.resetPasswordCodeExpires ? userByEmail.resetPasswordCodeExpires <= now : 'Pas de date d\'expiration');
+      
+      // Vérifier la comparaison du code
+      console.log('Comparaison codes:');
+      console.log('  Code reçu:', `"${code}"`);
+      console.log('  Code stocké:', `"${userByEmail.resetPasswordCode}"`);
+      console.log('  Égaux?', code === userByEmail.resetPasswordCode);
+      console.log('  Égaux (string)?', String(code) === String(userByEmail.resetPasswordCode));
+    } else {
+      console.log('Aucun utilisateur trouvé pour l\'email:', email);
+    }
+    
+    const user = users.find(u => u.resetPasswordCode === code && u.resetPasswordCodeExpires && u.resetPasswordCodeExpires > new Date() && u.email === email);
+    console.log('Utilisateur final trouvé:', user ? 'OUI' : 'NON');
+    console.log('=== FIN DEBUG ===');
     
     if (!user) {
       throw new BadRequestException('Code de réinitialisation invalide ou expiré');
     }
     
-    return { message: 'Code de réinitialisation valide' };
+    // Générer un token temporaire pour la réinitialisation
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    
+    // Sauvegarder le token temporaire
+    await this.usersService.update(user.id, {
+      resetPasswordToken: resetToken,
+      resetPasswordExpires: resetTokenExpires
+    });
+    
+    return { message: 'Code de réinitialisation valide', resetToken };
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-    const users = await this.usersService.findAll();
-    const user = users.find(u => u.resetPasswordToken === token && u.resetPasswordExpires && u.resetPasswordExpires > new Date());
+  async resendResetCode(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
     
     if (!user) {
-      throw new BadRequestException('Token de réinitialisation invalide ou expiré');
+      // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
+      return { message: 'Si cet email existe, un nouveau code de réinitialisation a été envoyé' };
     }
     
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.usersService.update(user.id, { password: hashedPassword });
-    await this.usersService.clearPasswordResetTokens(user.id);
+    // Générer un nouveau code de réinitialisation
+    const resetCode = await this.usersService.generatePasswordResetCode(user.id);
     
+    // Envoyer l'email de réinitialisation
+    await this.sendGridService.sendPasswordResetEmail(user.email, resetCode);
+    
+    return { message: 'Si cet email existe, un nouveau code de réinitialisation a été envoyé' };
+  }
+
+  async resetPassword(tokenOrCode: string, newPassword: string, isToken: boolean = true): Promise<{ message: string }> {
+    console.log('=== DEBUG resetPassword ===');
+    console.log('Token/Code reçu:', tokenOrCode);
+    console.log('Nouveau mot de passe:', newPassword ? '[MASQUÉ - longueur: ' + newPassword.length + ']' : 'VIDE');
+    console.log('Mode token:', isToken);
+    
+    const users = await this.usersService.findAll();
+    let user;
+    
+    if (isToken) {
+      // Recherche par token de réinitialisation
+      user = users.find(u => u.resetPasswordToken === tokenOrCode && u.resetPasswordExpires && u.resetPasswordExpires > new Date());
+    } else {
+      // Recherche par code de réinitialisation
+      user = users.find(u => u.resetPasswordCode === tokenOrCode && u.resetPasswordCodeExpires && u.resetPasswordCodeExpires > new Date());
+    }
+    
+    console.log('Utilisateur trouvé pour réinitialisation:', user ? 'OUI' : 'NON');
+    
+    if (!user) {
+      console.log('ERREUR: Token ou code invalide/expiré');
+      throw new BadRequestException('Token ou code de réinitialisation invalide ou expiré');
+    }
+    
+    console.log('Utilisateur à mettre à jour:', {
+      id: user.id,
+      email: user.email,
+      ancienPasswordHash: user.password ? user.password.substring(0, 20) + '...' : 'VIDE'
+    });
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    console.log('Nouveau hash généré:', hashedPassword.substring(0, 20) + '...');
+    
+    await this.usersService.updateWithHashedPassword(user.id, hashedPassword);
+    console.log('Mot de passe mis à jour dans la base de données');
+    
+    await this.usersService.clearPasswordResetTokens(user.id);
+    console.log('Tokens de réinitialisation effacés');
+    
+    console.log('=== FIN DEBUG resetPassword ===');
     return { message: 'Mot de passe réinitialisé avec succès' };
   }
 }

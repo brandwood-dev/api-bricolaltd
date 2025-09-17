@@ -92,6 +92,7 @@ export async function seedBookings(dataSource: DataSource) {
         renterId: renter.id,
         tool,
         toolId: tool.id,
+        ownerId: tool.ownerId,
       });
       await bookingRepository.save(booking);
     }

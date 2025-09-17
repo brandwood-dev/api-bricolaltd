@@ -136,6 +136,13 @@ export class UsersService {
     return this.findOneWithRelations(id);
   }
 
+  async updateWithHashedPassword(id: string, hashedPassword: string): Promise<User> {
+    const user = await this.findOne(id);
+    user.password = hashedPassword;
+    await this.usersRepository.save(user);
+    return this.findOneWithRelations(id);
+  }
+
   async uploadProfilePicture(
     id: string,
     file: Express.Multer.File,
@@ -179,10 +186,38 @@ export class UsersService {
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
+    console.log('=== DEBUG validateUser ===');
+    console.log('Email recherché:', email);
+    console.log('Password fourni:', password ? '[MASQUÉ - longueur: ' + password.length + ']' : 'VIDE');
+    
     const user = await this.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      return user;
+    console.log('Utilisateur trouvé:', user ? 'OUI' : 'NON');
+    
+    if (user) {
+      console.log('Détails utilisateur:', {
+        id: user.id,
+        email: user.email,
+        hasPassword: !!user.password,
+        passwordHash: user.password ? user.password.substring(0, 20) + '...' : 'VIDE',
+        isActive: user.isActive,
+        verifiedEmail: user.verifiedEmail
+      });
+      
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      console.log('Résultat bcrypt.compare:', passwordMatch);
+      
+      if (passwordMatch) {
+        console.log('Validation réussie - utilisateur retourné');
+        console.log('=== FIN DEBUG validateUser ===');
+        return user;
+      } else {
+        console.log('Validation échouée - mot de passe incorrect');
+      }
+    } else {
+      console.log('Validation échouée - utilisateur non trouvé');
     }
+    
+    console.log('=== FIN DEBUG validateUser ===');
     return null;
   }
 

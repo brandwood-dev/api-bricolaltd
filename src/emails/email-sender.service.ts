@@ -202,9 +202,7 @@ export class EmailSenderService {
     });
   }
 
-  async sendPasswordResetEmail(email: string, resetToken: string): Promise<boolean> {
-    const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
-    
+  async sendPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -216,7 +214,8 @@ export class EmailSenderService {
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: #dc3545; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
-          .button { display: inline-block; padding: 12px 24px; background: #dc3545; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .code-box { text-align: center; margin: 30px 0; padding: 20px; background: #fff; border-radius: 8px; border-left: 4px solid #dc3545; }
+          .code { display: inline-block; padding: 15px 25px; background: #f8f9fa; border: 2px solid #dc3545; border-radius: 8px; font-size: 24px; font-weight: bold; letter-spacing: 3px; color: #dc3545; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
       </head>
@@ -228,13 +227,13 @@ export class EmailSenderService {
           <div class="content">
             <h2>Réinitialisation de votre mot de passe</h2>
             <p>Bonjour,</p>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
-            <p style="text-align: center;">
-              <a href="${resetUrl}" class="button">Réinitialiser mon mot de passe</a>
-            </p>
-            <p>Si le bouton ne fonctionne pas, vous pouvez copier et coller ce lien dans votre navigateur :</p>
-            <p style="word-break: break-all;">${resetUrl}</p>
-            <p>Ce lien expirera dans 1 heure.</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe. Utilisez le code ci-dessous pour procéder à la réinitialisation :</p>
+            <div class="code-box">
+              <h3 style="margin-top: 0; color: #dc3545;">Code de réinitialisation</h3>
+              <div class="code">${resetCode}</div>
+              <p style="font-size: 14px; color: #666; margin-bottom: 0;">Ce code expire dans 15 minutes.</p>
+            </div>
+            <p>Entrez ce code sur la page de réinitialisation de mot de passe pour continuer.</p>
             <p>Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.</p>
           </div>
           <div class="footer">
@@ -245,11 +244,30 @@ export class EmailSenderService {
       </html>
     `;
 
+    const text = `
+Réinitialisation de votre mot de passe
+
+Bonjour,
+
+Vous avez demandé la réinitialisation de votre mot de passe.
+
+Voici votre code de réinitialisation :
+${resetCode}
+
+Entrez ce code sur la page de réinitialisation de mot de passe pour continuer.
+
+Ce code expire dans 15 minutes.
+
+Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.
+
+© 2024 Bricola. Tous droits réservés.
+    `;
+
     return this.sendEmail({
       to: email,
       subject: 'Réinitialisation de votre mot de passe - Bricola',
       html,
-      text: `Réinitialisation de votre mot de passe\n\nVous avez demandé la réinitialisation de votre mot de passe. Cliquez sur ce lien : ${resetUrl}\n\nCe lien expirera dans 1 heure.`,
+      text,
     });
   }
 }

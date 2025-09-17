@@ -210,9 +210,7 @@ Email de test - Ne pas répondre
     });
   }
 
-  async sendPasswordResetEmail(email: string, resetToken: string): Promise<boolean> {
-    const resetUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${resetToken}`;
-    
+  async sendPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -224,7 +222,8 @@ Email de test - Ne pas répondre
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: linear-gradient(135deg, #dc3545, #c82333); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
           .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
-          .button { display: inline-block; padding: 15px 30px; background: #dc3545; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }
+          .code-box { margin: 30px 0; padding: 25px; background: #f8f9fa; border: 2px solid #dc3545; border-radius: 12px; text-align: center; }
+          .code { display: inline-block; padding: 20px 30px; background: #ffffff; border: 2px dashed #dc3545; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #dc3545; font-family: 'Courier New', monospace; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
           .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
         </style>
@@ -238,18 +237,24 @@ Email de test - Ne pas répondre
           <div class="content">
             <h2 style="color: #dc3545; margin-top: 0;">Réinitialisation de votre mot de passe</h2>
             <p>Bonjour,</p>
-            <p>Vous avez demandé la réinitialisation de votre mot de passe sur Bricola. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe :</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe sur Bricola. Utilisez le code ci-dessous pour procéder à la réinitialisation :</p>
             
-            <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" class="button">Réinitialiser mon mot de passe</a>
+            <div class="code-box">
+              <h3 style="margin-top: 0; color: #dc3545; font-size: 18px;">Code de réinitialisation</h3>
+              <div class="code">${resetCode}</div>
+              <p style="margin-bottom: 0; font-size: 14px; color: #666; margin-top: 15px;">Entrez ce code sur la page de réinitialisation</p>
             </div>
             
             <div class="warning">
-              <strong>⏰ Important :</strong> Ce lien expire dans <strong>1 heure</strong> pour votre sécurité.
+              <strong>⏰ Important :</strong> Ce code expire dans <strong>15 minutes</strong> pour votre sécurité.
             </div>
             
-            <p>Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
-            <p style="word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace;">${resetUrl}</p>
+            <p><strong>Instructions :</strong></p>
+            <ol>
+              <li>Retournez sur la page de réinitialisation de Bricola</li>
+              <li>Saisissez le code de réinitialisation ci-dessus</li>
+              <li>Créez votre nouveau mot de passe</li>
+            </ol>
             
             <p style="margin-top: 30px; font-size: 14px; color: #666;">Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email en toute sécurité.</p>
           </div>
@@ -269,10 +274,15 @@ Email de test - Ne pas répondre
       
       Vous avez demandé la réinitialisation de votre mot de passe sur Bricola.
       
-      Cliquez sur ce lien pour créer un nouveau mot de passe :
-      ${resetUrl}
+      Voici votre code de réinitialisation :
+      ${resetCode}
       
-      ⏰ IMPORTANT : Ce lien expire dans 1 heure pour votre sécurité.
+      Instructions :
+      1. Retournez sur la page de réinitialisation de Bricola
+      2. Saisissez le code de réinitialisation ci-dessus
+      3. Créez votre nouveau mot de passe
+      
+      ⏰ IMPORTANT : Ce code expire dans 15 minutes pour votre sécurité.
       
       Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.
       

@@ -123,4 +123,13 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   userType?: string;
+
+  @ApiProperty({ description: 'The reset password token', required: false })
+  @IsString()
+  @IsOptional()
+  resetPasswordToken?: string;
+
+  @ApiProperty({ description: 'The reset password token expiration date', required: false })
+  @IsOptional()
+  resetPasswordExpires?: Date;
 }

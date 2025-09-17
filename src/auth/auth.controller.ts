@@ -90,16 +90,24 @@ export class AuthController {
   @ApiOperation({ summary: 'Verify password reset code' })
   @ApiResponse({ status: 200, description: 'Reset code verified.' })
   @ApiResponse({ status: 400, description: 'Invalid code.' })
-  async verifyResetCode(@Body() body: { code: string }) {
-    return this.authService.verifyResetCode(body.code);
+  async verifyResetCode(@Body() body: { email: string; code: string }) {
+    return this.authService.verifyResetCode(body.code, body.email);
+  }
+
+  @Post('resend-reset-code')
+  @ApiOperation({ summary: 'Resend password reset code' })
+  @ApiResponse({ status: 200, description: 'Password reset code resent.' })
+  @ApiResponse({ status: 400, description: 'User not found.' })
+  async resendResetCode(@Body() body: { email: string }) {
+    return this.authService.resendResetCode(body.email);
   }
 
   @Post('reset-password')
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiResponse({ status: 200, description: 'Password reset successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid token or password.' })
-  async resetPassword(@Body() body: { token: string; newPassword: string }) {
-    return this.authService.resetPassword(body.token, body.newPassword);
+  async resetPassword(@Body() body: { resetToken: string; newPassword: string }) {
+    return this.authService.resetPassword(body.resetToken, body.newPassword, true);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -121,5 +129,24 @@ export class AuthController {
   async checkEmail(@Body() body: { email: string }) {
     const exists = await this.usersService.findByEmail(body.email);
     return { exists: !!exists, message: exists ? 'Email already exists' : 'Email is available' };
+  }
+
+  @Post('get-user-info')
+  @ApiOperation({ summary: 'Get user information by email' })
+  @ApiResponse({ status: 200, description: 'User information retrieved.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async getUserInfo(@Body() body: { email: string }) {
+    const user = await this.usersService.findByEmail(body.email);
+    if (!user) {
+      return { found: false, message: 'Utilisateur non trouvé' };
+    }
+    return {
+      found: true,
+      user: {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
+      }
+    };
   }
 }
