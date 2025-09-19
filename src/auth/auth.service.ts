@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
@@ -9,7 +14,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
- constructor(
+  constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly sendGridService: SendGridService,
@@ -28,9 +33,9 @@ export class AuthService {
     const token = this.jwtService.sign(payload, { expiresIn: '2h' });
     const refreshToken = this.jwtService.sign(
       { sub: user.id, type: 'refresh' },
-      { expiresIn: '7d' }
+      { expiresIn: '7d' },
     );
-    
+
     return {
       user: {
         id: user.id,
@@ -39,7 +44,11 @@ export class AuthService {
         lastName: user.lastName,
         isAdmin: user.isAdmin,
         isActive: user.isActive,
-        verifiedEmail: user.verifiedEmail, // Use verifiedEmail as the field name
+        verifiedEmail: user.verifiedEmail,
+        profilePicture: user.profilePicture,
+        countryId: user.countryId,
+        address: user.address,
+        
       },
       token,
       refreshToken,
@@ -51,35 +60,42 @@ export class AuthService {
     console.log('=== DEBUG loginWithCredentials ===');
     console.log('Email reçu:', loginDto.email);
     console.log('Password reçu:', loginDto.password ? '[MASQUÉ]' : 'VIDE');
-    
+
     const user = await this.validateUser(loginDto.email, loginDto.password);
-    console.log('Utilisateur retourné par validateUser:', user ? 'TROUVÉ' : 'NON TROUVÉ');
-    
+    console.log(
+      'Utilisateur retourné par validateUser:',
+      user ? 'TROUVÉ' : 'NON TROUVÉ',
+    );
+
     if (!user) {
       console.log('ERREUR: Utilisateur non trouvé ou mot de passe incorrect');
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
     console.log('Statut utilisateur:', {
       id: user.id,
       email: user.email,
       verifiedEmail: user.verifiedEmail,
-      isActive: user.isActive
+      isActive: user.isActive,
     });
-    
+
     // Check if user's email is verified
     // Exception: Allow login if user recently reset password (resetPasswordToken exists)
     if (!user.verifiedEmail && !user.resetPasswordToken) {
       console.log('ERREUR: Email non vérifié');
-      throw new UnauthorizedException('Please verify your email address before logging in. Check your inbox for the verification email.');
+      throw new UnauthorizedException(
+        'Please verify your email address before logging in. Check your inbox for the verification email.',
+      );
     }
-    
+
     // If user has resetPasswordToken, clear it after successful login
     if (user.resetPasswordToken) {
-      console.log('Utilisateur connecté après réinitialisation de mot de passe, nettoyage du token');
+      console.log(
+        'Utilisateur connecté après réinitialisation de mot de passe, nettoyage du token',
+      );
       await this.usersService.clearPasswordResetTokens(user.id);
     }
-    
+
     console.log('Connexion réussie, génération du token');
     console.log('=== FIN DEBUG loginWithCredentials ===');
     return this.login(user);
@@ -88,16 +104,16 @@ export class AuthService {
   async refreshToken(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken);
-      
+
       if (payload.type !== 'refresh') {
         throw new UnauthorizedException('Invalid refresh token type');
       }
-      
+
       const user = await this.usersService.findOne(payload.sub);
       if (!user || !user.isActive) {
         throw new UnauthorizedException('User not found or inactive');
       }
-      
+
       return this.login(user);
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired refresh token');
@@ -116,186 +132,292 @@ export class AuthService {
 
   async verifyEmail(token: string): Promise<{ message: string }> {
     const users = await this.usersService.findAll();
-    const user = users.find(u => u.verifyToken === token && u.verifyTokenExpires && u.verifyTokenExpires > new Date());
-    
+    const user = users.find(
+      (u) =>
+        u.verifyToken === token &&
+        u.verifyTokenExpires &&
+        u.verifyTokenExpires > new Date(),
+    );
+
     if (!user) {
       throw new BadRequestException('Token de vérification invalide ou expiré');
     }
-    
+
     await this.usersService.update(user.id, { verifiedEmail: true });
     await this.usersService.clearVerificationTokens(user.id);
-    
+
     return { message: 'Email vérifié avec succès' };
   }
 
-  async verifyEmailCode(code: string, email?: string): Promise<{ message: string }> {
+  async verifyEmailCode(
+    code: string,
+    email?: string,
+  ): Promise<{ message: string }> {
     const users = await this.usersService.findAll();
-    let user = users.find(u => u.verifyCode === code && u.verifyCodeExpires && u.verifyCodeExpires > new Date());
-    
+    let user = users.find(
+      (u) =>
+        u.verifyCode === code &&
+        u.verifyCodeExpires &&
+        u.verifyCodeExpires > new Date(),
+    );
+
     // Si l'email est fourni, vérifier qu'il correspond
     if (email && user && user.email !== email) {
       user = undefined;
     }
-    
+
     if (!user) {
       throw new BadRequestException('Code de vérification invalide ou expiré');
     }
-    
+
     await this.usersService.update(user.id, { verifiedEmail: true });
     await this.usersService.clearVerificationTokens(user.id);
-    
+
     return { message: 'Email vérifié avec succès' };
   }
 
   async resendVerificationEmail(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
-    
+
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
     }
-    
+
     if (user.verifiedEmail) {
       throw new BadRequestException('Email déjà vérifié');
     }
-    
+
     // Générer uniquement le code de vérification
-    const verifyCode = await this.usersService.generateVerificationCode(user.id);
-    
+    const verifyCode = await this.usersService.generateVerificationCode(
+      user.id,
+    );
+
     // Envoyer l'email de vérification avec SendGrid (code uniquement)
     await this.sendGridService.sendVerificationEmail(user.email, verifyCode);
-    
+
     return { message: 'Email de vérification renvoyé' };
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
-    
+
     if (!user) {
       // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
-      return { message: 'Si cet email existe, un code de réinitialisation a été envoyé' };
+      return {
+        message:
+          'Si cet email existe, un code de réinitialisation a été envoyé',
+      };
     }
-    
+
     // Générer un code de réinitialisation
-    const resetCode = await this.usersService.generatePasswordResetCode(user.id);
-    
+    const resetCode = await this.usersService.generatePasswordResetCode(
+      user.id,
+    );
+
     // Envoyer l'email de réinitialisation
     await this.sendGridService.sendPasswordResetEmail(user.email, resetCode);
-    
-    return { message: 'Si cet email existe, un code de réinitialisation a été envoyé' };
+
+    return {
+      message: 'Si cet email existe, un code de réinitialisation a été envoyé',
+    };
   }
 
-  async verifyResetCode(code: string, email: string): Promise<{ message: string; resetToken: string }> {
+  async verifyResetCode(
+    code: string,
+    email: string,
+  ): Promise<{ message: string; resetToken: string }> {
     console.log('=== DEBUG verifyResetCode ===');
     console.log('Code reçu:', code, 'Type:', typeof code);
     console.log('Email reçu:', email);
-    
+
     const users = await this.usersService.findAll();
-    console.log('Nombre d\'utilisateurs trouvés:', users.length);
-    
+    console.log("Nombre d'utilisateurs trouvés:", users.length);
+
     // Trouver l'utilisateur par email d'abord
-    const userByEmail = users.find(u => u.email === email);
+    const userByEmail = users.find((u) => u.email === email);
     if (userByEmail) {
       console.log('Utilisateur trouvé pour email:', {
         id: userByEmail.id,
         email: userByEmail.email,
         resetPasswordCode: userByEmail.resetPasswordCode,
         resetPasswordCodeExpires: userByEmail.resetPasswordCodeExpires,
-        codeType: typeof userByEmail.resetPasswordCode
+        codeType: typeof userByEmail.resetPasswordCode,
       });
-      
+
       // Vérifier l'expiration
       const now = new Date();
       console.log('Date actuelle:', now);
-      console.log('Code expiré?', userByEmail.resetPasswordCodeExpires ? userByEmail.resetPasswordCodeExpires <= now : 'Pas de date d\'expiration');
-      
+      console.log(
+        'Code expiré?',
+        userByEmail.resetPasswordCodeExpires
+          ? userByEmail.resetPasswordCodeExpires <= now
+          : "Pas de date d'expiration",
+      );
+
       // Vérifier la comparaison du code
       console.log('Comparaison codes:');
       console.log('  Code reçu:', `"${code}"`);
       console.log('  Code stocké:', `"${userByEmail.resetPasswordCode}"`);
       console.log('  Égaux?', code === userByEmail.resetPasswordCode);
-      console.log('  Égaux (string)?', String(code) === String(userByEmail.resetPasswordCode));
+      console.log(
+        '  Égaux (string)?',
+        String(code) === String(userByEmail.resetPasswordCode),
+      );
     } else {
-      console.log('Aucun utilisateur trouvé pour l\'email:', email);
+      console.log("Aucun utilisateur trouvé pour l'email:", email);
     }
-    
-    const user = users.find(u => u.resetPasswordCode === code && u.resetPasswordCodeExpires && u.resetPasswordCodeExpires > new Date() && u.email === email);
+
+    const user = users.find(
+      (u) =>
+        u.resetPasswordCode === code &&
+        u.resetPasswordCodeExpires &&
+        u.resetPasswordCodeExpires > new Date() &&
+        u.email === email,
+    );
     console.log('Utilisateur final trouvé:', user ? 'OUI' : 'NON');
     console.log('=== FIN DEBUG ===');
-    
+
     if (!user) {
-      throw new BadRequestException('Code de réinitialisation invalide ou expiré');
+      throw new BadRequestException(
+        'Code de réinitialisation invalide ou expiré',
+      );
     }
-    
+
     // Générer un token temporaire pour la réinitialisation
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-    
+
     // Sauvegarder le token temporaire
     await this.usersService.update(user.id, {
       resetPasswordToken: resetToken,
-      resetPasswordExpires: resetTokenExpires
+      resetPasswordExpires: resetTokenExpires,
     });
-    
+
     return { message: 'Code de réinitialisation valide', resetToken };
   }
 
   async resendResetCode(email: string): Promise<{ message: string }> {
     const user = await this.usersService.findByEmail(email);
-    
+
     if (!user) {
       // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
-      return { message: 'Si cet email existe, un nouveau code de réinitialisation a été envoyé' };
+      return {
+        message:
+          'Si cet email existe, un nouveau code de réinitialisation a été envoyé',
+      };
     }
-    
+
     // Générer un nouveau code de réinitialisation
-    const resetCode = await this.usersService.generatePasswordResetCode(user.id);
-    
+    const resetCode = await this.usersService.generatePasswordResetCode(
+      user.id,
+    );
+
     // Envoyer l'email de réinitialisation
     await this.sendGridService.sendPasswordResetEmail(user.email, resetCode);
-    
-    return { message: 'Si cet email existe, un nouveau code de réinitialisation a été envoyé' };
+
+    return {
+      message:
+        'Si cet email existe, un nouveau code de réinitialisation a été envoyé',
+    };
   }
 
-  async resetPassword(tokenOrCode: string, newPassword: string, isToken: boolean = true): Promise<{ message: string }> {
+  async resetPassword(
+    tokenOrCode: string,
+    newPassword: string,
+    isToken: boolean = true,
+  ): Promise<{ message: string }> {
     console.log('=== DEBUG resetPassword ===');
     console.log('Token/Code reçu:', tokenOrCode);
-    console.log('Nouveau mot de passe:', newPassword ? '[MASQUÉ - longueur: ' + newPassword.length + ']' : 'VIDE');
+    console.log(
+      'Nouveau mot de passe:',
+      newPassword ? '[MASQUÉ - longueur: ' + newPassword.length + ']' : 'VIDE',
+    );
     console.log('Mode token:', isToken);
-    
+
     const users = await this.usersService.findAll();
     let user;
-    
+
     if (isToken) {
       // Recherche par token de réinitialisation
-      user = users.find(u => u.resetPasswordToken === tokenOrCode && u.resetPasswordExpires && u.resetPasswordExpires > new Date());
+      user = users.find(
+        (u) =>
+          u.resetPasswordToken === tokenOrCode &&
+          u.resetPasswordExpires &&
+          u.resetPasswordExpires > new Date(),
+      );
     } else {
       // Recherche par code de réinitialisation
-      user = users.find(u => u.resetPasswordCode === tokenOrCode && u.resetPasswordCodeExpires && u.resetPasswordCodeExpires > new Date());
+      user = users.find(
+        (u) =>
+          u.resetPasswordCode === tokenOrCode &&
+          u.resetPasswordCodeExpires &&
+          u.resetPasswordCodeExpires > new Date(),
+      );
     }
-    
-    console.log('Utilisateur trouvé pour réinitialisation:', user ? 'OUI' : 'NON');
-    
+
+    console.log(
+      'Utilisateur trouvé pour réinitialisation:',
+      user ? 'OUI' : 'NON',
+    );
+
     if (!user) {
       console.log('ERREUR: Token ou code invalide/expiré');
-      throw new BadRequestException('Token ou code de réinitialisation invalide ou expiré');
+      throw new BadRequestException(
+        'Token ou code de réinitialisation invalide ou expiré',
+      );
     }
-    
+
     console.log('Utilisateur à mettre à jour:', {
       id: user.id,
       email: user.email,
-      ancienPasswordHash: user.password ? user.password.substring(0, 20) + '...' : 'VIDE'
+      ancienPasswordHash: user.password
+        ? user.password.substring(0, 20) + '...'
+        : 'VIDE',
     });
-    
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    console.log('Nouveau hash généré:', hashedPassword.substring(0, 20) + '...');
-    
+    console.log(
+      'Nouveau hash généré:',
+      hashedPassword.substring(0, 20) + '...',
+    );
+
     await this.usersService.updateWithHashedPassword(user.id, hashedPassword);
     console.log('Mot de passe mis à jour dans la base de données');
-    
+
     await this.usersService.clearPasswordResetTokens(user.id);
     console.log('Tokens de réinitialisation effacés');
-    
+
     console.log('=== FIN DEBUG resetPassword ===');
     return { message: 'Mot de passe réinitialisé avec succès' };
+  }
+
+  async validateUserPassword(userId: string, password: string): Promise<boolean> {
+    try {
+      console.log('=== DEBUG validateUserPassword ===');
+      console.log('UserId reçu:', userId);
+      console.log('Password reçu:', password ? '[MASQUÉ - longueur: ' + password.length + ']' : 'VIDE');
+      
+      const user = await this.usersService.findOne(userId);
+      console.log('Utilisateur trouvé:', user ? 'OUI' : 'NON');
+      
+      if (!user || !user.password) {
+        console.log('ERREUR: Utilisateur non trouvé ou pas de mot de passe');
+        console.log('User exists:', !!user);
+        console.log('User has password:', user ? !!user.password : 'N/A');
+        return false;
+      }
+      
+      console.log('Hash stocké en DB:', user.password ? user.password.substring(0, 20) + '...' : 'VIDE');
+      console.log('Longueur du hash:', user.password ? user.password.length : 0);
+      
+      const isValid = await bcrypt.compare(password, user.password);
+      console.log('Résultat bcrypt.compare:', isValid);
+      console.log('=== FIN DEBUG validateUserPassword ===');
+      
+      return isValid;
+    } catch (error) {
+      console.log('ERREUR dans validateUserPassword:', error.message);
+      return false;
+    }
   }
 }

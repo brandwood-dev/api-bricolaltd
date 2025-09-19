@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEmail, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
+import { ContactCategory } from '../entities/contact.entity';
 
 export class CreateContactDto {
   @ApiProperty({
@@ -50,4 +51,13 @@ export class CreateContactDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({
+    description: 'Category of the contact message',
+    example: ContactCategory.TECHNICAL,
+    enum: ContactCategory,
+  })
+  @IsNotEmpty()
+  @IsEnum(ContactCategory)
+  category: ContactCategory;
 }

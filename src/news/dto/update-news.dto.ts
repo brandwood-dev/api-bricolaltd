@@ -34,4 +34,12 @@ export class UpdateNewsDto extends PartialType(CreateNewsDto) {
   @IsArray()
   @IsString({ each: true })
   additionalImages?: string[];
+  
+  @ApiProperty({
+    description: 'The category name of the news',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

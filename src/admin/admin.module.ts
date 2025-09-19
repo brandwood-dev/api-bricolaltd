@@ -1,8 +1,9 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
+import { BookingsModule } from '../bookings/bookings.module';
 import { EnhancedAdminGuard } from '../auth/guards/enhanced-admin.guard';
 import { RateLimitMiddleware } from '../common/middleware/rate-limit.middleware';
 import { SecurityHeadersMiddleware } from '../common/middleware/security-headers.middleware';
@@ -15,6 +16,8 @@ import { Tool } from '../tools/entities/tool.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Subcategory } from '../categories/entities/subcategory.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { ReviewTool } from '../reviews/entities/review-tool.entity';
+import { ReviewApp } from '../reviews/entities/review-app.entity';
 import { Dispute } from '../disputes/entities/dispute.entity';
 import { UserSession } from '../users/entities/user-session.entity';
 import { UserActivity } from '../users/entities/user-activity.entity';
@@ -40,10 +43,14 @@ import { AdminNotificationsController } from './admin-notifications.controller';
 import { AdminNotificationsService } from './admin-notifications.service';
 import { AdminNotification } from './entities/admin-notification.entity';
 import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.service';
+import { AdminReviewsController } from './admin-reviews.controller';
+import { AdminReviewsService } from './admin-reviews.service';
+import { AdminBookingsController } from './admin-bookings.controller';
 
 @Module({
   imports: [
     UsersModule,
+    forwardRef(() => BookingsModule),
     TypeOrmModule.forFeature([
       User,
       Country,
@@ -54,6 +61,8 @@ import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.se
       Category,
       Subcategory,
       Review,
+      ReviewTool,
+      ReviewApp,
       Dispute,
       UserSession,
       UserActivity,
@@ -82,6 +91,8 @@ import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.se
     AdminTransactionsController,
     AdminWithdrawalsController,
     AdminNotificationsController,
+    AdminReviewsController,
+    AdminBookingsController,
   ],
   providers: [
     AdminDashboardService,
@@ -91,6 +102,7 @@ import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.se
     AdminToolsService,
     AdminTransactionsService,
     AdminNotificationsService,
+    AdminReviewsService,
     WithdrawalProcessingService,
     EnhancedAdminGuard,
     RateLimitMiddleware,
@@ -104,6 +116,7 @@ import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.se
     AdminToolsService,
     AdminTransactionsService,
     AdminNotificationsService,
+    AdminReviewsService,
     EnhancedAdminGuard,
   ],
 })

@@ -87,6 +87,14 @@ export class CreateNewsDto {
   summary?: string;
 
   @ApiProperty({
+    description: 'The category name of the news',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiProperty({
     description: 'Category ID for the news article',
     example: 'category-uuid',
     required: false,
@@ -94,9 +102,4 @@ export class CreateNewsDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
-
-  @IsOptional()
-  @IsString()
-  @ApiProperty({ description: 'The category name of the news', required: false })
-  category?: string;
 }

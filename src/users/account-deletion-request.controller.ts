@@ -179,11 +179,10 @@ export class AccountDeletionRequestController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete account deletion request (Admin only)' })
+  @ApiOperation({ summary: 'Delete account deletion request ' })
   @ApiParam({ name: 'id', description: 'Account deletion request ID' })
   @ApiResponse({ status: 204, description: 'Request deleted successfully.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })

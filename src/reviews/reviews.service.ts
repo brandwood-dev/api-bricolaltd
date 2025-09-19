@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Review } from './entities/review.entity';
 import { ReviewTool } from './entities/review-tool.entity';
 import { ReviewApp } from './entities/review-app.entity';
@@ -27,6 +27,7 @@ export class ReviewsService {
     private reviewToolRepository: Repository<ReviewTool>,
     @InjectRepository(ReviewApp)
     private reviewAppRepository: Repository<ReviewApp>,
+    private dataSource: DataSource,
     private bookingsService: BookingsService,
     private usersService: UsersService,
   ) {}
@@ -128,34 +129,51 @@ export class ReviewsService {
 
   // Tool Review methods
   async createToolReview(createReviewToolDto: CreateReviewToolDto): Promise<ReviewTool> {
-    // Validate booking exists
-    const booking = await this.bookingsService.findOne(
-      createReviewToolDto.bookingId,
-    );
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    // Validate users exist
-    await this.usersService.findOne(createReviewToolDto.reviewerId);
-    await this.usersService.findOne(createReviewToolDto.revieweeId);
-
-    // Check if booking is completed
-    if (booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException(
-        'Cannot review a booking that is not completed',
+    try {
+      // Validate booking exists
+      const booking = await this.bookingsService.findOne(
+        createReviewToolDto.bookingId,
       );
+
+      // Validate users exist
+      await this.usersService.findOne(createReviewToolDto.reviewerId);
+      await this.usersService.findOne(createReviewToolDto.revieweeId);
+
+      // Check if booking is completed
+      if (booking.status !== BookingStatus.COMPLETED) {
+        throw new BadRequestException(
+          'Cannot review a booking that is not completed',
+        );
+      }
+
+      // Check if review already exists for this booking within transaction
+      const existingReview = await queryRunner.manager.findOne(ReviewTool, {
+        where: { bookingId: createReviewToolDto.bookingId },
+      });
+
+      if (existingReview) {
+        throw new BadRequestException('A tool review already exists for this booking');
+      }
+
+      // Create and save the tool review within transaction
+      const review = queryRunner.manager.create(ReviewTool, createReviewToolDto);
+      const savedReview = await queryRunner.manager.save(ReviewTool, review);
+
+      // Commit transaction
+      await queryRunner.commitTransaction();
+      return savedReview;
+    } catch (error) {
+      // Rollback transaction on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release query runner
+      await queryRunner.release();
     }
-
-    // Check if review already exists for this booking
-    const existingReview = await this.reviewToolRepository.findOne({
-      where: { bookingId: createReviewToolDto.bookingId },
-    });
-
-    if (existingReview) {
-      throw new BadRequestException('A tool review already exists for this booking');
-    }
-
-    // Create and save the tool review
-    const review = this.reviewToolRepository.create(createReviewToolDto);
-    return this.reviewToolRepository.save(review);
   }
 
   async findAllToolReviews(): Promise<ReviewTool[]> {
@@ -260,6 +278,18 @@ export class ReviewsService {
       where: { reviewerId },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async checkUserAppReview(reviewerId: string): Promise<{ hasReviewed: boolean; review?: ReviewApp }> {
+    const review = await this.reviewAppRepository.findOne({
+      where: { reviewerId },
+      relations: ['reviewer'],
+    });
+
+    return {
+      hasReviewed: !!review,
+      review: review || undefined,
+    };
   }
 
   async updateAppReview(id: string, updateReviewAppDto: UpdateReviewAppDto): Promise<ReviewApp> {

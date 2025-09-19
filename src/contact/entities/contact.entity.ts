@@ -15,11 +15,11 @@ export enum ContactStatus {
 }
 
 export enum ContactCategory {
-  GENERAL = 'general',
   TECHNICAL = 'technical',
-  BILLING = 'billing',
+  PAYMENT = 'payment',
   ACCOUNT = 'account',
-  BOOKING = 'booking',
+  DISPUTE = 'dispute',
+  SUGGESTION = 'suggestion',
   OTHER = 'other',
 }
 
@@ -94,12 +94,12 @@ export class Contact {
   @Column({
     type: 'enum',
     enum: ContactCategory,
-    default: ContactCategory.GENERAL,
+    default: ContactCategory.OTHER,
   })
   @ApiProperty({
     description: 'Category of the contact message',
     enum: ContactCategory,
-    default: ContactCategory.GENERAL,
+    default: ContactCategory.OTHER,
   })
   category: ContactCategory;
 

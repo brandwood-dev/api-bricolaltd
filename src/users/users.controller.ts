@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -90,8 +91,49 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
-  async updateMyProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.id, updateUserDto);
+  async updateMyProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, updateProfileDto);
+  }
+
+  @Post('profile/upload-photo')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload profile photo to S3' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        photo: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile photo uploaded successfully.',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+          },
+        },
+        message: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  async uploadProfilePhoto(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadProfilePhoto(req.user.id, file);
   }
 
   @Get()
@@ -201,18 +243,32 @@ export class UsersController {
     return this.usersService.uploadProfilePicture(id, file, req.user);
   }
 
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
+  @Delete('account')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete a user (admin)' })
-  @ApiResponse({
-    status: 200,
-    description: 'The user has been successfully deleted.',
-  })
+  @ApiOperation({ summary: 'Delete my account' })
+  @ApiResponse({ status: 200, description: 'Account deleted successfully.' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid password or account cannot be deleted.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  async deleteMyAccount(
+    @Request() req: any,
+  ) {
+    return this.usersService.deleteUserAccount(req.user.id);
   }
+
+  // @Delete(':id')
+  // @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
+  // @ApiBearerAuth()
+  // @ApiOperation({ summary: 'Delete a user (admin)' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'The user has been successfully deleted.',
+  // })
+  // @ApiResponse({ status: 404, description: 'User not found.' })
+  // remove(@Param('id') id: string) {
+  //   return this.usersService.remove(id);
+  // }
 
   // Additional admin endpoints
 
@@ -318,6 +374,20 @@ export class UsersController {
     @Query('limit') limit: number = 20,
   ) {
     return this.usersService.getUserTransactions(id, page, limit);
+  }
+
+  @Get(':id/deletion-validation')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Validate if user account can be deleted' })
+  @ApiResponse({ status: 200, description: 'Return validation results for account deletion.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Can only validate own account.' })
+  async validateAccountDeletion(
+    @Param('id') id: string,
+    @Request() req: any,
+  ) {
+    return this.usersService.validateAccountDeletion(id, req.user);
   }
 
   @Post('bulk-action')

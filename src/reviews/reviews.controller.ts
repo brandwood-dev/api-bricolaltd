@@ -212,6 +212,14 @@ export class ReviewsController {
     return this.reviewsService.findAppReviewsByUserId(userId);
   }
 
+  @Get('app/check/:userId')
+  @ApiOperation({ summary: 'Check if user has already reviewed the app' })
+  @ApiResponse({ status: 200, description: 'Return whether user has reviewed the app.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  checkUserAppReview(@Param('userId') userId: string) {
+    return this.reviewsService.checkUserAppReview(userId);
+  }
+
   @Patch('app/:id')
   @ApiOperation({ summary: 'Update an app review' })
   @ApiResponse({

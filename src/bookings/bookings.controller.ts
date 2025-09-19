@@ -19,6 +19,7 @@ import { ValidateCodeDto, ValidateCodeResponseDto } from './dto/validate-code.dt
 import { CalculatePricingDto, PricingResponseDto } from './dto/calculate-pricing.dto';
 import { CheckAvailabilityDto, AvailabilityResponseDto } from './dto/check-availability.dto';
 import { BookingStatsQueryDto, BookingStatsResponseDto } from './dto/booking-stats.dto';
+import { AdminBookingQueryDto, AdminBookingResponseDto } from './dto/admin-booking-query.dto';
 import { ConfirmToolReturnDto } from './dto/confirm-tool-return.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
@@ -63,6 +64,7 @@ export class BookingsController {
   findAll() {
     return this.bookingsService.findAll();
   }
+
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -303,6 +305,19 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   checkAvailability(@Body() checkAvailabilityDto: CheckAvailabilityDto) {
     return this.bookingsService.checkAvailability(checkAvailabilityDto);
+  }
+
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all bookings with pagination and filters (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated bookings retrieved successfully.',
+    type: AdminBookingResponseDto,
+  })
+  findAllAdmin(@Query() queryDto: AdminBookingQueryDto) {
+    return this.bookingsService.findAllAdmin(queryDto);
   }
 
   @Get('admin/stats')

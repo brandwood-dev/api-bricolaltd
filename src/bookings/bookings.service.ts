@@ -30,6 +30,13 @@ import {
   BookingStatsQueryDto,
   BookingStatsResponseDto,
 } from './dto/booking-stats.dto';
+import {
+  AdminBookingQueryDto,
+  AdminBookingResponseDto,
+  BookingStatus as AdminBookingStatus,
+  SortField,
+  SortOrder,
+} from './dto/admin-booking-query.dto';
 import { ToolsService } from '../tools/tools.service';
 import { UsersService } from '../users/users.service';
 import { AvailabilityStatus } from '../tools/enums/availability-status.enum';
@@ -170,6 +177,120 @@ export class BookingsService {
       relations: ['renter', 'tool', 'tool.photos', 'owner'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  async findAllAdmin(queryDto: AdminBookingQueryDto): Promise<AdminBookingResponseDto> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      startDate,
+      endDate,
+      renterId,
+      ownerId,
+      toolId,
+      sortBy = SortField.CREATED_AT,
+      sortOrder = SortOrder.DESC,
+      minAmount,
+      maxAmount,
+    } = queryDto;
+
+    const queryBuilder = this.bookingsRepository
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.renter', 'renter')
+      .leftJoinAndSelect('booking.tool', 'tool')
+      .leftJoinAndSelect('tool.photos', 'photos')
+      .leftJoinAndSelect('booking.owner', 'owner');
+
+    // Apply search filter
+    if (search) {
+      queryBuilder.andWhere(
+        '(booking.id LIKE :search OR renter.firstName LIKE :search OR renter.lastName LIKE :search OR tool.title LIKE :search OR owner.firstName LIKE :search OR owner.lastName LIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Apply status filter
+    if (status) {
+      queryBuilder.andWhere('booking.status = :status', { status });
+    }
+
+    // Apply date range filter
+    if (startDate) {
+      queryBuilder.andWhere('booking.startDate >= :startDate', {
+        startDate: new Date(startDate),
+      });
+    }
+    if (endDate) {
+      queryBuilder.andWhere('booking.endDate <= :endDate', {
+        endDate: new Date(endDate),
+      });
+    }
+
+    // Apply user filters
+    if (renterId) {
+      queryBuilder.andWhere('booking.renterId = :renterId', { renterId });
+    }
+    if (ownerId) {
+      queryBuilder.andWhere('booking.ownerId = :ownerId', { ownerId });
+    }
+    if (toolId) {
+      queryBuilder.andWhere('booking.toolId = :toolId', { toolId });
+    }
+
+    // Apply amount filters
+    if (minAmount !== undefined) {
+      queryBuilder.andWhere('booking.totalPrice >= :minAmount', { minAmount });
+    }
+    if (maxAmount !== undefined) {
+      queryBuilder.andWhere('booking.totalPrice <= :maxAmount', { maxAmount });
+    }
+
+    // Apply sorting
+    let orderByField: string;
+    switch (sortBy) {
+      case SortField.START_DATE:
+        orderByField = 'booking.startDate';
+        break;
+      case SortField.END_DATE:
+        orderByField = 'booking.endDate';
+        break;
+      case SortField.STATUS:
+        orderByField = 'booking.status';
+        break;
+      case SortField.TOTAL_AMOUNT:
+        orderByField = 'booking.totalPrice';
+        break;
+      default:
+        orderByField = 'booking.createdAt';
+    }
+    queryBuilder.orderBy(orderByField, sortOrder);
+
+    // Get total count
+    const total = await queryBuilder.getCount();
+
+    // Apply pagination
+    const offset = (page - 1) * limit;
+    queryBuilder.skip(offset).take(limit);
+
+    // Get paginated results
+    const bookings = await queryBuilder.getMany();
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+    const hasPrev = page > 1;
+
+    return {
+      data: bookings,
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext,
+      hasPrev,
+    };
   }
 
   async findOne(id: string): Promise<Booking> {
@@ -500,10 +621,11 @@ export class BookingsService {
     const subtotal = tool.basePrice * totalDays;
 
     // Calculate fees (5% platform fee)
-    const fees = Math.round(subtotal * 0.05 * 100) / 100;
+    const fees = Math.round(subtotal * 0.06 * 100) / 100;
 
     // Calculate deposit (20% of subtotal, minimum 50)
-    const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
+    // const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
+    const deposit = tool.depositAmount;
 
     const totalAmount = subtotal + fees + deposit;
 

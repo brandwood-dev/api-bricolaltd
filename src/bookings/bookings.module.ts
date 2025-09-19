@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { Booking } from './entities/booking.entity';
@@ -23,7 +23,7 @@ import { AdminModule } from '../admin/admin.module';
     UsersModule,
     ToolsModule,
     NotificationsModule,
-    AdminModule,
+    forwardRef(() => AdminModule),
   ],
   controllers: [BookingsController],
   providers: [BookingsService, BookingNotificationsService, BookingNotificationService, BookingSchedulerService],

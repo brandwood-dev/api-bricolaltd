@@ -4,16 +4,33 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In, MoreThan, LessThan, Between } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { S3Service } from '../common/services/s3.service';
 import { UserSession } from './entities/user-session.entity';
 import { UserActivity } from './entities/user-activity.entity';
+import { UserPreference } from './entities/user-preference.entity';
+import { AccountDeletionRequest } from './entities/account-deletion-request.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { PaymentTransaction } from '../transactions/entities/payment-transaction.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { Bookmark } from '../bookmarks/entities/bookmark.entity';
+import { Document } from '../documents/entities/document.entity';
+import { Dispute } from '../disputes/entities/dispute.entity';
+import { DisputeStatus } from '../disputes/enums/dispute-status.enum';
+import { Review } from '../reviews/entities/review.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/enums/booking-status.enum';
+import { Tool } from '../tools/entities/tool.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
+import { Email } from '../emails/entities/email.entity';
+import { SecurityLog } from '../admin/entities/security-log.entity';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 
@@ -62,10 +79,40 @@ export class UsersService {
     private userSessionRepository: Repository<UserSession>,
     @InjectRepository(UserActivity)
     private userActivityRepository: Repository<UserActivity>,
+    @InjectRepository(UserPreference)
+    private userPreferenceRepository: Repository<UserPreference>,
+    @InjectRepository(AccountDeletionRequest)
+    private accountDeletionRequestRepository: Repository<AccountDeletionRequest>,
     @InjectRepository(Transaction)
     private transactionRepository: Repository<Transaction>,
+    @InjectRepository(PaymentTransaction)
+    private paymentTransactionRepository: Repository<PaymentTransaction>,
+    @InjectRepository(Notification)
+    private notificationRepository: Repository<Notification>,
+    @InjectRepository(Bookmark)
+    private bookmarkRepository: Repository<Bookmark>,
+    @InjectRepository(Document)
+    private documentRepository: Repository<Document>,
+    @InjectRepository(Dispute)
+    private disputeRepository: Repository<Dispute>,
+    @InjectRepository(Review)
+    private reviewRepository: Repository<Review>,
+    @InjectRepository(Booking)
+    private bookingRepository: Repository<Booking>,
+    @InjectRepository(Tool)
+    private toolRepository: Repository<Tool>,
+    @InjectRepository(Wallet)
+    private walletRepository: Repository<Wallet>,
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
+    @InjectRepository(SecurityLog)
+    private securityLogRepository: Repository<SecurityLog>,
     private readonly s3Service: S3Service,
-  ) {}
+  ) {
+    this.logger = new Logger(UsersService.name);
+  }
+
+  private readonly logger: Logger;
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.usersRepository.findOne({
@@ -136,6 +183,48 @@ export class UsersService {
     return this.findOneWithRelations(id);
   }
 
+  async updateProfile(id: string, updateProfileDto: UpdateProfileDto): Promise<User> {
+    const user = await this.findOne(id);
+
+    // Only allow specific fields: firstName, lastName, password, phoneNumber, profilePicture, countryId, address
+    const allowedUpdates: Partial<User> = {};
+
+    if (updateProfileDto.firstName !== undefined) {
+      allowedUpdates.firstName = updateProfileDto.firstName;
+    }
+
+    if (updateProfileDto.lastName !== undefined) {
+      allowedUpdates.lastName = updateProfileDto.lastName;
+    }
+
+    if (updateProfileDto.phoneNumber !== undefined) {
+      allowedUpdates.phoneNumber = updateProfileDto.phoneNumber;
+    }
+
+    if (updateProfileDto.profilePicture !== undefined) {
+      allowedUpdates.profilePicture = updateProfileDto.profilePicture;
+    }
+
+    if (updateProfileDto.countryId !== undefined) {
+      allowedUpdates.countryId = updateProfileDto.countryId;
+    }
+
+    if (updateProfileDto.address !== undefined) {
+      allowedUpdates.address = updateProfileDto.address;
+    }
+
+    // Hash password if provided (same hash method as register)
+    if (updateProfileDto.password) {
+      allowedUpdates.password = await bcrypt.hash(updateProfileDto.password, 10);
+    }
+
+    Object.assign(user, allowedUpdates);
+    await this.usersRepository.save(user);
+    
+    // Return user with relations loaded
+    return this.findOneWithRelations(id);
+  }
+
   async updateWithHashedPassword(id: string, hashedPassword: string): Promise<User> {
     const user = await this.findOne(id);
     user.password = hashedPassword;
@@ -178,10 +267,254 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  async uploadProfilePhoto(id: string, file: Express.Multer.File): Promise<{ data: { url: string }; message: string }> {
+    console.log('=== DEBUG uploadProfilePhoto ===');
+    console.log('User ID:', id);
+    console.log('File received:', {
+      originalname: file?.originalname,
+      mimetype: file?.mimetype,
+      size: file?.size,
+      buffer: file?.buffer ? `Buffer(${file.buffer.length} bytes)` : 'No buffer'
+    });
+
+    if (!file) {
+      console.error('No file provided');
+      throw new ConflictException('No file provided');
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      console.error('Invalid file type:', file.mimetype);
+      throw new ConflictException('Invalid file type. Only JPEG, PNG and WebP are allowed.');
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      console.error('File size too large:', file.size);
+      throw new ConflictException('File size too large. Maximum size is 5MB.');
+    }
+
+    try {
+      console.log('Attempting S3 upload...');
+      // Upload to S3 bucket 'bricolaltd-assets/profiles'
+      const uploadResult = await this.s3Service.uploadFile(file, 'profiles');
+      console.log('S3 upload successful:', uploadResult);
+      
+      // Get user and update profile picture URL in database
+      const user = await this.usersRepository.findOne({ where: { id } });
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+      
+      // Update user's profile picture URL
+      user.profilePicture = uploadResult.url;
+      await this.usersRepository.save(user);
+      console.log('User profile picture updated in database:', uploadResult.url);
+      
+      const response = {
+        data: {
+          url: uploadResult.url,
+        },
+        message: 'Profile photo uploaded successfully',
+      };
+      console.log('Returning response:', response);
+      console.log('=== END DEBUG uploadProfilePhoto ===');
+      
+      return response;
+    } catch (error) {
+      console.error('=== ERROR uploadProfilePhoto ===');
+      console.error('Error uploading profile photo to S3:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('=== END ERROR uploadProfilePhoto ===');
+      throw new ConflictException('Failed to upload profile photo');
+    }
+  }
+
   async remove(id: string): Promise<void> {
     const result = await this.usersRepository.delete(id);
     if (result.affected === 0) {
       throw new NotFoundException(`User with ID ${id} not found`);
+    }
+  }
+
+  async deleteUserAccount(userId: string): Promise<{ message: string }> {
+    console.log('=== DEBUG deleteUserAccount ===');
+    console.log('User ID:', userId);
+
+    // Find the user
+    const user = await this.findOne(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    try {
+      // Delete all related records in the correct order to avoid foreign key constraints
+      console.log('Starting cascade deletion for user:', userId);
+
+      // 1. Delete user sessions
+      await this.userSessionRepository.delete({ userId });
+      console.log('✓ Deleted user sessions');
+
+      // 2. Delete user activities
+      await this.userActivityRepository.delete({ userId });
+      console.log('✓ Deleted user activities');
+
+      // 3. Delete account deletion requests
+      await this.accountDeletionRequestRepository.delete({ userId });
+      console.log('✓ Deleted account deletion requests');
+
+      // 4. Delete notifications
+      await this.notificationRepository.delete({ userId });
+      console.log('✓ Deleted notifications');
+
+      // 5. Delete bookmarks
+      await this.bookmarkRepository.delete({ userId });
+      console.log('✓ Deleted bookmarks');
+
+      // 6. Delete documents
+      await this.documentRepository.delete({ userId });
+      console.log('✓ Deleted documents');
+
+      // 7. Delete disputes (both as initiator and respondent)
+      await this.disputeRepository.delete({ initiatorId: userId });
+      await this.disputeRepository.delete({ respondentId: userId });
+      console.log('✓ Deleted disputes');
+
+      // 8. Delete reviews (both given and received)
+      await this.reviewRepository.delete({ reviewerId: userId });
+      await this.reviewRepository.delete({ revieweeId: userId });
+      console.log('✓ Deleted reviews');
+
+      // 9. Delete payment_transactions FIRST (they reference transactions)
+      console.log('Starting payment_transactions deletion...');
+      
+      // Get all transactions related to the user to delete their payment_transactions
+      const userTransactions = await this.transactionRepository.find({
+        where: [
+          { senderId: userId },
+          { recipientId: userId }
+        ]
+      });
+      
+      console.log(`Found ${userTransactions.length} transactions for user`);
+      
+      // Delete payment_transactions for user's direct transactions
+      for (const transaction of userTransactions) {
+        const paymentTransactions = await this.paymentTransactionRepository.delete({ transactionId: transaction.id });
+        console.log(`✓ Deleted ${paymentTransactions.affected || 0} payment_transactions for transaction ${transaction.id}`);
+      }
+      
+      // Get user's bookings and tools to find related transactions
+      const userBookingsAsRenter = await this.bookingRepository.find({ where: { renterId: userId } });
+      const userTools = await this.toolRepository.find({ where: { ownerId: userId } });
+      
+      // Delete payment_transactions for booking transactions (as renter)
+      for (const booking of userBookingsAsRenter) {
+        const bookingTransactions = await this.transactionRepository.find({ where: { bookingId: booking.id } });
+        for (const transaction of bookingTransactions) {
+          const paymentTransactions = await this.paymentTransactionRepository.delete({ transactionId: transaction.id });
+          console.log(`✓ Deleted ${paymentTransactions.affected || 0} payment_transactions for booking transaction ${transaction.id}`);
+        }
+      }
+      
+      // Delete payment_transactions for tool booking transactions (as owner)
+      for (const tool of userTools) {
+        const toolBookings = await this.bookingRepository.find({ where: { toolId: tool.id } });
+        for (const booking of toolBookings) {
+          const bookingTransactions = await this.transactionRepository.find({ where: { bookingId: booking.id } });
+          for (const transaction of bookingTransactions) {
+            const paymentTransactions = await this.paymentTransactionRepository.delete({ transactionId: transaction.id });
+            console.log(`✓ Deleted ${paymentTransactions.affected || 0} payment_transactions for tool booking transaction ${transaction.id}`);
+          }
+        }
+      }
+      
+      console.log('✓ All payment_transactions deleted successfully');
+      
+      // 10. Delete transactions (now safe after payment_transactions are deleted)
+      console.log('Starting transaction deletion...');
+      
+      // Delete transactions sent/received by user
+      const sentTransactions = await this.transactionRepository.delete({ senderId: userId });
+      console.log(`✓ Deleted ${sentTransactions.affected || 0} transactions sent by user`);
+      
+      const receivedTransactions = await this.transactionRepository.delete({ recipientId: userId });
+      console.log(`✓ Deleted ${receivedTransactions.affected || 0} transactions received by user`);
+      
+      // Delete transactions linked to user's bookings (as renter)
+      console.log(`Found ${userBookingsAsRenter.length} bookings where user is renter`);
+      for (const booking of userBookingsAsRenter) {
+        const bookingTransactions = await this.transactionRepository.delete({ bookingId: booking.id });
+        console.log(`✓ Deleted ${bookingTransactions.affected || 0} transactions for booking ${booking.id}`);
+      }
+      
+      // Delete transactions linked to bookings of user's tools (as owner)
+      console.log(`Found ${userTools.length} tools owned by user`);
+      for (const tool of userTools) {
+        const toolBookings = await this.bookingRepository.find({ where: { toolId: tool.id } });
+        console.log(`Found ${toolBookings.length} bookings for tool ${tool.id}`);
+        for (const booking of toolBookings) {
+          const toolBookingTransactions = await this.transactionRepository.delete({ bookingId: booking.id });
+          console.log(`✓ Deleted ${toolBookingTransactions.affected || 0} transactions for tool booking ${booking.id}`);
+        }
+      }
+      
+      console.log('✓ All transactions deleted successfully');
+
+      // 11. Delete bookings (now safe after transactions are deleted)
+      // Delete bookings as renter
+      const renterBookings = await this.bookingRepository.delete({ renterId: userId });
+      console.log(`✓ Deleted ${renterBookings.affected || 0} bookings where user is renter`);
+      
+      // Delete bookings for user's tools (as owner)
+      for (const tool of userTools) {
+        const ownerBookings = await this.bookingRepository.delete({ toolId: tool.id });
+        console.log(`✓ Deleted ${ownerBookings.affected || 0} bookings for tool ${tool.id}`);
+      }
+      console.log('✓ All bookings deleted successfully');
+
+      // 12. Delete tools owned by user
+      await this.toolRepository.delete({ ownerId: userId });
+      console.log('✓ Deleted tools');
+
+      // 13. Delete user preferences
+      await this.userPreferenceRepository.delete({ userId });
+      console.log('✓ Deleted user preferences');
+
+      // 14. Delete emails (where user is sender or admin)
+      console.log('Starting email deletion...');
+      const emailsAsUser = await this.emailRepository.delete({ userId });
+      console.log(`✓ Deleted ${emailsAsUser.affected || 0} emails where user is sender`);
+      
+      const emailsAsAdmin = await this.emailRepository.delete({ adminId: userId });
+      console.log(`✓ Deleted ${emailsAsAdmin.affected || 0} emails where user is admin`);
+      console.log('✓ All emails deleted successfully');
+
+      // 15. Delete security logs
+      console.log('Starting security logs deletion...');
+      const securityLogs = await this.securityLogRepository.delete({ userId });
+      console.log(`✓ Deleted ${securityLogs.affected || 0} security logs`);
+      console.log('✓ All security logs deleted successfully');
+
+      // 16. Delete wallet
+      await this.walletRepository.delete({ userId });
+      console.log('✓ Deleted wallet');
+
+      // 17. Finally delete the user
+      await this.usersRepository.delete(userId);
+      console.log('✓ Deleted user record');
+
+      console.log('Account deleted successfully for user:', userId);
+      console.log('=== END DEBUG deleteUserAccount ===');
+
+      return { message: 'Account deleted successfully' };
+    } catch (error) {
+      console.error('Error during cascade deletion:', error);
+      throw new Error(`Failed to delete user account: ${error.message}`);
     }
   }
 
@@ -621,5 +954,121 @@ export class UsersService {
       resetPasswordCode: undefined,
       resetPasswordCodeExpires: undefined,
     });
+  }
+
+  async validateAccountDeletion(userId: string, currentUser: any): Promise<any> {
+    // Check if user can only validate their own account (unless admin)
+    if (currentUser.id !== userId && !currentUser.isAdmin) {
+      throw new ForbiddenException('You can only validate your own account deletion');
+    }
+
+    // Check if user exists
+    const user = await this.findOne(userId);
+
+    // Initialize validation result
+    const validationResult = {
+      canDelete: true,
+      blockingIssues: {
+        pendingBookings: 0,
+        confirmedReservations: 0,
+        ongoingDisputes: 0,
+        unreturnedTools: 0
+      },
+      details: {
+        pendingBookings: [] as any[],
+        confirmedReservations: [] as any[],
+        ongoingDisputes: [] as any[],
+        unreturnedTools: [] as any[]
+      }
+    };
+
+    try {
+      // Check for pending/confirmed bookings as renter
+      const userBookings = await this.usersRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.bookingsAsRenter', 'booking')
+        .leftJoinAndSelect('booking.tool', 'tool')
+        .where('user.id = :userId', { userId })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: ['PENDING', 'ACCEPTED', 'ONGOING'],
+        })
+        .getOne();
+
+      if (userBookings && userBookings.bookingsAsRenter && userBookings.bookingsAsRenter.length > 0) {
+        validationResult.blockingIssues.pendingBookings = userBookings.bookingsAsRenter.length;
+        validationResult.details.pendingBookings = userBookings.bookingsAsRenter;
+        validationResult.canDelete = false;
+      }
+
+      // Check for confirmed reservations as tool owner
+      const ownerBookings = await this.usersRepository
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.tools', 'tool')
+        .leftJoinAndSelect('tool.bookings', 'booking')
+        .leftJoinAndSelect('booking.renter', 'renter')
+        .where('user.id = :userId', { userId })
+        .andWhere('booking.status IN (:...statuses)', {
+          statuses: ['PENDING', 'ACCEPTED', 'ONGOING'],
+        })
+        .getOne();
+
+      if (ownerBookings && ownerBookings.tools && ownerBookings.tools.length > 0) {
+        const confirmedBookings = ownerBookings.tools.flatMap(tool => tool.bookings || []);
+        if (confirmedBookings.length > 0) {
+          validationResult.blockingIssues.confirmedReservations = confirmedBookings.length;
+          validationResult.details.confirmedReservations = confirmedBookings;
+          validationResult.canDelete = false;
+        }
+      }
+
+      // Check for ongoing disputes where user is initiator or respondent
+      try {
+        const ongoingDisputes = await this.disputeRepository.count({
+          where: [
+            { initiator: { id: userId }, status: DisputeStatus.PENDING },
+            { respondent: { id: userId }, status: DisputeStatus.PENDING }
+          ]
+        });
+        validationResult.blockingIssues.ongoingDisputes = ongoingDisputes;
+        
+        if (ongoingDisputes > 0) {
+          validationResult.canDelete = false;
+          this.logger.warn(`User ${userId} has ${ongoingDisputes} ongoing disputes`);
+        }
+      } catch (error) {
+        this.logger.error(`Error checking ongoing disputes for user ${userId}:`, error);
+        validationResult.blockingIssues.ongoingDisputes = 0;
+      }
+
+      // Check for unreturned tools (bookings where user is renter and hasn't returned tool)
+      try {
+        const unreturnedTools = await this.bookingRepository.count({
+          where: {
+            renter: { id: userId },
+            status: BookingStatus.ONGOING,
+            renterHasReturned: false
+          }
+        });
+        validationResult.blockingIssues.unreturnedTools = unreturnedTools;
+        
+        if (unreturnedTools > 0) {
+          validationResult.canDelete = false;
+          this.logger.warn(`User ${userId} has ${unreturnedTools} unreturned tools`);
+        }
+      } catch (error) {
+        this.logger.error(`Error checking unreturned tools for user ${userId}:`, error);
+        validationResult.blockingIssues.unreturnedTools = 0;
+      }
+
+    } catch (error) {
+      console.error('Error validating account deletion:', error);
+      // In case of error, be conservative and don't allow deletion
+      validationResult.canDelete = false;
+    }
+
+    return {
+      data: validationResult,
+      message: 'Account deletion validation completed'
+    };
   }
 }

@@ -10,47 +10,118 @@ export async function seedCategories(dataSource: DataSource) {
   
   const categoriesData = [
     {
-      name: 'Outils de jardinage',
-      displayName: 'Outils de jardinage',
-      description: 'Outils pour l\'entretien du jardin',
+      name: 'gardening',
+      displayName: 'gardening',
+      description: "Outils pour l'entretien du jardin",
       subcategories: [
-        { name: 'Tondeuses', displayName: 'Tondeuses', description: 'Tondeuses à gazon électriques et thermiques' },
-        { name: 'Taille-haies', displayName: 'Taille-haies', description: 'Outils de taille pour haies et arbustes' },
-        { name: 'Bêches et pelles', displayName: 'Bêches et pelles', description: 'Outils de terrassement manuel' },
-        { name: 'Arrosage', displayName: 'Arrosage', description: 'Systèmes d\'arrosage et tuyaux' },
-      ]
+        {
+          name: 'lawn-mowers',
+          displayName: 'Tondeuses',
+          description: 'Tondeuses à gazon électriques et thermiques',
+        },
+        {
+          name: 'hedge-trimmers',
+          displayName: 'Taille-haies',
+          description: 'Outils de taille pour haies et arbustes',
+        },
+        {
+          name: 'pruning-tools',
+          displayName: 'Outils de taille',
+          description: 'Sécateurs, cisailles et élagueurs',
+        },
+        {
+          name: 'watering',
+          displayName: 'Arrosage',
+          description: "Systèmes d'arrosage et tuyaux",
+        },
+        {
+          name: 'garden-hand-tools',
+          displayName: 'Outils manuels',
+          description: 'Pelles, râteaux, binettes et autres outils manuels',
+        },
+      ],
     },
     {
-      name: 'Outils de bricolage',
-      displayName: 'Outils de bricolage',
+      name: 'diy',
+      displayName: 'diy',
       description: 'Outils pour travaux de bricolage',
       subcategories: [
-        { name: 'Perceuses', displayName: 'Perceuses', description: 'Perceuses électriques et sans fil' },
-        { name: 'Scies', displayName: 'Scies', description: 'Scies circulaires, sauteuses et à métaux' },
-        { name: 'Ponceuses', displayName: 'Ponceuses', description: 'Ponceuses orbitales et à bande' },
-        { name: 'Marteaux', displayName: 'Marteaux', description: 'Marteaux et masses diverses' },
-      ]
+        {
+          name: 'power-tools',
+          displayName: 'Outils électroportatifs',
+          description: 'Perceuses, visseuses et autres outils électriques',
+        },
+        {
+          name: 'hand-tools',
+          displayName: 'Outils manuels',
+          description: 'Marteaux, tournevis, clés et pinces',
+        },
+        {
+          name: 'measuring-tools',
+          displayName: 'Outils de mesure',
+          description: 'Mètres, niveaux et autres instruments de mesure',
+        },
+        {
+          name: 'painting',
+          displayName: 'Peinture',
+          description: 'Rouleaux, pinceaux et matériel de peinture',
+        },
+      ],
     },
     {
-      name: 'Électroménager',
-      displayName: 'Électroménager',
-      description: 'Appareils électroménagers',
+      name: 'cleaning',
+      displayName: 'cleaning',
+      description: 'Équipement de nettoyage et entretien',
       subcategories: [
-        { name: 'Nettoyage', displayName: 'Nettoyage', description: 'Aspirateurs et nettoyeurs haute pression' },
-        { name: 'Cuisine', displayName: 'Cuisine', description: 'Robots culinaires et appareils de cuisine' },
-        { name: 'Entretien', displayName: 'Entretien', description: 'Fers à repasser et appareils d\'entretien' },
-      ]
+        {
+          name: 'vacuum-cleaners',
+          displayName: 'Aspirateurs',
+          description: 'Aspirateurs traîneaux et balais',
+        },
+        {
+          name: 'pressure-washers',
+          displayName: 'Nettoyeurs haute pression',
+          description: 'Nettoyeurs haute pression et accessoires',
+        },
+        {
+          name: 'floor-care',
+          displayName: 'Entretien des sols',
+          description: 'Balais vapeur et nettoyeurs de sols',
+        },
+        {
+          name: 'cleaning-supplies',
+          displayName: 'Produits de nettoyage',
+          description: "Détergents et produits d'entretien",
+        },
+      ],
     },
     {
-      name: 'Matériel de transport',
-      displayName: 'Matériel de transport',
-      description: 'Véhicules et matériel de transport',
+      name: 'events',
+      displayName: 'events',
+      description: 'Matériel pour événements et réceptions',
       subcategories: [
-        { name: 'Remorques', displayName: 'Remorques', description: 'Remorques pour voiture' },
-        { name: 'Diables', displayName: 'Diables', description: 'Diables et sangles de transport' },
-        { name: 'Échelles', displayName: 'Échelles', description: 'Échelles et escabeaux' },
-      ]
-    }
+        {
+          name: 'party-equipment',
+          displayName: 'Équipement de fête',
+          description: 'Tables, chaises et matériel de réception',
+        },
+        {
+          name: 'sound-lighting',
+          displayName: 'Son et lumière',
+          description: 'Systèmes audio et éclairage',
+        },
+        {
+          name: 'event-decoration',
+          displayName: 'Décoration',
+          description: 'Articles de décoration pour événements',
+        },
+        {
+          name: 'catering-equipment',
+          displayName: 'Matériel de restauration',
+          description: 'Équipement pour le service et la cuisine',
+        },
+      ],
+    },
   ];
 
   for (const categoryData of categoriesData) {

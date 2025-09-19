@@ -25,6 +25,16 @@ import { FileUploadMiddleware } from '../common/middlewares/file-upload.middlewa
 import { SecurityLog } from '../admin/entities/security-log.entity';
 import { BlockedIp } from '../admin/entities/blocked-ip.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { PaymentTransaction } from '../transactions/entities/payment-transaction.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { Bookmark } from '../bookmarks/entities/bookmark.entity';
+import { Document } from '../documents/entities/document.entity';
+import { Dispute } from '../disputes/entities/dispute.entity';
+import { Review } from '../reviews/entities/review.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Tool } from '../tools/entities/tool.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
+import { Email } from '../emails/entities/email.entity';
 
 @Module({
   imports: [
@@ -37,7 +47,17 @@ import { Transaction } from '../transactions/entities/transaction.entity';
       AccountDeletionRequest,
       SecurityLog,
       BlockedIp,
-      Transaction
+      Transaction,
+      PaymentTransaction,
+      Notification,
+      Bookmark,
+      Document,
+      Dispute,
+      Review,
+      Booking,
+      Tool,
+      Wallet,
+      Email
     ]), 
     S3Module,
     JwtModule.registerAsync({

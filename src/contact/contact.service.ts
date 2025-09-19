@@ -20,7 +20,6 @@ export class ContactService {
     const contact = this.contactRepository.create({
       ...createContactDto,
       status: ContactStatus.NEW,
-      category: ContactCategory.GENERAL,
       priority: ContactPriority.MEDIUM,
     });
 

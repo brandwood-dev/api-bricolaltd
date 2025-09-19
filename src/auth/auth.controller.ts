@@ -1,6 +1,7 @@
-import { Controller, Post, Body, UseGuards, Get, Request, Query } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Request, Query, BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { ValidatePasswordDto } from './dto/validate-password.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -148,5 +149,37 @@ export class AuthController {
         email: user.email
       }
     };
+  }
+
+  @Post('validate-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Valider le mot de passe de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Validation réussie' })
+  @ApiResponse({ status: 400, description: 'Mot de passe manquant ou invalide' })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  async validatePassword(@Request() req, @Body() validatePasswordDto: ValidatePasswordDto) {
+    try {
+      console.log('=== DEBUG validate-password endpoint ===');
+      console.log('User ID:', req.user.id);
+      console.log('Password received:', validatePasswordDto.password ? '[MASQUÉ - longueur: ' + validatePasswordDto.password.length + ']' : 'VIDE');
+      
+      const isValid = await this.authService.validateUserPassword(req.user.id, validatePasswordDto.password);
+      console.log('Result from validateUserPassword:', isValid);
+      
+      const response = {
+        success: true,
+        data: { valid: isValid },
+        message: isValid ? 'Mot de passe valide' : 'Mot de passe invalide'
+      };
+      
+      console.log('Response being sent:', JSON.stringify(response, null, 2));
+      console.log('=== FIN DEBUG validate-password endpoint ===');
+      
+      return response;
+    } catch (error) {
+      console.log('ERREUR dans validate-password endpoint:', error.message);
+      throw new BadRequestException('Erreur lors de la validation du mot de passe');
+    }
   }
 }

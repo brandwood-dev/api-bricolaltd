@@ -64,6 +64,7 @@ export class NewsService {
   async findAll(query?: { 
     search?: string;
     isPublic?: boolean;
+    category?: string;
     page?: number;
     limit?: number;
     sortBy?: string;
@@ -77,6 +78,10 @@ export class NewsService {
 
     if (query?.isPublic !== undefined) {
       whereCondition.isPublic = query.isPublic;
+    }
+
+    if (query?.category) {
+      whereCondition.category = query.category;
     }
 
     const page = query?.page || 1;

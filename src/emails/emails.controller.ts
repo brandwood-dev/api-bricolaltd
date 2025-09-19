@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { EmailsService } from './emails.service';
 import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
@@ -10,6 +10,8 @@ import { SendGridService } from './sendgrid.service';
 @ApiTags('emails')
 @Controller('emails')
 export class EmailsController {
+  private readonly logger = new Logger(EmailsController.name);
+
   constructor(
     private readonly emailsService: EmailsService,
     private readonly sendGridService: SendGridService
@@ -117,45 +119,126 @@ export class EmailsController {
   }
 
   @Post('test-sendgrid')
-  @ApiOperation({ summary: 'Test SendGrid email sending' })
-  @ApiResponse({ status: 200, description: 'Test email sent successfully.' })
-  @ApiResponse({ status: 400, description: 'Failed to send test email.' })
-  async testSendGrid(@Query('to') to: string = 'contact@bricolaltd.com') {
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async testSendGrid(@Body() body: { email: string }) {
     try {
-      const success = await this.sendGridService.sendTestEmail(to);
-      
-      if (success) {
+      const result = await this.sendGridService.sendTestEmail(body.email);
+      if (result) {
         return {
-          data: {
-            success: true,
-            message: `Test email sent successfully to ${to}`,
-            timestamp: new Date().toISOString(),
-            service: 'SendGrid'
-          },
-          message: 'Request successful'
+          success: true,
+          message: 'Test email sent successfully',
+          data: { email: body.email }
         };
       } else {
         return {
-          data: {
-            success: false,
-            message: `Failed to send test email to ${to}`,
-            timestamp: new Date().toISOString(),
-            service: 'SendGrid'
-          },
-          message: 'Email sending failed'
+          success: false,
+          message: 'Failed to send test email'
         };
       }
     } catch (error) {
-      return {
-        data: {
+      this.logger.error('Error sending test email:', error);
+      throw new HttpException(
+        'Failed to send test email',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  @Post('send-contact-response')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  async sendContactResponse(@Body() body: { 
+    email: string; 
+    name: string; 
+    subject: string; 
+    response: string; 
+  }) {
+    try {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Réponse de Bricola</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
+            .response-box { margin: 20px 0; padding: 20px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 0 8px 8px 0; }
+            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0; font-size: 28px;">🏠 Bricola</h1>
+              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Réponse à votre demande</p>
+            </div>
+            <div class="content">
+              <h2 style="color: #007bff; margin-top: 0;">Bonjour ${body.name},</h2>
+              <p>Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés.</p>
+              
+              <div class="response-box">
+                <h3 style="margin-top: 0; color: #007bff;">Notre réponse :</h3>
+                <p style="margin-bottom: 0;">${body.response.replace(/\n/g, '<br>')}</p>
+              </div>
+              
+              <p>Si vous avez d'autres questions, n'hésitez pas à nous recontacter.</p>
+              <p>Cordialement,<br><strong>L'équipe Bricola</strong></p>
+            </div>
+            <div class="footer">
+              <p>© 2024 Bricola. Tous droits réservés.</p>
+              <p>Email : admin@bricola.com | Téléphone : +33 1 23 45 67 89</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const text = `
+Réponse de Bricola
+
+Bonjour ${body.name},
+
+Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés.
+
+Notre réponse :
+${body.response}
+
+Si vous avez d'autres questions, n'hésitez pas à nous recontacter.
+
+Cordialement,
+L'équipe Bricola
+
+© 2024 Bricola. Tous droits réservés.
+Email : admin@bricola.com | Téléphone : +33 1 23 45 67 89
+      `;
+
+      const result = await this.sendGridService.sendEmail({
+        to: body.email,
+        subject: `Re: ${body.subject}`,
+        html,
+        text
+      });
+
+      if (result) {
+        return {
+          success: true,
+          message: 'Contact response sent successfully',
+          data: { email: body.email, subject: body.subject }
+        };
+      } else {
+        return {
           success: false,
-          message: `Error sending test email: ${error.message}`,
-          timestamp: new Date().toISOString(),
-          service: 'SendGrid',
-          error: error.message
-        },
-        message: 'Request failed'
-      };
+          message: 'Failed to send contact response'
+        };
+      }
+    } catch (error) {
+      this.logger.error('Error sending contact response:', error);
+      throw new HttpException(
+        'Failed to send contact response',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 }
