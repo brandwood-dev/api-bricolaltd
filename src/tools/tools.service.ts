@@ -193,11 +193,8 @@ export class ToolsService {
       },
     });
 
-    // Transform tools to include isAvailable property
-    return tools.map(tool => ({
-      ...tool,
-      isAvailable: tool.availabilityStatus === AvailabilityStatus.AVAILABLE,
-    }));
+    // Return tools directly - isAvailable is now a getter on the Tool entity
+    return tools;
   }
 
   async update(
@@ -207,13 +204,40 @@ export class ToolsService {
   ): Promise<Tool> {
     const tool = await this.findOne(id);
 
+    console.log('🔧 Backend - Received updateToolDto:', updateToolDto);
+    console.log('🔧 Backend - Current tool categoryId:', tool.categoryId);
+    console.log('🔧 Backend - Current tool subcategoryId:', tool.subcategoryId);
+
     // Update the tool with the new data
     Object.assign(tool, updateToolDto);
+    
+    // Explicitly handle categoryId and subcategoryId updates
+    if (updateToolDto.categoryId !== undefined) {
+      tool.categoryId = updateToolDto.categoryId;
+      console.log('🔧 Backend - Updated categoryId to:', tool.categoryId);
+    }
+    
+    if (updateToolDto.subcategoryId !== undefined) {
+      tool.subcategoryId = updateToolDto.subcategoryId;
+      console.log('🔧 Backend - Updated subcategoryId to:', tool.subcategoryId);
+    }
     
     // Automatically set moderation status to Pending when tool is updated
     tool.moderationStatus = ModerationStatus.PENDING;
     
+    console.log('🔧 Backend - Tool before save:', {
+      id: tool.id,
+      categoryId: tool.categoryId,
+      subcategoryId: tool.subcategoryId
+    });
+    
     await this.toolsRepository.save(tool);
+    
+    console.log('🔧 Backend - Tool after save:', {
+      id: tool.id,
+      categoryId: tool.categoryId,
+      subcategoryId: tool.subcategoryId
+    });
 
     // If files are uploaded, process them
     if (files && files.length > 0) {
@@ -276,7 +300,36 @@ export class ToolsService {
       }
     }
 
-    return this.findOne(id);
+    // Force reload the tool with updated relations from database
+    const updatedTool = await this.toolsRepository.findOne({
+      where: { id },
+      relations: {
+        owner: true,
+        category: true,
+        subcategory: true,
+        photos: true,
+      },
+      order: {
+        photos: {
+          isPrimary: 'DESC',
+          createdAt: 'ASC',
+        },
+      },
+    });
+
+    if (!updatedTool) {
+      throw new NotFoundException(`Tool with ID ${id} not found after update`);
+    }
+
+    console.log('🔧 Backend - Tool with reloaded relations:', {
+      id: updatedTool.id,
+      categoryId: updatedTool.categoryId,
+      category: updatedTool.category ? { id: updatedTool.category.id, name: updatedTool.category.name } : null,
+      subcategoryId: updatedTool.subcategoryId,
+      subcategory: updatedTool.subcategory ? { id: updatedTool.subcategory.id, name: updatedTool.subcategory.name } : null
+    });
+
+    return updatedTool;
   }
 
   async remove(id: string): Promise<void> {
@@ -489,9 +542,7 @@ export class ToolsService {
       },
     });
 
-    return tools.map(tool => ({
-      ...tool,
-      isAvailable: tool.availabilityStatus === AvailabilityStatus.AVAILABLE,
-    }));
+    // Return tools directly - isAvailable is now a getter on the Tool entity
+    return tools;
   }
 }

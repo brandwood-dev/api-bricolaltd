@@ -235,4 +235,17 @@ export class Tool {
   get isAvailable(): boolean {
     return this.availabilityStatus === AvailabilityStatus.AVAILABLE;
   }
+
+  @ApiProperty({
+    description: 'The primary image URL of the tool',
+    example: 'https://example-bucket.s3.amazonaws.com/tools/image.jpg',
+    required: false,
+  })
+  get image(): string | null {
+    if (!this.photos || this.photos.length === 0) {
+      return null;
+    }
+    const primaryPhoto = this.photos.find(photo => photo.isPrimary);
+    return primaryPhoto ? primaryPhoto.url : (this.photos[0]?.url || null);
+  }
 }

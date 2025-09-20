@@ -12,6 +12,29 @@ import { BookingStatsQueryDto } from '../bookings/dto/booking-stats.dto';
 export class AdminBookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  @Get()
+  @ApiOperation({ summary: 'Get all bookings for admin' })
+  @ApiResponse({ status: 200, description: 'Bookings retrieved successfully.' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
+  async getAllBookings(@Query() query: any) {
+    try {
+      const result = await this.bookingsService.findAllAdmin(query);
+      return {
+        data: result,
+        message: 'Request successful'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get booking statistics for admin dashboard' })
   @ApiResponse({ status: 200, description: 'Booking statistics retrieved successfully.' })
@@ -24,6 +47,22 @@ export class AdminBookingsController {
       const stats = await this.bookingsService.getBookingStats(queryDto);
       return {
         data: stats,
+        message: 'Request successful'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get booking analytics for admin dashboard' })
+  @ApiResponse({ status: 200, description: 'Booking analytics retrieved successfully.' })
+  @ApiQuery({ name: 'period', required: false, enum: ['week', 'month', 'year'] })
+  async getBookingAnalytics(@Query('period') period: 'week' | 'month' | 'year' = 'month') {
+    try {
+      const analytics = await this.bookingsService.getBookingAnalytics(period);
+      return {
+        data: analytics,
         message: 'Request successful'
       };
     } catch (error) {

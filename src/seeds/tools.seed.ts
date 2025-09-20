@@ -24,23 +24,24 @@ export async function seedTools(dataSource: DataSource) {
   
   // Define tool templates for realistic generation
   const toolTemplates = [
-    // Outils de bricolage
-    { category: 'Outils de bricolage', subcategory: 'Perceuses', brands: ['Bosch', 'Makita', 'DeWalt', 'Ryobi', 'Black & Decker'], types: ['Perceuse sans fil', 'Perceuse filaire', 'Perceuse à percussion'], priceRange: [10, 25] },
-    { category: 'Outils de bricolage', subcategory: 'Scies', brands: ['Makita', 'Bosch', 'DeWalt', 'Festool'], types: ['Scie circulaire', 'Scie sauteuse', 'Scie à onglet'], priceRange: [15, 35] },
-    { category: 'Outils de bricolage', subcategory: 'Ponceuses', brands: ['Bosch', 'Makita', 'Festool', 'Ryobi'], types: ['Ponceuse orbitale', 'Ponceuse excentrique', 'Ponceuse à bande'], priceRange: [12, 28] },
+    // DIY tools
+    { category: 'diy', subcategory: 'power-tools', brands: ['Bosch', 'Makita', 'DeWalt', 'Ryobi', 'Black & Decker'], types: ['Perceuse sans fil', 'Perceuse filaire', 'Perceuse à percussion'], priceRange: [10, 25] },
+    { category: 'diy', subcategory: 'power-tools', brands: ['Makita', 'Bosch', 'DeWalt', 'Festool'], types: ['Scie circulaire', 'Scie sauteuse', 'Scie à onglet'], priceRange: [15, 35] },
+    { category: 'diy', subcategory: 'power-tools', brands: ['Bosch', 'Makita', 'Festool', 'Ryobi'], types: ['Ponceuse orbitale', 'Ponceuse excentrique', 'Ponceuse à bande'], priceRange: [12, 28] },
+    { category: 'diy', subcategory: 'hand-tools', brands: ['Stanley', 'Facom', 'Bahco', 'Gedore'], types: ['Marteau', 'Tournevis', 'Clé à molette'], priceRange: [5, 15] },
     
-    // Outils de jardinage
-    { category: 'Outils de jardinage', subcategory: 'Tondeuses', brands: ['Ryobi', 'Honda', 'Husqvarna', 'Bosch'], types: ['Tondeuse électrique', 'Tondeuse thermique', 'Tondeuse robot'], priceRange: [20, 45] },
-    { category: 'Outils de jardinage', subcategory: 'Taille-haies', brands: ['Black & Decker', 'Bosch', 'Stihl', 'Husqvarna'], types: ['Taille-haie électrique', 'Taille-haie thermique', 'Taille-haie sur perche'], priceRange: [10, 25] },
-    { category: 'Outils de jardinage', subcategory: 'Souffleurs', brands: ['Stihl', 'Husqvarna', 'Ryobi', 'Black & Decker'], types: ['Souffleur électrique', 'Souffleur thermique', 'Aspirateur souffleur'], priceRange: [8, 20] },
+    // Gardening tools
+    { category: 'gardening', subcategory: 'lawn-mowers', brands: ['Ryobi', 'Honda', 'Husqvarna', 'Bosch'], types: ['Tondeuse électrique', 'Tondeuse thermique', 'Tondeuse robot'], priceRange: [20, 45] },
+    { category: 'gardening', subcategory: 'hedge-trimmers', brands: ['Black & Decker', 'Bosch', 'Stihl', 'Husqvarna'], types: ['Taille-haie électrique', 'Taille-haie thermique', 'Taille-haie sur perche'], priceRange: [10, 25] },
+    { category: 'gardening', subcategory: 'garden-hand-tools', brands: ['Fiskars', 'Spear & Jackson', 'Gardena', 'Wolf'], types: ['Pelle', 'Râteau', 'Binette'], priceRange: [8, 20] },
     
-    // Électroménager
-    { category: 'Électroménager', subcategory: 'Nettoyage', brands: ['Karcher', 'Nilfisk', 'Bosch', 'Dyson'], types: ['Aspirateur eau/poussière', 'Nettoyeur haute pression', 'Aspirateur industriel'], priceRange: [15, 40] },
-    { category: 'Électroménager', subcategory: 'Cuisine', brands: ['KitchenAid', 'Bosch', 'Moulinex', 'Kenwood'], types: ['Robot pâtissier', 'Blender professionnel', 'Machine à pain'], priceRange: [8, 25] },
+    // Cleaning equipment
+    { category: 'cleaning', subcategory: 'vacuum-cleaners', brands: ['Karcher', 'Nilfisk', 'Bosch', 'Dyson'], types: ['Aspirateur eau/poussière', 'Aspirateur traîneau', 'Aspirateur industriel'], priceRange: [15, 40] },
+    { category: 'cleaning', subcategory: 'pressure-washers', brands: ['Karcher', 'Nilfisk', 'Bosch', 'Lavor'], types: ['Nettoyeur haute pression', 'Nettoyeur compact', 'Nettoyeur professionnel'], priceRange: [18, 35] },
     
-    // Matériel de transport
-    { category: 'Matériel de transport', subcategory: 'Échelles', brands: ['Hailo', 'Zarges', 'Centaure', 'Tubesca'], types: ['Échelle télescopique', 'Échelle coulissante', 'Escabeau'], priceRange: [18, 35] },
-    { category: 'Matériel de transport', subcategory: 'Diables', brands: ['Wolfcraft', 'Stanley', 'Mannesmann', 'Silverline'], types: ['Diable pliant', 'Diable escalier', 'Diable tout terrain'], priceRange: [5, 15] },
+    // Event equipment
+    { category: 'events', subcategory: 'party-equipment', brands: ['Lifetime', 'Bolero', 'Vango', 'Coleman'], types: ['Table pliante', 'Chaise empilable', 'Parasol'], priceRange: [5, 25] },
+    { category: 'events', subcategory: 'sound-lighting', brands: ['JBL', 'Bose', 'Yamaha', 'Pioneer'], types: ['Enceinte portable', 'Micro sans fil', 'Éclairage LED'], priceRange: [15, 50] },
   ];
 
   const toolsData: any[] = [];
@@ -70,9 +71,14 @@ export async function seedTools(dataSource: DataSource) {
     const selectedFeatures = faker.helpers.arrayElements(features, { min: 2, max: 4 });
     const description = `${type} ${brand} de qualité. ${selectedFeatures.join(', ')}.`;
     
+    const model = faker.helpers.arrayElement(['Pro', 'Expert', 'Premium', 'Standard', 'Compact']);
+    
     const tool = {
-      name: `${type} ${brand} ${faker.helpers.arrayElement(['Pro', 'Expert', 'Premium', 'Standard', 'Compact'])}`,
+      name: `${type} ${brand} ${model}`,
       description,
+      brand,
+      model,
+      year: faker.number.int({ min: 2015, max: 2024 }),
       dailyRate,
       condition,
       categoryName: template.category,
@@ -92,7 +98,10 @@ export async function seedTools(dataSource: DataSource) {
     const category = categories.find(c => c.name === toolData.categoryName);
     const subcategory = category?.subcategories?.find(s => s.name === toolData.subcategoryName);
     
-    if (!category || !subcategory) continue;
+    if (!category || !subcategory) {
+      console.log(`Skipping tool: category '${toolData.categoryName}' or subcategory '${toolData.subcategoryName}' not found`);
+      continue;
+    }
     
     const existingTool = await toolRepository.findOne({ 
       where: { title: toolData.name, ownerId: owner.id } 
@@ -102,20 +111,23 @@ export async function seedTools(dataSource: DataSource) {
       const tool = toolRepository.create({
         title: toolData.name,
         description: toolData.description,
-        basePrice: toolData.dailyRate,
+        brand: toolData.brand,
+        model: toolData.model,
+        year: toolData.year,
         condition: toolData.condition,
-        toolStatus: ToolStatus.PUBLISHED,
-        availabilityStatus: AvailabilityStatus.AVAILABLE,
-        owner,
-        ownerId: owner.id,
-        category,
-        categoryId: category.id,
-        subcategory,
-        subcategoryId: subcategory.id,
         pickupAddress: owner.address || '123 Rue de la Paix, 75001 Paris, France',
         latitude: 48.8566 + (Math.random() - 0.5) * 0.1, // Random around Paris
         longitude: 2.3522 + (Math.random() - 0.5) * 0.1,
+        ownerInstructions: 'Outil en bon état, manipulation avec précaution.',
+        basePrice: toolData.dailyRate,
         depositAmount: toolData.dailyRate * 2, // Set deposit as 2x daily rate
+        imageUrl: toolData.photos[0], // Set first photo as main image
+        toolStatus: ToolStatus.PUBLISHED,
+        availabilityStatus: AvailabilityStatus.AVAILABLE,
+        categoryId: category.id,
+        subcategoryId: subcategory.id,
+        ownerId: owner.id,
+        publishedAt: new Date(),
       });
       
       const savedTool = await toolRepository.save(tool);
@@ -126,7 +138,6 @@ export async function seedTools(dataSource: DataSource) {
           url: toolData.photos[j],
           filename: `tool-${savedTool.id}-photo-${j + 1}.jpg`,
           isPrimary: j === 0,
-          tool: savedTool,
           toolId: savedTool.id,
         });
         await toolPhotoRepository.save(photo);

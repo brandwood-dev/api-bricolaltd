@@ -277,13 +277,19 @@ export class BookingsService {
     // Get paginated results
     const bookings = await queryBuilder.getMany();
 
+    // Transform bookings to add primary image to tool
+    const transformedBookings = bookings.map(booking => {
+      // The image property is now available as a getter on the Tool entity
+      return booking;
+    });
+
     // Calculate pagination metadata
     const totalPages = Math.ceil(total / limit);
     const hasNext = page < totalPages;
     const hasPrev = page > 1;
 
     return {
-      data: bookings,
+      data: transformedBookings,
       total,
       page,
       limit,
@@ -303,15 +309,19 @@ export class BookingsService {
       throw new NotFoundException(`Booking with ID ${id} not found`);
     }
 
+    // The image property is now available as a getter on the Tool entity
     return booking;
   }
 
   async findByUserId(userId: string): Promise<Booking[]> {
-    return this.bookingsRepository.find({
+    const bookings = await this.bookingsRepository.find({
       where: { renterId: userId },
       relations: ['tool', 'tool.owner', 'tool.photos', 'owner', 'renter'],
       order: { createdAt: 'DESC' },
     });
+
+    // The image property is now available as a getter on the Tool entity
+    return bookings;
   }
 
   async findByToolId(toolId: string): Promise<Booking[]> {
@@ -323,11 +333,14 @@ export class BookingsService {
   }
 
   async findByOwnerId(ownerId: string): Promise<Booking[]> {
-    return this.bookingsRepository.find({
+    const bookings = await this.bookingsRepository.find({
       where: { ownerId },
       relations: ['tool', 'tool.owner', 'tool.photos', 'owner', 'renter'],
       order: { createdAt: 'DESC' },
     });
+
+    // The image property is now available as a getter on the Tool entity
+    return bookings;
   }
 
   async update(

@@ -20,6 +20,10 @@ export async function seedDocuments(dataSource: DataSource) {
     return;
   }
   
+  if (tools.length === 0) {
+    console.log('⚠️ No tools found, documents will be created without tool associations');
+  }
+  
   const documentTypes = Object.values(DocumentType);
   const mimeTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/msword'];
   const documentTitles = {
@@ -55,7 +59,7 @@ export async function seedDocuments(dataSource: DataSource) {
       description: faker.lorem.sentence()
     };
     const user = users[i % users.length];
-    const tool = tools[i % tools.length];
+    const tool = tools.length > 0 ? tools[i % tools.length] : null;
     
     const existingDocument = await documentRepository.findOne({
       where: { fileName: documentData.fileName }
@@ -66,8 +70,8 @@ export async function seedDocuments(dataSource: DataSource) {
         ...documentData,
         user,
         userId: user.id,
-        tool: documentData.type === DocumentType.INVOICE ? tool : undefined,
-        toolId: documentData.type === DocumentType.INVOICE ? tool.id : undefined,
+        tool: documentData.type === DocumentType.INVOICE && tool ? tool : undefined,
+        toolId: documentData.type === DocumentType.INVOICE && tool ? tool.id : undefined,
         verifiedAt: documentData.isVerified ? new Date() : undefined
       });
       
