@@ -96,7 +96,7 @@ export class CreateUserDto {
   @ApiProperty({ description: 'The phone prefix of the user', required: false })
   @IsString()
   @IsOptional()
-  prefix?: string;
+  phone_prefix?: string;
 
   @ApiProperty({
     description: 'The latitude coordinate of the user',

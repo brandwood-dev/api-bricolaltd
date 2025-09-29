@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, Get, Request, Query, BadRequestExcep
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ValidatePasswordDto } from './dto/validate-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -160,12 +161,26 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Non autorisé' })
   async validatePassword(@Request() req, @Body() validatePasswordDto: ValidatePasswordDto) {
     try {
-      console.log('=== DEBUG validate-password endpoint ===');
-      console.log('User ID:', req.user.id);
-      console.log('Password received:', validatePasswordDto.password ? '[MASQUÉ - longueur: ' + validatePasswordDto.password.length + ']' : 'VIDE');
+      console.log('=== BACKEND PASSWORD VALIDATION DEBUG ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Request headers:', {
+        'content-type': req.headers['content-type'],
+        'authorization': req.headers.authorization ? `Bearer ${req.headers.authorization.substring(7, 27)}...` : 'Missing',
+        'user-agent': req.headers['user-agent']
+      });
+      console.log('Request body received:', {
+        password: validatePasswordDto.password ? `[MASKED - length: ${validatePasswordDto.password.length}]` : 'EMPTY',
+        hasPassword: !!validatePasswordDto.password
+      });
+      console.log('JWT User from token:', {
+        id: req.user.id,
+        email: req.user.email,
+        isAdmin: req.user.isAdmin
+      });
       
+      console.log('Calling authService.validateUserPassword...');
       const isValid = await this.authService.validateUserPassword(req.user.id, validatePasswordDto.password);
-      console.log('Result from validateUserPassword:', isValid);
+      console.log('✅ Result from validateUserPassword:', isValid);
       
       const response = {
         success: true,
@@ -173,13 +188,54 @@ export class AuthController {
         message: isValid ? 'Mot de passe valide' : 'Mot de passe invalide'
       };
       
-      console.log('Response being sent:', JSON.stringify(response, null, 2));
-      console.log('=== FIN DEBUG validate-password endpoint ===');
+      console.log('📤 Response being sent:', JSON.stringify(response, null, 2));
+      console.log('=== END BACKEND PASSWORD VALIDATION DEBUG ===');
       
       return response;
     } catch (error) {
-      console.log('ERREUR dans validate-password endpoint:', error.message);
+      console.error('❌ ERREUR dans validate-password endpoint:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      console.log('=== END BACKEND PASSWORD VALIDATION DEBUG (ERROR) ===');
       throw new BadRequestException('Erreur lors de la validation du mot de passe');
+    }
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Changer le mot de passe de l\'utilisateur' })
+  @ApiResponse({ status: 200, description: 'Mot de passe changé avec succès' })
+  @ApiResponse({ status: 400, description: 'Mot de passe actuel incorrect ou nouveau mot de passe invalide' })
+  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
+    try {
+      console.log('=== DEBUG change-password endpoint ===');
+      console.log('User ID:', req.user.id);
+      console.log('Current password received:', changePasswordDto.currentPassword ? '[MASQUÉ - longueur: ' + changePasswordDto.currentPassword.length + ']' : 'VIDE');
+      console.log('New password received:', changePasswordDto.newPassword ? '[MASQUÉ - longueur: ' + changePasswordDto.newPassword.length + ']' : 'VIDE');
+      
+      const result = await this.authService.changePassword(
+        req.user.id,
+        changePasswordDto.currentPassword,
+        changePasswordDto.newPassword
+      );
+      
+      const response = {
+        success: true,
+        data: result,
+        message: result.message
+      };
+      
+      console.log('Response being sent:', JSON.stringify(response, null, 2));
+      console.log('=== FIN DEBUG change-password endpoint ===');
+      
+      return response;
+    } catch (error) {
+      console.log('ERREUR dans change-password endpoint:', error.message);
+      throw error;
     }
   }
 }

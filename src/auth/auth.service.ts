@@ -30,7 +30,12 @@ export class AuthService {
 
   async login(user: User) {
     const payload = { email: user.email, sub: user.id, isAdmin: user.isAdmin };
-    const token = this.jwtService.sign(payload, { expiresIn: '2h' });
+    
+    // 24h token expiration for all users (admin and regular users)
+    const tokenExpiration = '24h';
+    const expiresInSeconds = 86400; // 24h = 86400s
+    
+    const token = this.jwtService.sign(payload, { expiresIn: tokenExpiration });
     const refreshToken = this.jwtService.sign(
       { sub: user.id, type: 'refresh' },
       { expiresIn: '7d' },
@@ -52,7 +57,7 @@ export class AuthService {
       },
       token,
       refreshToken,
-      expiresIn: 7200, // 2 hour in seconds
+      expiresIn: expiresInSeconds,
     };
   }
 
@@ -78,6 +83,14 @@ export class AuthService {
       verifiedEmail: user.verifiedEmail,
       isActive: user.isActive,
     });
+
+    // Check if user is suspended
+    if (user.isSuspended) {
+      console.log('ERREUR: Utilisateur suspendu');
+      throw new UnauthorizedException(
+        `Your account access has been suspended. Reason: ${user.isSuspended}. You cannot access the application.`,
+      );
+    }
 
     // Check if user's email is verified
     // Exception: Allow login if user recently reset password (resetPasswordToken exists)
@@ -393,31 +406,102 @@ export class AuthService {
 
   async validateUserPassword(userId: string, password: string): Promise<boolean> {
     try {
-      console.log('=== DEBUG validateUserPassword ===');
-      console.log('UserId reçu:', userId);
-      console.log('Password reçu:', password ? '[MASQUÉ - longueur: ' + password.length + ']' : 'VIDE');
+      console.log('🔍 === BACKEND validateUserPassword DEBUG ===');
+      console.log('📥 Input parameters:', {
+        userId: userId,
+        passwordLength: password ? password.length : 0,
+        passwordExists: !!password,
+        passwordType: typeof password
+      });
       
+      console.log('🔎 Searching for user in database...');
       const user = await this.usersService.findOne(userId);
-      console.log('Utilisateur trouvé:', user ? 'OUI' : 'NON');
+      console.log('👤 User lookup result:', {
+        userFound: !!user,
+        userId: user?.id,
+        userEmail: user?.email,
+        hasPassword: user ? !!user.password : false,
+        passwordHashLength: user?.password ? user.password.length : 0
+      });
       
       if (!user || !user.password) {
-        console.log('ERREUR: Utilisateur non trouvé ou pas de mot de passe');
-        console.log('User exists:', !!user);
-        console.log('User has password:', user ? !!user.password : 'N/A');
+        console.log('❌ VALIDATION FAILED: User not found or no password hash');
+        console.log('🔍 Debug details:', {
+          userExists: !!user,
+          userHasPassword: user ? !!user.password : 'N/A',
+          userPasswordValue: user?.password ? 'EXISTS' : 'NULL/UNDEFINED'
+        });
         return false;
       }
       
-      console.log('Hash stocké en DB:', user.password ? user.password.substring(0, 20) + '...' : 'VIDE');
-      console.log('Longueur du hash:', user.password ? user.password.length : 0);
+      console.log('🔐 Password hash details:', {
+        hashPrefix: user.password.substring(0, 29), // Show bcrypt prefix $2b$10$
+        hashLength: user.password.length,
+        isValidBcryptFormat: user.password.startsWith('$2b$') || user.password.startsWith('$2a$')
+      });
+      
+      console.log('🔄 Starting bcrypt comparison...');
+      console.log('📝 Comparison inputs:', {
+        plainTextLength: password.length,
+        hashLength: user.password.length,
+        timestamp: new Date().toISOString()
+      });
       
       const isValid = await bcrypt.compare(password, user.password);
-      console.log('Résultat bcrypt.compare:', isValid);
-      console.log('=== FIN DEBUG validateUserPassword ===');
+      
+      console.log('✅ Bcrypt comparison result:', {
+        isValid: isValid,
+        comparisonSuccessful: true,
+        timestamp: new Date().toISOString()
+      });
+      console.log('🔍 === END validateUserPassword DEBUG ===');
       
       return isValid;
     } catch (error) {
-      console.log('ERREUR dans validateUserPassword:', error.message);
+      console.error('❌ ERROR in validateUserPassword:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+        userId: userId,
+        passwordProvided: !!password
+      });
+      console.log('🔍 === END validateUserPassword DEBUG (ERROR) ===');
       return false;
+    }
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    try {
+      console.log('=== DEBUG changePassword ===');
+      console.log('UserId:', userId);
+      console.log('Current password:', currentPassword ? '[MASQUÉ - longueur: ' + currentPassword.length + ']' : 'VIDE');
+      console.log('New password:', newPassword ? '[MASQUÉ - longueur: ' + newPassword.length + ']' : 'VIDE');
+      
+      // Vérifier le mot de passe actuel
+      const isCurrentPasswordValid = await this.validateUserPassword(userId, currentPassword);
+      console.log('Mot de passe actuel valide:', isCurrentPasswordValid);
+      
+      if (!isCurrentPasswordValid) {
+        console.log('ERREUR: Mot de passe actuel invalide');
+        throw new BadRequestException('Le mot de passe actuel est incorrect');
+      }
+      
+      // Hacher le nouveau mot de passe avec la même méthode que lors de l'inscription
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      console.log('Nouveau hash généré:', hashedNewPassword.substring(0, 20) + '...');
+      
+      // Mettre à jour le mot de passe dans la base de données
+      await this.usersService.updateWithHashedPassword(userId, hashedNewPassword);
+      console.log('Mot de passe mis à jour avec succès');
+      
+      console.log('=== FIN DEBUG changePassword ===');
+      return { message: 'Mot de passe modifié avec succès' };
+    } catch (error) {
+      console.log('ERREUR dans changePassword:', error.message);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Erreur lors du changement de mot de passe');
     }
   }
 }

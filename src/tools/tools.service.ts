@@ -14,6 +14,7 @@ import { AvailabilityStatus } from './enums/availability-status.enum';
 import { ModerationStatus } from './enums/moderation-status.enum';
 import { ToolStatus } from './enums/tool-status.enum';
 import { Booking } from '../bookings/entities/booking.entity';
+import { ReviewTool } from '../reviews/entities/review-tool.entity';
 import { S3Service } from '../common/services/s3.service';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 
@@ -24,6 +25,8 @@ export class ToolsService {
     private toolsRepository: Repository<Tool>,
     @InjectRepository(ToolPhoto)
     private toolPhotoRepository: Repository<ToolPhoto>,
+    @InjectRepository(ReviewTool)
+    private reviewToolRepository: Repository<ReviewTool>,
     private readonly s3Service: S3Service,
   ) {}
 
@@ -111,8 +114,15 @@ export class ToolsService {
       },
     });
 
-    // Return tools without transformation
-    const transformedTools = tools;
+    // Calculate rating and review count for each tool
+    const transformedTools = await Promise.all(
+      tools.map(async (tool) => {
+        const { rating, reviewCount } = await this.calculateToolRating(tool.id);
+        (tool as any).rating = rating;
+        (tool as any).reviewCount = reviewCount;
+        return tool;
+      })
+    );
 
     return {
       data: transformedTools,
@@ -142,8 +152,15 @@ export class ToolsService {
       take: limit,
     });
 
-    // Return tools without transformation
-    const transformedTools = tools;
+    // Calculate rating and review count for each tool
+    const transformedTools = await Promise.all(
+      tools.map(async (tool) => {
+        const { rating, reviewCount } = await this.calculateToolRating(tool.id);
+        (tool as any).rating = rating;
+        (tool as any).reviewCount = reviewCount;
+        return tool;
+      })
+    );
 
     return {
       data: transformedTools,
@@ -152,6 +169,7 @@ export class ToolsService {
   }
 
   async findOne(id: string): Promise<Tool> {
+    console.log('🔍 findOne called with id:', id);
     const tool = await this.toolsRepository.findOne({
       where: { id },
       relations: {
@@ -171,6 +189,13 @@ export class ToolsService {
     if (!tool) {
       throw new NotFoundException(`Tool with ID ${id} not found`);
     }
+
+    // Calculate rating and review count
+    const { rating, reviewCount } = await this.calculateToolRating(id);
+    
+    // Add the calculated values to the tool object
+    (tool as any).rating = rating;
+    (tool as any).reviewCount = reviewCount;
 
     return tool;
   }
@@ -193,8 +218,17 @@ export class ToolsService {
       },
     });
 
-    // Return tools directly - isAvailable is now a getter on the Tool entity
-    return tools;
+    // Calculate rating and review count for each tool
+    const transformedTools = await Promise.all(
+      tools.map(async (tool) => {
+        const { rating, reviewCount } = await this.calculateToolRating(tool.id);
+        (tool as any).rating = rating;
+        (tool as any).reviewCount = reviewCount;
+        return tool;
+      })
+    );
+
+    return transformedTools;
   }
 
   async update(
@@ -328,6 +362,11 @@ export class ToolsService {
       subcategoryId: updatedTool.subcategoryId,
       subcategory: updatedTool.subcategory ? { id: updatedTool.subcategory.id, name: updatedTool.subcategory.name } : null
     });
+
+    // Calculate rating and review count for the updated tool
+    const { rating, reviewCount } = await this.calculateToolRating(id);
+    (updatedTool as any).rating = rating;
+    (updatedTool as any).reviewCount = reviewCount;
 
     return updatedTool;
   }
@@ -542,7 +581,44 @@ export class ToolsService {
       },
     });
 
-    // Return tools directly - isAvailable is now a getter on the Tool entity
-    return tools;
+    // Calculate rating and review count for each tool
+    const transformedTools = await Promise.all(
+      tools.map(async (tool) => {
+        const { rating, reviewCount } = await this.calculateToolRating(tool.id);
+        (tool as any).rating = rating;
+        (tool as any).reviewCount = reviewCount;
+        return tool;
+      })
+    );
+
+    return transformedTools;
+  }
+
+  /**
+   * Calculate the average rating and review count for a tool
+   */
+  async calculateToolRating(toolId: string): Promise<{ rating: number; reviewCount: number }> {
+    console.log('🔍 calculateToolRating called for toolId:', toolId);
+    
+    const reviews = await this.reviewToolRepository.find({
+      where: { toolId },
+    });
+
+    console.log('🔍 Found reviews:', reviews.length, reviews.map(r => ({ id: r.id, rating: r.rating })));
+
+    if (reviews.length === 0) {
+      console.log('🔍 No reviews found, returning 0/0');
+      return { rating: 0, reviewCount: 0 };
+    }
+
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = Math.round((totalRating / reviews.length) * 10) / 10; // Round to 1 decimal place
+
+    console.log('🔍 Calculated rating:', averageRating, 'reviewCount:', reviews.length);
+
+    return {
+      rating: averageRating,
+      reviewCount: reviews.length,
+    };
   }
 }

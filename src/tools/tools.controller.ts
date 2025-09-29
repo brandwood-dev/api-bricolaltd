@@ -99,8 +99,12 @@ export class ToolsController {
   @ApiOperation({ summary: 'Get a tool by id' })
   @ApiResponse({ status: 200, description: 'Return the tool.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  findOne(@Param('id') id: string) {
-    return this.toolsService.findOne(id);
+  async findOne(@Param('id') id: string) {
+    const tool = await this.toolsService.findOne(id);
+    return {
+      data: tool,
+      message: 'Request successful'
+    };
   }
 
   @Get('user/:userId')

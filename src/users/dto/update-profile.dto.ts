@@ -20,6 +20,10 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  phone_prefix?: string
+
+  @IsOptional()
+  @IsString()
   profilePicture?: string
 
   @IsOptional()

@@ -752,8 +752,11 @@ export class BookingsService {
     const pendingBookings = bookings.filter(
       (b) => b.status === BookingStatus.PENDING,
     ).length;
-    const confirmedBookings = bookings.filter(
+    const acceptedBookings = bookings.filter(
       (b) => b.status === BookingStatus.ACCEPTED,
+    ).length;
+    const ongoingBookings = bookings.filter(
+      (b) => b.status === BookingStatus.ONGOING,
     ).length;
     const completedBookings = bookings.filter(
       (b) => b.status === BookingStatus.COMPLETED,
@@ -816,9 +819,15 @@ export class BookingsService {
       },
       {
         status: 'ACCEPTED',
-        count: confirmedBookings,
+        count: acceptedBookings,
         percentage:
-          totalBookings > 0 ? (confirmedBookings / totalBookings) * 100 : 0,
+          totalBookings > 0 ? (acceptedBookings / totalBookings) * 100 : 0,
+      },
+      {
+        status: 'ONGOING',
+        count: ongoingBookings,
+        percentage:
+          totalBookings > 0 ? (ongoingBookings / totalBookings) * 100 : 0,
       },
       {
         status: 'COMPLETED',
@@ -843,7 +852,8 @@ export class BookingsService {
     return {
       totalBookings,
       pendingBookings,
-      confirmedBookings,
+      acceptedBookings,
+      ongoingBookings,
       completedBookings,
       cancelledBookings,
       rejectedBookings,

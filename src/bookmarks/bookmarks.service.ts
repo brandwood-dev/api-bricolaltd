@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Bookmark } from './entities/bookmark.entity';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
+import { ToolsService } from '../tools/tools.service';
 
 @Injectable()
 export class BookmarksService {
   constructor(
     @InjectRepository(Bookmark)
     private bookmarksRepository: Repository<Bookmark>,
+    private readonly toolsService: ToolsService,
   ) {}
 
   async findByUser(userId: string): Promise<Bookmark[]> {
@@ -37,6 +39,14 @@ export class BookmarksService {
     
     console.log('📚 BookmarksService.findByUser - Favoris trouvés:', bookmarks.length, 'pour userId:', userId);
     console.log('📚 BookmarksService.findByUser - Détails des favoris:', bookmarks.map(b => ({ id: b.id, userId: b.userId, toolId: b.toolId, createdAt: b.createdAt })));
+    
+    // Calculer les ratings et reviewCount pour chaque outil
+    for (const bookmark of bookmarks) {
+      if (bookmark.tool) {
+        const ratingData = await this.toolsService.calculateToolRating(bookmark.tool.id);
+        Object.assign(bookmark.tool, ratingData);
+      }
+    }
     
     return bookmarks;
   }

@@ -249,7 +249,7 @@ export class AdminToolsService {
 
     if (filters.search) {
       queryBuilder.andWhere(
-        '(tool.title ILIKE :search OR tool.description ILIKE :search OR tool.brand ILIKE :search)',
+        '(LOWER(tool.title) LIKE LOWER(:search) OR LOWER(tool.description) LIKE LOWER(:search) OR LOWER(tool.brand) LIKE LOWER(:search))',
         { search: `%${filters.search}%` }
       );
     }

@@ -11,12 +11,15 @@ import {
   UseGuards,
   Request,
   Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SuspendUserDto } from './dto/suspend-user.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -144,24 +147,34 @@ export class UsersController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean })
-  @ApiQuery({ name: 'isVerified', required: false, type: Boolean })
+  @ApiQuery({ name: 'verifiedEmail', required: false, type: Boolean })
   @ApiQuery({ name: 'isAdmin', required: false, type: Boolean })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'sortBy', required: false, type: String })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiResponse({ status: 200, description: 'Return paginated users with filters.' })
   async findAll(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('search') search?: string,
     @Query('isActive') isActive?: boolean,
-    @Query('isVerified') isVerified?: boolean,
+    @Query('verifiedEmail') verifiedEmail?: boolean,
     @Query('isAdmin') isAdmin?: boolean,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
   ) {
     const filters = {
       search,
-      verified: isVerified,
+      verified: verifiedEmail,
       isAdmin,
       status: isActive === true ? 'active' as const : isActive === false ? 'inactive' as const : undefined,
+      dateFrom: startDate ? new Date(startDate) : undefined,
+      dateTo: endDate ? new Date(endDate) : undefined,
     };
-    const pagination = { page, limit };
+    const pagination = { page, limit, sortBy, sortOrder };
     return this.usersService.findAllForAdmin(filters, pagination);
   }
 
@@ -179,9 +192,78 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export users data to CSV' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'suspended'] })
+  @ApiQuery({ name: 'verified', required: false, type: Boolean })
+  @ApiQuery({ name: 'isAdmin', required: false, type: Boolean })
+  @ApiQuery({ name: 'dateFrom', required: false, type: String })
+  @ApiQuery({ name: 'dateTo', required: false, type: String })
+  @ApiQuery({ name: 'city', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return CSV file with users data.' })
-  async exportUsers() {
-    return this.usersService.exportUsers({});
+  async exportUsers(
+    @Query('search') search?: string,
+    @Query('status') status?: 'active' | 'inactive' | 'suspended',
+    @Query('verified') verified?: boolean,
+    @Query('isAdmin') isAdmin?: boolean,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
+    @Query('city') city?: string,
+  ) {
+    const filters = {
+      search,
+      status,
+      verified,
+      isAdmin,
+      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+      dateTo: dateTo ? new Date(dateTo) : undefined,
+      city,
+    };
+    return this.usersService.exportUsers(filters);
+  }
+
+  @Get('export/csv')
+  @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export users to CSV' })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+  @ApiQuery({ name: 'verifiedEmail', required: false, type: Boolean })
+  @ApiQuery({ name: 'isAdmin', required: false, type: Boolean })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiQuery({ name: 'city', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'CSV file with users data.' })
+  async exportUsersCSV(
+    @Res() res: Response,
+    @Query('search') search?: string,
+    @Query('isActive') isActive?: boolean,
+    @Query('verifiedEmail') verifiedEmail?: boolean,
+    @Query('isAdmin') isAdmin?: boolean,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('city') city?: string,
+  ) {
+    const filters = {
+      search,
+      status: isActive === true ? 'active' as const : isActive === false ? 'inactive' as const : undefined,
+      verified: verifiedEmail,
+      isAdmin,
+      dateFrom: startDate ? new Date(startDate) : undefined,
+      dateTo: endDate ? new Date(endDate) : undefined,
+      city,
+    };
+    
+    const csvData = await this.usersService.exportUsersCSV(filters);
+    
+    // Set headers for CSV download
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `users-export-${timestamp}.csv`;
+    
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    
+    return res.send(csvData);
   }
 
   @Get(':id')
@@ -292,6 +374,17 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   async deactivateUser(@Param('id') id: string) {
     return this.usersService.deactivateUser(id);
+  }
+
+  @Post(':id/suspend')
+  @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend a user account with reason and email notification' })
+  @ApiResponse({ status: 200, description: 'User suspended successfully and email sent.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  @ApiResponse({ status: 400, description: 'Bad Request - Invalid suspension reason.' })
+  async suspendUser(@Param('id') id: string, @Body() suspendUserDto: SuspendUserDto) {
+    return this.usersService.suspendUserWithEmail(id, suspendUserDto.reason);
   }
 
   @Patch(':id/verify-email')

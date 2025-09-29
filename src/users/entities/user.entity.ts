@@ -99,7 +99,17 @@ export class User {
     example: '+1',
     required: false,
   })
-  prefix?: string;
+  phone_prefix?: string;
+
+  // Getter for frontend compatibility
+  get prefix(): string | undefined {
+    return this.phone_prefix;
+  }
+
+  // Setter for frontend compatibility
+  set prefix(value: string | undefined) {
+    this.phone_prefix = value;
+  }
 
   @Column({ nullable: true })
   @ApiProperty({ description: 'The address of the user', required: false })
@@ -179,9 +189,9 @@ export class User {
   @ApiProperty({ description: 'Whether the user is verified', default: false })
   isVerified: boolean;
 
-  @Column({ name: 'is_suspended', default: false })
-  @ApiProperty({ description: 'Whether the user is suspended', default: false })
-  isSuspended: boolean;
+  @Column({ name: 'is_suspended', type: 'text', nullable: true })
+  @ApiProperty({ description: 'The reason for suspension if the user is suspended', required: false })
+  isSuspended: string | null;
 
   @Column({ name: 'must_change_password', default: false })
   @ApiProperty({

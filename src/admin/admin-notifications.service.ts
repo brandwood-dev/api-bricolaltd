@@ -56,7 +56,7 @@ export class AdminNotificationsService {
 
     if (search) {
       queryBuilder.andWhere(
-        '(notification.title ILIKE :search OR notification.message ILIKE :search OR notification.userName ILIKE :search)',
+        '(LOWER(notification.title) LIKE LOWER(:search) OR LOWER(notification.message) LIKE LOWER(:search) OR LOWER(notification.userName) LIKE LOWER(:search))',
         { search: `%${search}%` }
       );
     }

@@ -34,7 +34,9 @@ import { Review } from '../reviews/entities/review.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Tool } from '../tools/entities/tool.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
+import { WalletsService } from '../wallets/wallets.service';
 import { Email } from '../emails/entities/email.entity';
+import { SendGridService } from '../emails/sendgrid.service';
 
 @Module({
   imports: [
@@ -83,7 +85,9 @@ import { Email } from '../emails/entities/email.entity';
     UserActivityService, 
     UserPreferenceService,
     CountryService,
-    AccountDeletionRequestService
+    AccountDeletionRequestService,
+    WalletsService,
+    SendGridService
   ],
   exports: [
     UsersService, 

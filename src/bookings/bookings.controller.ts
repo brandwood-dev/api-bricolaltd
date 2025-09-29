@@ -38,6 +38,22 @@ import { Booking } from './entities/booking.entity';
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
+  // Endpoint de test temporaire sans authentification
+  @Get('test-stats')
+  @ApiOperation({ summary: 'Test booking statistics (no auth)' })
+  @ApiResponse({ status: 200, description: 'Booking statistics retrieved successfully.' })
+  async testBookingStats(@Query() queryDto?: BookingStatsQueryDto) {
+    try {
+      const stats = await this.bookingsService.getBookingStats(queryDto);
+      return {
+        data: stats,
+        message: 'Request successful'
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

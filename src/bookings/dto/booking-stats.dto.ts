@@ -20,8 +20,11 @@ export class BookingStatsResponseDto {
   @ApiProperty({ description: 'Number of pending bookings' })
   pendingBookings: number;
 
-  @ApiProperty({ description: 'Number of confirmed bookings' })
-  confirmedBookings: number;
+  @ApiProperty({ description: 'Number of accepted bookings' })
+  acceptedBookings: number;
+
+  @ApiProperty({ description: 'Number of ongoing bookings' })
+  ongoingBookings: number;
 
   @ApiProperty({ description: 'Number of completed bookings' })
   completedBookings: number;

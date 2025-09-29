@@ -60,15 +60,6 @@ export class ReviewsController {
     return this.reviewsService.findAllAppReviews();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a review by id (legacy)' })
-  @ApiResponse({ status: 200, description: 'Return the review.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 404, description: 'Not found.' })
-  findOne(@Param('id') id: string) {
-    return this.reviewsService.findOne(id);
-  }
-
   @Get('user/:userId')
   @ApiOperation({ summary: 'Get reviews by user id (legacy)' })
   @ApiResponse({ status: 200, description: 'Return the reviews.' })
@@ -84,6 +75,50 @@ export class ReviewsController {
   @ApiResponse({ status: 404, description: 'Not found.' })
   findByBookingId(@Param('bookingId') bookingId: string) {
     return this.reviewsService.findByBookingId(bookingId);
+  }
+
+  // Tool Review endpoints (specific routes first)
+  @Get('tools')
+  @ApiOperation({ summary: 'Get all tool reviews' })
+  @ApiResponse({ status: 200, description: 'Return all tool reviews.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  findAllToolReviews() {
+    return this.reviewsService.findAllToolReviews();
+  }
+
+  @Get('tools/tool/:toolId')
+  @ApiOperation({ summary: 'Get tool reviews by tool id' })
+  @ApiResponse({ status: 200, description: 'Return the tool reviews.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  findToolReviewsByToolId(@Param('toolId') toolId: string) {
+    return this.reviewsService.findToolReviewsByToolId(toolId);
+  }
+
+  @Get('tools/user/:userId')
+  @ApiOperation({ summary: 'Get tool reviews by user id' })
+  @ApiResponse({ status: 200, description: 'Return the tool reviews.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  findToolReviewsByUserId(@Param('userId') userId: string) {
+    return this.reviewsService.findToolReviewsByUserId(userId);
+  }
+
+  @Get('tools/:id')
+  @ApiOperation({ summary: 'Get a tool review by id' })
+  @ApiResponse({ status: 200, description: 'Return the tool review.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Not found.' })
+  findOneToolReview(@Param('id') id: string) {
+    return this.reviewsService.findOneToolReview(id);
+  }
+
+  // Legacy routes (generic :id route must be last)
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a review by id (legacy)' })
+  @ApiResponse({ status: 200, description: 'Return the review.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Not found.' })
+  findOne(@Param('id') id: string) {
+    return this.reviewsService.findOne(id);
   }
 
   @Patch(':id')
@@ -111,7 +146,6 @@ export class ReviewsController {
     return this.reviewsService.remove(id);
   }
 
-  // Tool Review endpoints
   @Post('tools')
   @ApiOperation({ summary: 'Create a new tool review' })
   @ApiResponse({
@@ -122,39 +156,6 @@ export class ReviewsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   createToolReview(@Body() createReviewToolDto: CreateReviewToolDto) {
     return this.reviewsService.createToolReview(createReviewToolDto);
-  }
-
-  @Get('tools')
-  @ApiOperation({ summary: 'Get all tool reviews' })
-  @ApiResponse({ status: 200, description: 'Return all tool reviews.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  findAllToolReviews() {
-    return this.reviewsService.findAllToolReviews();
-  }
-
-  @Get('tools/:id')
-  @ApiOperation({ summary: 'Get a tool review by id' })
-  @ApiResponse({ status: 200, description: 'Return the tool review.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  @ApiResponse({ status: 404, description: 'Not found.' })
-  findOneToolReview(@Param('id') id: string) {
-    return this.reviewsService.findOneToolReview(id);
-  }
-
-  @Get('tools/tool/:toolId')
-  @ApiOperation({ summary: 'Get tool reviews by tool id' })
-  @ApiResponse({ status: 200, description: 'Return the tool reviews.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  findToolReviewsByToolId(@Param('toolId') toolId: string) {
-    return this.reviewsService.findToolReviewsByToolId(toolId);
-  }
-
-  @Get('tools/user/:userId')
-  @ApiOperation({ summary: 'Get tool reviews by user id' })
-  @ApiResponse({ status: 200, description: 'Return the tool reviews.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  findToolReviewsByUserId(@Param('userId') userId: string) {
-    return this.reviewsService.findToolReviewsByUserId(userId);
   }
 
   @Patch('tools/:id')
