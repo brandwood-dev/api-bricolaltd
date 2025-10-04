@@ -15,6 +15,7 @@ import { CreateToolDto } from './dto/create-tool.dto';
 import { UpdateToolDto } from './dto/update-tool.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ModerationStatus } from './enums/moderation-status.enum';
+import { ToolStatus } from './enums/tool-status.enum';
 import {
   ApiTags,
   ApiOperation,
@@ -103,7 +104,7 @@ export class ToolsController {
     const tool = await this.toolsService.findOne(id);
     return {
       data: tool,
-      message: 'Request successful'
+      message: 'Request successful',
     };
   }
 
@@ -160,6 +161,8 @@ export class ToolsController {
     @Body() updateToolDto: UpdateToolDto,
     @Req() req: any,
   ) {
+    console.table(updateToolDto);
+  
     // The files are attached to the request by the FileUploadMiddleware
     const files = req.files;
     return this.toolsService.update(id, updateToolDto, files);
@@ -194,6 +197,24 @@ export class ToolsController {
     @Body('isAvailable') isAvailable: boolean,
   ) {
     return this.toolsService.updateAvailability(id, isAvailable);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update tool status (DRAFT/PUBLISHED)' })
+  @ApiResponse({
+    status: 200,
+    description: 'The tool status has been successfully updated.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 404, description: 'Not found.' })
+  updateToolStatus(
+    @Param('id') id: string,
+    @Body('status') status: ToolStatus,
+  ) {
+    return this.toolsService.updateToolStatus(id, status);
   }
 
   @Get(':id/photos')

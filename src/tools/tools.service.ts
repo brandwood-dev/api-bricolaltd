@@ -38,11 +38,11 @@ export class ToolsService {
     const existingTool = await this.toolsRepository.findOne({
       where: { title: createToolDto.title },
     });
-    
+
     if (existingTool) {
       throw new Error('Un outil avec ce nom existe déjà');
     }
-    
+
     // Create the tool without images first
     const tool = this.toolsRepository.create(createToolDto);
     const savedTool = await this.toolsRepository.save(tool);
@@ -121,7 +121,7 @@ export class ToolsService {
         (tool as any).rating = rating;
         (tool as any).reviewCount = reviewCount;
         return tool;
-      })
+      }),
     );
 
     return {
@@ -130,7 +130,9 @@ export class ToolsService {
     };
   }
 
-  async getFeaturedTools(limit: number = 8): Promise<{ data: Tool[]; message: string }> {
+  async getFeaturedTools(
+    limit: number = 8,
+  ): Promise<{ data: Tool[]; message: string }> {
     const tools = await this.toolsRepository.find({
       where: {
         moderationStatus: ModerationStatus.CONFIRMED,
@@ -159,7 +161,7 @@ export class ToolsService {
         (tool as any).rating = rating;
         (tool as any).reviewCount = reviewCount;
         return tool;
-      })
+      }),
     );
 
     return {
@@ -192,7 +194,7 @@ export class ToolsService {
 
     // Calculate rating and review count
     const { rating, reviewCount } = await this.calculateToolRating(id);
-    
+
     // Add the calculated values to the tool object
     (tool as any).rating = rating;
     (tool as any).reviewCount = reviewCount;
@@ -225,9 +227,17 @@ export class ToolsService {
         (tool as any).rating = rating;
         (tool as any).reviewCount = reviewCount;
         return tool;
-      })
+      }),
     );
-
+    console.log('************************************************');
+    console.log('************************************************');
+    console.log('************************************************');
+    console.log('************************************************');
+    console.table(transformedTools);
+    console.log('************************************************');
+    console.log('************************************************');
+    console.log('************************************************');
+    console.log('************************************************');
     return transformedTools;
   }
 
@@ -242,35 +252,56 @@ export class ToolsService {
     console.log('🔧 Backend - Current tool categoryId:', tool.categoryId);
     console.log('🔧 Backend - Current tool subcategoryId:', tool.subcategoryId);
 
-    // Update the tool with the new data
+    // Update the tool with the new data using Object.assign
     Object.assign(tool, updateToolDto);
-    
-    // Explicitly handle categoryId and subcategoryId updates
+
+    // Explicitly handle categoryId and subcategoryId updates to ensure TypeORM detects changes
     if (updateToolDto.categoryId !== undefined) {
       tool.categoryId = updateToolDto.categoryId;
       console.log('🔧 Backend - Updated categoryId to:', tool.categoryId);
     }
-    
+
     if (updateToolDto.subcategoryId !== undefined) {
       tool.subcategoryId = updateToolDto.subcategoryId;
       console.log('🔧 Backend - Updated subcategoryId to:', tool.subcategoryId);
     }
-    
+
     // Automatically set moderation status to Pending when tool is updated
     tool.moderationStatus = ModerationStatus.PENDING;
-    
+
     console.log('🔧 Backend - Tool before save:', {
       id: tool.id,
       categoryId: tool.categoryId,
-      subcategoryId: tool.subcategoryId
+      subcategoryId: tool.subcategoryId,
     });
-    
-    await this.toolsRepository.save(tool);
-    
-    console.log('🔧 Backend - Tool after save:', {
-      id: tool.id,
-      categoryId: tool.categoryId,
-      subcategoryId: tool.subcategoryId
+
+    // Force TypeORM to detect changes by using update() method instead of save()
+    const updateResult = await this.toolsRepository.update(id, {
+      ...updateToolDto,
+      moderationStatus: ModerationStatus.PENDING,
+    });
+
+    console.log('🔧 Backend - Update result:', updateResult);
+
+    // Reload the tool to get the updated values
+    const updatedTool = await this.toolsRepository.findOne({
+      where: { id },
+      relations: {
+        owner: true,
+        category: true,
+        subcategory: true,
+        photos: true,
+      },
+    });
+
+    if (!updatedTool) {
+      throw new NotFoundException(`Tool with ID ${id} not found after update`);
+    }
+
+    console.log('🔧 Backend - Tool after update:', {
+      id: updatedTool.id,
+      categoryId: updatedTool.categoryId,
+      subcategoryId: updatedTool.subcategoryId,
     });
 
     // If files are uploaded, process them
@@ -335,7 +366,7 @@ export class ToolsService {
     }
 
     // Force reload the tool with updated relations from database
-    const updatedTool = await this.toolsRepository.findOne({
+    const finalTool = await this.toolsRepository.findOne({
       where: { id },
       relations: {
         owner: true,
@@ -351,24 +382,28 @@ export class ToolsService {
       },
     });
 
-    if (!updatedTool) {
+    if (!finalTool) {
       throw new NotFoundException(`Tool with ID ${id} not found after update`);
     }
 
     console.log('🔧 Backend - Tool with reloaded relations:', {
-      id: updatedTool.id,
-      categoryId: updatedTool.categoryId,
-      category: updatedTool.category ? { id: updatedTool.category.id, name: updatedTool.category.name } : null,
-      subcategoryId: updatedTool.subcategoryId,
-      subcategory: updatedTool.subcategory ? { id: updatedTool.subcategory.id, name: updatedTool.subcategory.name } : null
+      id: finalTool.id,
+      categoryId: finalTool.categoryId,
+      category: finalTool.category
+        ? { id: finalTool.category.id, name: finalTool.category.name }
+        : null,
+      subcategoryId: finalTool.subcategoryId,
+      subcategory: finalTool.subcategory
+        ? { id: finalTool.subcategory.id, name: finalTool.subcategory.name }
+        : null,
     });
 
     // Calculate rating and review count for the updated tool
     const { rating, reviewCount } = await this.calculateToolRating(id);
-    (updatedTool as any).rating = rating;
-    (updatedTool as any).reviewCount = reviewCount;
+    (finalTool as any).rating = rating;
+    (finalTool as any).reviewCount = reviewCount;
 
-    return updatedTool;
+    return finalTool;
   }
 
   async remove(id: string): Promise<void> {
@@ -542,10 +577,19 @@ export class ToolsService {
     status: ModerationStatus,
   ): Promise<Tool> {
     const tool = await this.findOne(id);
-    
+
     tool.moderationStatus = status;
     await this.toolsRepository.save(tool);
-    
+
+    return this.findOne(id);
+  }
+
+  async updateToolStatus(id: string, status: ToolStatus): Promise<Tool> {
+    const tool = await this.findOne(id);
+
+    tool.toolStatus = status;
+    await this.toolsRepository.save(tool);
+
     return this.findOne(id);
   }
 
@@ -588,7 +632,7 @@ export class ToolsService {
         (tool as any).rating = rating;
         (tool as any).reviewCount = reviewCount;
         return tool;
-      })
+      }),
     );
 
     return transformedTools;
@@ -597,14 +641,20 @@ export class ToolsService {
   /**
    * Calculate the average rating and review count for a tool
    */
-  async calculateToolRating(toolId: string): Promise<{ rating: number; reviewCount: number }> {
+  async calculateToolRating(
+    toolId: string,
+  ): Promise<{ rating: number; reviewCount: number }> {
     console.log('🔍 calculateToolRating called for toolId:', toolId);
-    
+
     const reviews = await this.reviewToolRepository.find({
       where: { toolId },
     });
 
-    console.log('🔍 Found reviews:', reviews.length, reviews.map(r => ({ id: r.id, rating: r.rating })));
+    console.log(
+      '🔍 Found reviews:',
+      reviews.length,
+      reviews.map((r) => ({ id: r.id, rating: r.rating })),
+    );
 
     if (reviews.length === 0) {
       console.log('🔍 No reviews found, returning 0/0');
@@ -614,7 +664,12 @@ export class ToolsService {
     const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
     const averageRating = Math.round((totalRating / reviews.length) * 10) / 10; // Round to 1 decimal place
 
-    console.log('🔍 Calculated rating:', averageRating, 'reviewCount:', reviews.length);
+    console.log(
+      '🔍 Calculated rating:',
+      averageRating,
+      'reviewCount:',
+      reviews.length,
+    );
 
     return {
       rating: averageRating,
