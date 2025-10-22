@@ -14,6 +14,7 @@ import { UsersModule } from '../users/users.module';
 import { ToolsModule } from '../tools/tools.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminModule } from '../admin/admin.module';
+import { PaymentModule } from '../payments/payment.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AdminModule } from '../admin/admin.module';
     ToolsModule,
     NotificationsModule,
     forwardRef(() => AdminModule),
+    PaymentModule,
   ],
   controllers: [BookingsController],
   providers: [BookingsService, BookingNotificationsService, BookingNotificationService, BookingSchedulerService],

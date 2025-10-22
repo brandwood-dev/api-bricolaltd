@@ -36,6 +36,10 @@ import { Tool } from '../tools/entities/tool.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { Email } from '../emails/entities/email.entity';
+import { Currency } from './entities/currency.entity';
+import { ExchangeRate } from './entities/exchange-rate.entity';
+import { ExchangeRateController } from './exchange-rate.controller';
+import { ExchangeRateService } from './exchange-rate.service';
 import { SendGridService } from '../emails/sendgrid.service';
 
 @Module({
@@ -59,7 +63,9 @@ import { SendGridService } from '../emails/sendgrid.service';
       Booking,
       Tool,
       Wallet,
-      Email
+      Email,
+      Currency,
+      ExchangeRate
     ]), 
     S3Module,
     JwtModule.registerAsync({
@@ -77,7 +83,8 @@ import { SendGridService } from '../emails/sendgrid.service';
     UserActivityController, 
     UserPreferenceController,
     CountryController,
-    AccountDeletionRequestController
+    AccountDeletionRequestController,
+    ExchangeRateController
   ],
   providers: [
     UsersService, 
@@ -87,7 +94,8 @@ import { SendGridService } from '../emails/sendgrid.service';
     CountryService,
     AccountDeletionRequestService,
     WalletsService,
-    SendGridService
+    SendGridService,
+    ExchangeRateService
   ],
   exports: [
     UsersService, 
@@ -95,7 +103,8 @@ import { SendGridService } from '../emails/sendgrid.service';
     UserActivityService, 
     UserPreferenceService,
     CountryService,
-    AccountDeletionRequestService
+    AccountDeletionRequestService,
+    ExchangeRateService
   ],
 })
 export class UsersModule {

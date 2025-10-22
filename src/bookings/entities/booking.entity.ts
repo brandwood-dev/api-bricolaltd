@@ -140,6 +140,62 @@ export class Booking {
   })
   pickupTool?: boolean;
 
+  // Payment-related fields for Stripe integration
+  @Column({ name: 'payment_intent_id', nullable: true })
+  @ApiProperty({
+    description: 'Stripe Payment Intent ID for this booking',
+    required: false,
+  })
+  paymentIntentId?: string;
+
+  @Column({ 
+    name: 'payment_status', 
+    type: 'enum',
+    enum: ['pending', 'authorized', 'captured', 'failed', 'cancelled', 'refunded'],
+    default: 'pending'
+  })
+  @ApiProperty({
+    description: 'Payment status for this booking',
+    enum: ['pending', 'authorized', 'captured', 'failed', 'cancelled', 'refunded'],
+    default: 'pending',
+  })
+  paymentStatus: string;
+
+  @Column({ name: 'payment_holds', type: 'json', nullable: true })
+  @ApiProperty({
+    description: 'JSON object containing payment hold information',
+    required: false,
+  })
+  paymentHolds?: any;
+
+  @Column({ name: 'stripe_customer_id', nullable: true })
+  @ApiProperty({
+    description: 'Stripe Customer ID for the renter',
+    required: false,
+  })
+  stripeCustomerId?: string;
+
+  @Column({ name: 'payment_captured_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'Timestamp when payment was captured',
+    required: false,
+  })
+  paymentCapturedAt?: Date;
+
+  @Column({ name: 'refund_amount', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @ApiProperty({
+    description: 'Amount refunded for this booking',
+    required: false,
+  })
+  refundAmount?: number;
+
+  @Column({ name: 'refund_reason', nullable: true })
+  @ApiProperty({
+    description: 'Reason for refund',
+    required: false,
+  })
+  refundReason?: string;
+
   @CreateDateColumn({ name: 'created_at' })
   @ApiProperty({ description: 'The date when the booking was created' })
   createdAt: Date;

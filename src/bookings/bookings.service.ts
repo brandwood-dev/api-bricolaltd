@@ -43,6 +43,7 @@ import { AvailabilityStatus } from '../tools/enums/availability-status.enum';
 import { BookingStatus } from './enums/booking-status.enum';
 import { BookingNotificationService } from './booking-notification.service';
 import { BookingNotificationsService } from './booking-notifications.service';
+import { PaymentService } from '../payments/payment.service';
 
 @Injectable()
 export class BookingsService {
@@ -53,6 +54,7 @@ export class BookingsService {
     private usersService: UsersService,
     private bookingNotificationService: BookingNotificationService,
     private bookingNotificationsService: BookingNotificationsService,
+    private paymentService: PaymentService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -133,6 +135,7 @@ export class BookingsService {
       paymentMethod: paymentMethod,
       message: message,
       pickupHour: pickupHour,
+      paymentStatus: 'pending', // Initialize payment status
     };
 
     // Convert pickupHour string to Date if provided
@@ -497,12 +500,59 @@ export class BookingsService {
     return savedBooking;
   }
 
+  /**
+   * Create a booking with payment integration
+   */
+  async createBookingWithPayment(createBookingDto: CreateBookingDto): Promise<{
+    booking: Booking;
+    paymentIntent: any;
+  }> {
+    // First create the booking
+    const booking = await this.create(createBookingDto);
+
+    try {
+      // Create Payment Intent for the booking
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        amount: Math.round(booking.totalPrice * 100), // Convert to cents
+        currency: 'gbp',
+        bookingId: booking.id,
+        metadata: {
+          booking_id: booking.id,
+          renter_id: booking.renterId,
+          tool_id: booking.toolId,
+          owner_id: booking.ownerId,
+        },
+      });
+
+      // Update booking with payment intent ID
+      booking.paymentIntentId = paymentIntent.id;
+      booking.paymentStatus = 'pending';
+      await this.bookingsRepository.save(booking);
+
+      return {
+        booking,
+        paymentIntent,
+      };
+    } catch (error) {
+      // If payment creation fails, remove the booking
+      await this.bookingsRepository.remove(booking);
+      throw new BadRequestException(`Failed to create payment: ${error.message}`);
+    }
+  }
+
   async acceptBooking(id: string): Promise<Booking> {
     const booking = await this.findOne(id);
 
     if (booking.status !== BookingStatus.PENDING) {
       throw new BadRequestException(
         `Booking cannot be accepted because it is ${booking.status}`,
+      );
+    }
+
+    // Check if payment is authorized before accepting
+    if (booking.paymentStatus !== 'authorized') {
+      throw new BadRequestException(
+        'Payment must be authorized before accepting the booking',
       );
     }
 
@@ -578,6 +628,19 @@ export class BookingsService {
       // Commit transaction
       await queryRunner.commitTransaction();
       
+      // Capture payment when booking starts
+      if (savedBooking.paymentIntentId && savedBooking.paymentStatus === 'authorized') {
+        try {
+          await this.paymentService.capturePaymentIntent(savedBooking.paymentIntentId);
+          savedBooking.paymentStatus = 'captured';
+          savedBooking.paymentCapturedAt = new Date();
+          await queryRunner.manager.save(savedBooking);
+        } catch (error) {
+          console.error('Failed to capture payment:', error);
+          // Don't fail the validation, but log the error
+        }
+      }
+
       // Send notifications to both parties
       try {
         await this.bookingNotificationService.notifyBookingStarted(savedBooking);

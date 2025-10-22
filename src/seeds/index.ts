@@ -20,6 +20,8 @@ import { seedBookmarks } from './bookmarks.seed';
 import { seedAccountDeletionRequests } from './account-deletion-request.seed';
 import { seedPaymentProviders } from './payment-providers.seed';
 import { seedPaymentTransactions } from './payment-transactions.seed';
+import { seedCurrencies } from './currencies.seed';
+import { seedExchangeRates } from './exchange-rates.seed';
 
 async function runSeeds() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -34,6 +36,8 @@ async function runSeeds() {
 
     // Seed base data first (no dependencies)
     await seedCountries(dataSource);
+    await seedCurrencies(dataSource);
+    await seedExchangeRates(dataSource);
     await seedCategories(dataSource);
     await seedNotificationTemplates(dataSource);
 
@@ -53,21 +57,21 @@ async function runSeeds() {
     await seedPaymentProviders(dataSource);
     await seedPaymentTransactions(dataSource);
 
-    // Seed reviews and disputes
+    // // Seed reviews and disputes
     await seedReviews(dataSource);
-    await seedDisputes(dataSource);
+    // await seedDisputes(dataSource);
 
-    // Seed notifications and emails
-    await seedNotifications(dataSource);
-    await seedEmails(dataSource);
+    // // Seed notifications and emails
+    // await seedNotifications(dataSource);
+    // await seedEmails(dataSource);
 
     // Seed additional entities
-    await seedDocuments(dataSource);
-    await seedReviewApp(dataSource);
-    await seedUserSessions(dataSource);
+    // await seedDocuments(dataSource);
+    // await seedReviewApp(dataSource);
+    // await seedUserSessions(dataSource);
     await seedNews(dataSource);
-    await seedBookmarks(dataSource);
-    await seedAccountDeletionRequests(dataSource);
+    // await seedBookmarks(dataSource);
+    // await seedAccountDeletionRequests(dataSource);
 
     console.log('✅ Database seeding completed successfully!');
   } catch (error) {

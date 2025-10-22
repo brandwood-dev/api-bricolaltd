@@ -25,6 +25,7 @@ import { Document } from '../../documents/entities/document.entity';
 import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 import { Notification } from '../../notifications/entities/notification.entity';
 import { Transaction } from '../../transactions/entities/transaction.entity';
+import { Currency } from './currency.entity';
 
 @Entity('users')
 export class User {
@@ -234,6 +235,18 @@ export class User {
   @Column({ default: 0, name: 'cancelled_rentals' })
   @ApiProperty({ description: 'The number of cancelled rentals' })
   cancelledRentals: number;
+
+  // @ManyToOne(() => Currency, { nullable: true })
+  // @JoinColumn({ name: 'default_currency' })
+  // @ApiProperty({
+  //   description: 'The default currency for the user',
+  //   type: () => Currency,
+  //   required: false,
+  // })
+  // defaultCurrency?: Currency;
+
+  @Column({ name: 'default_currency', type: 'char', length: 3, nullable: true, default: 'GBP' })
+  defaultCurrencyCode?: string;
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   @ApiProperty({ description: 'The wallet of the user', type: () => Wallet })

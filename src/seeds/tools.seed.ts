@@ -21,27 +21,105 @@ export async function seedTools(dataSource: DataSource) {
   
   const users = await userRepository.find({ where: { isAdmin: false } });
   const categories = await categoryRepository.find({ relations: ['subcategories'] });
-  
+ 
   // Define tool templates for realistic generation
   const toolTemplates = [
     // DIY tools
-    { category: 'diy', subcategory: 'power-tools', brands: ['Bosch', 'Makita', 'DeWalt', 'Ryobi', 'Black & Decker'], types: ['Perceuse sans fil', 'Perceuse filaire', 'Perceuse à percussion'], priceRange: [10, 25] },
-    { category: 'diy', subcategory: 'power-tools', brands: ['Makita', 'Bosch', 'DeWalt', 'Festool'], types: ['Scie circulaire', 'Scie sauteuse', 'Scie à onglet'], priceRange: [15, 35] },
-    { category: 'diy', subcategory: 'power-tools', brands: ['Bosch', 'Makita', 'Festool', 'Ryobi'], types: ['Ponceuse orbitale', 'Ponceuse excentrique', 'Ponceuse à bande'], priceRange: [12, 28] },
-    { category: 'diy', subcategory: 'hand-tools', brands: ['Stanley', 'Facom', 'Bahco', 'Gedore'], types: ['Marteau', 'Tournevis', 'Clé à molette'], priceRange: [5, 15] },
-    
+    {
+      category: 'diy',
+      subcategory: 'construction',
+      brands: ['Bosch', 'Makita', 'DeWalt', 'Ryobi', 'Black & Decker'],
+      types: ['Perceuse sans fil', 'Perceuse filaire', 'Perceuse à percussion'],
+      priceRange: [10, 25],
+    },
+    {
+      category: 'diy',
+      subcategory: 'electricity',
+      brands: ['Makita', 'Bosch', 'DeWalt', 'Festool'],
+      types: ['Scie circulaire', 'Scie sauteuse', 'Scie à onglet'],
+      priceRange: [15, 35],
+    },
+    {
+      category: 'diy',
+      subcategory: 'screws-and-bolts',
+      brands: ['Bosch', 'Makita', 'Festool', 'Ryobi'],
+      types: ['Ponceuse orbitale', 'Ponceuse excentrique', 'Ponceuse à bande'],
+      priceRange: [12, 28],
+    },
+    {
+      category: 'diy',
+      subcategory: 'painting',
+      brands: ['Stanley', 'Facom', 'Bahco', 'Gedore'],
+      types: ['Marteau', 'Tournevis', 'Clé à molette'],
+      priceRange: [5, 15],
+    },
+
     // Gardening tools
-    { category: 'gardening', subcategory: 'lawn-mowers', brands: ['Ryobi', 'Honda', 'Husqvarna', 'Bosch'], types: ['Tondeuse électrique', 'Tondeuse thermique', 'Tondeuse robot'], priceRange: [20, 45] },
-    { category: 'gardening', subcategory: 'hedge-trimmers', brands: ['Black & Decker', 'Bosch', 'Stihl', 'Husqvarna'], types: ['Taille-haie électrique', 'Taille-haie thermique', 'Taille-haie sur perche'], priceRange: [10, 25] },
-    { category: 'gardening', subcategory: 'garden-hand-tools', brands: ['Fiskars', 'Spear & Jackson', 'Gardena', 'Wolf'], types: ['Pelle', 'Râteau', 'Binette'], priceRange: [8, 20] },
-    
+    {
+      category: 'gardening',
+      subcategory: 'soil-maintenance',
+      brands: ['Ryobi', 'Honda', 'Husqvarna', 'Bosch'],
+      types: ['Tondeuse électrique', 'Tondeuse thermique', 'Tondeuse robot'],
+      priceRange: [20, 45],
+    },
+    {
+      category: 'gardening',
+      subcategory: 'garden-tools',
+      brands: ['Black & Decker', 'Bosch', 'Stihl', 'Husqvarna'],
+      types: [
+        'Taille-haie électrique',
+        'Taille-haie thermique',
+        'Taille-haie sur perche',
+      ],
+      priceRange: [10, 25],
+    },
+    {
+      category: 'gardening',
+      subcategory: 'pruning-and-cutting',
+      brands: ['Fiskars', 'Spear & Jackson', 'Gardena', 'Wolf'],
+      types: ['Pelle', 'Râteau', 'Binette'],
+      priceRange: [8, 20],
+    },
+
     // Cleaning equipment
-    { category: 'cleaning', subcategory: 'vacuum-cleaners', brands: ['Karcher', 'Nilfisk', 'Bosch', 'Dyson'], types: ['Aspirateur eau/poussière', 'Aspirateur traîneau', 'Aspirateur industriel'], priceRange: [15, 40] },
-    { category: 'cleaning', subcategory: 'pressure-washers', brands: ['Karcher', 'Nilfisk', 'Bosch', 'Lavor'], types: ['Nettoyeur haute pression', 'Nettoyeur compact', 'Nettoyeur professionnel'], priceRange: [18, 35] },
-    
+    {
+      category: 'cleaning',
+      subcategory: 'waste-and-dust-management',
+      brands: ['Karcher', 'Nilfisk', 'Bosch', 'Dyson'],
+      types: [
+        'Aspirateur eau/poussière',
+        'Aspirateur traîneau',
+        'Aspirateur industriel',
+      ],
+      priceRange: [15, 40],
+    },
+    {
+      category: 'cleaning',
+      subcategory: 'indoor-cleaning',
+      brands: ['Karcher', 'Nilfisk', 'Bosch', 'Lavor'],
+      types: [
+        'Nettoyeur haute pression',
+        'Nettoyeur compact',
+        'Nettoyeur professionnel',
+      ],
+      priceRange: [18, 35],
+    },
+
     // Event equipment
-    { category: 'events', subcategory: 'party-equipment', brands: ['Lifetime', 'Bolero', 'Vango', 'Coleman'], types: ['Table pliante', 'Chaise empilable', 'Parasol'], priceRange: [5, 25] },
-    { category: 'events', subcategory: 'sound-lighting', brands: ['JBL', 'Bose', 'Yamaha', 'Pioneer'], types: ['Enceinte portable', 'Micro sans fil', 'Éclairage LED'], priceRange: [15, 50] },
+    {
+      category: 'events',
+      subcategory: 'decoration',
+      brands: ['Lifetime', 'Bolero', 'Vango', 'Coleman'],
+      types: ['Table pliante', 'Chaise empilable', 'Parasol'],
+      priceRange: [5, 25],
+    },
+    {
+      category: 'events',
+      subcategory: 'furniture',
+      brands: ['JBL', 'Bose', 'Yamaha', 'Pioneer'],
+      types: ['Enceinte portable', 'Micro sans fil', 'Éclairage LED'],
+      priceRange: [15, 50],
+    },
   ];
 
   const toolsData: any[] = [];

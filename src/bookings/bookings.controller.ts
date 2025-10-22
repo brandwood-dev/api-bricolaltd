@@ -68,6 +68,19 @@ export class BookingsController {
     return this.bookingsService.create(createBookingDto);
   }
 
+  @Post('with-payment')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new booking with payment integration' })
+  @ApiResponse({
+    status: 201,
+    description: 'The booking and payment intent have been successfully created.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  createWithPayment(@Body() createBookingDto: CreateBookingDto) {
+    return this.bookingsService.createBookingWithPayment(createBookingDto);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()

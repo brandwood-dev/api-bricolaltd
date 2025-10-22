@@ -9,7 +9,9 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { forwardRef, Inject } from '@nestjs/common';
 import { User } from '../../users/entities/user.entity';
+import { Currency } from '../../users/entities/currency.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Bookmark } from '../../bookmarks/entities/bookmark.entity';
 import { Category } from '../../categories/entities/category.entity';
@@ -19,6 +21,7 @@ import { ToolCondition } from '../enums/tool-condition.enum';
 import { ToolStatus } from '../enums/tool-status.enum';
 import { AvailabilityStatus } from '../enums/availability-status.enum';
 import { ModerationStatus } from '../enums/moderation-status.enum';
+
 
 @Entity('tools')  // Changed from 'tool' to 'tools'
 export class Tool {
@@ -106,6 +109,18 @@ export class Tool {
     example: 100.0,
   })
   depositAmount: number;
+
+  @ManyToOne('Currency', { nullable: true })
+  @JoinColumn({ name: 'base_currency_code' })
+  @ApiProperty({
+    description: 'The base currency for the tool pricing',
+    type: () => Currency,
+    required: false,
+  })
+  baseCurrency?: Currency;
+
+  @Column({ name: 'base_currency_code', type: 'char', length: 3, nullable: true, default: 'GBP' })
+  baseCurrencyCode?: string;
 
   @Column({ nullable: true })
   @ApiProperty({

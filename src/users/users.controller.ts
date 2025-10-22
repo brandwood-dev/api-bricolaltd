@@ -82,6 +82,34 @@ export class UsersController {
     return this.usersService.getUserTransactions(req.user.id, page, limit, { type, status });
   }
 
+  @Get('me/stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user statistics' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Return current user statistics.',
+    schema: {
+      type: 'object',
+      properties: {
+        data: {
+          type: 'object',
+          properties: {
+            totalEarnings: { type: 'number', description: 'Total earnings from completed rentals' },
+            activeAds: { type: 'number', description: 'Number of active tool listings' },
+            completedRentals: { type: 'number', description: 'Number of completed rentals' },
+            averageRating: { type: 'number', description: 'Average rating from reviews' }
+          }
+        },
+        message: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async getMyStats(@Request() req) {
+    return this.usersService.getUserPersonalStats(req.user.id);
+  }
+
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

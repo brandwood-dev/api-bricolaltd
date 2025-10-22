@@ -16,8 +16,9 @@ export class WithdrawalProcessingService {
     private transactionsRepository: Repository<Transaction>,
     private configService: ConfigService,
   ) {
-    // Initialiser Stripe (à adapter selon votre configuration)
-    // this.stripe = require('stripe')(this.configService.get('STRIPE_SECRET_KEY'));
+    // Initialiser Stripe avec la clé secrète
+    const Stripe = require('stripe');
+    this.stripe = new Stripe(this.configService.get('STRIPE_SECRET_KEY'));
   }
 
   /**

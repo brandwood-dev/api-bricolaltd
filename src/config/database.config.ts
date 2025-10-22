@@ -15,6 +15,8 @@ import { ToolPhoto } from '../tools/entities/tool-photo.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Subcategory } from '../categories/entities/subcategory.entity';
 import { Country } from '../users/entities/country.entity';
+import { Currency } from '../users/entities/currency.entity';
+import { ExchangeRate } from '../users/entities/exchange-rate.entity';
 import { UserPreference } from '../users/entities/user-preference.entity';
 import { UserSession } from '../users/entities/user-session.entity';
 import { UserActivity } from '../users/entities/user-activity.entity';
@@ -40,6 +42,8 @@ export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptio
   entities: [
     User,
     Country,
+    Currency,
+    ExchangeRate,
     UserPreference,
     UserSession,
     UserActivity,

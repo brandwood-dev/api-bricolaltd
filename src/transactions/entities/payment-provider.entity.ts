@@ -18,16 +18,16 @@ export class PaymentProvider {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
-  @Column({ name: 'api_key', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'api_key', type: 'text', nullable: true })
   apiKey: string | null;
 
-  @Column({ name: 'api_secret', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'api_secret', type: 'text', nullable: true })
   apiSecret: string | null;
 
-  @Column({ name: 'webhook_url', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'webhook_url', type: 'text', nullable: true })
   webhookUrl: string | null;
 
-  @Column({ name: 'logo_url', type: 'varchar', length: 255, nullable: true })
+  @Column({ name: 'logo_url', type: 'text', nullable: true })
   logoUrl: string | null;
 
   @Column({ name: 'config', type: 'json', nullable: true })

@@ -28,6 +28,7 @@ import { Review } from '../reviews/entities/review.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { Tool } from '../tools/entities/tool.entity';
+import { ToolStatus } from '../tools/enums/tool-status.enum';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { Email } from '../emails/entities/email.entity';
@@ -709,6 +710,60 @@ export class UsersService {
       newUsersThisMonth,
       newUsersToday,
     };
+  }
+
+  async getUserPersonalStats(userId: string) {
+    try {
+      // Récupérer les outils actifs de l'utilisateur
+      const activeAds = await this.toolRepository.count({
+        where: { 
+          ownerId: userId,
+          toolStatus: ToolStatus.PUBLISHED
+        }
+      });
+
+      // Récupérer les locations réalisées (bookings complétés pour les outils de l'utilisateur)
+      const completedRentals = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .innerJoin('booking.tool', 'tool')
+        .where('tool.ownerId = :userId', { userId })
+        .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
+        .getCount();
+
+      // Calculer les gains totaux depuis les bookings complétés
+      const earningsResult = await this.bookingRepository
+        .createQueryBuilder('booking')
+        .innerJoin('booking.tool', 'tool')
+        .select('SUM(booking.totalPrice)', 'totalEarnings')
+        .where('tool.ownerId = :userId', { userId })
+        .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
+        .getRawOne();
+
+      const totalEarnings = parseFloat(earningsResult?.totalEarnings || '0');
+
+      // Calculer la note moyenne des reviews reçues sur les outils de l'utilisateur
+      const ratingResult = await this.reviewRepository
+        .createQueryBuilder('review')
+        .innerJoin('review.tool', 'tool')
+        .select('AVG(review.rating)', 'averageRating')
+        .where('tool.ownerId = :userId', { userId })
+        .getRawOne();
+
+      const averageRating = parseFloat(ratingResult?.averageRating || '0');
+
+      return {
+        data: {
+          totalEarnings: Math.round(totalEarnings * 100) / 100, // Arrondir à 2 décimales
+          activeAds,
+          completedRentals,
+          averageRating: Math.round(averageRating * 100) / 100 // Arrondir à 2 décimales
+        },
+        message: 'User statistics retrieved successfully'
+      };
+    } catch (error) {
+      this.logger.error('Error retrieving user personal stats:', error);
+      throw new BadRequestException('Failed to retrieve user statistics');
+    }
   }
 
   async findOneForAdmin(id: string): Promise<User> {
