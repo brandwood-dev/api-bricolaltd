@@ -13,6 +13,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { S3Service } from '../common/services/s3.service';
+import { Country } from './entities/country.entity';
+import { Currency } from './entities/currency.entity';
 import { UserSession } from './entities/user-session.entity';
 import { UserActivity } from './entities/user-activity.entity';
 import { UserPreference } from './entities/user-preference.entity';
@@ -79,6 +81,10 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Country)
+    private countryRepository: Repository<Country>,
+    @InjectRepository(Currency)
+    private currencyRepository: Repository<Currency>,
     @InjectRepository(UserSession)
     private userSessionRepository: Repository<UserSession>,
     @InjectRepository(UserActivity)
@@ -129,12 +135,79 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
+    // Determine default currency based on country
+    let defaultCurrencyCode = createUserDto.defaultCurrencyCode || 'GBP'; // Default fallback
+    
+    if (createUserDto.countryId && !createUserDto.defaultCurrencyCode) {
+      defaultCurrencyCode = await this.getDefaultCurrencyByCountry(createUserDto.countryId);
+    }
+
+    // Validate that the currency exists in the system
+    await this.validateCurrencyExists(defaultCurrencyCode);
+
     const user = this.usersRepository.create({
       ...createUserDto,
       password: hashedPassword,
+      defaultCurrencyCode,
     });
 
     return this.usersRepository.save(user);
+  }
+
+  /**
+   * Get default currency code based on country ID
+   * @param countryId - The country ID to get currency for
+   * @returns Promise<string> - The currency code or default 'GBP'
+   */
+  private async getDefaultCurrencyByCountry(countryId: string): Promise<string> {
+    try {
+      const country = await this.countryRepository.findOne({
+        where: { id: countryId },
+      });
+      
+      if (country && country.currency) {
+        this.logger.log(`Found currency ${country.currency} for country ${country.name} (${countryId})`);
+        return country.currency;
+      } else {
+        this.logger.warn(`Country not found or no currency set for ID: ${countryId}`);
+        return 'GBP'; // Default fallback
+      }
+    } catch (error) {
+      this.logger.error(`Error fetching country currency for ID ${countryId}: ${error.message}`);
+      return 'GBP'; // Default fallback on error
+    }
+  }
+
+  /**
+   * Validate that a currency exists and is active in the system
+   * @param currencyCode - The currency code to validate
+   * @throws BadRequestException if currency doesn't exist or is inactive
+   */
+  private async validateCurrencyExists(currencyCode: string): Promise<void> {
+    try {
+      const currency = await this.currencyRepository.findOne({
+        where: { code: currencyCode },
+      });
+
+      if (!currency) {
+        this.logger.error(`Currency not found: ${currencyCode}`);
+        throw new BadRequestException(`Currency '${currencyCode}' is not supported`);
+      }
+
+      if (!currency.isActive) {
+        this.logger.error(`Currency is inactive: ${currencyCode}`);
+        throw new BadRequestException(`Currency '${currencyCode}' is currently inactive`);
+      }
+
+      this.logger.log(`Currency validation successful: ${currencyCode} (${currency.name})`);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error; // Re-throw validation errors
+      }
+      
+      this.logger.error(`Error validating currency ${currencyCode}: ${error.message}`);
+      throw new BadRequestException(`Failed to validate currency '${currencyCode}'`);
+    }
   }
 
   async findAll(): Promise<User[]> {

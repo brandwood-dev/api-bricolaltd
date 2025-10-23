@@ -23,7 +23,8 @@ export interface BulkExchangeRateResponse {
 export class ExchangeRateService {
   private readonly logger = new Logger(ExchangeRateService.name);
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
-  private readonly API_BASE_URL = 'https://api.exchangerate-api.com/v4/latest';
+  private readonly API_BASE_URL = 'https://v6.exchangerate-api.com/v6';
+  private readonly API_KEY = process.env.EXCHANGE_RATE_API_KEY;
   
   // In-memory cache for exchange rates
   private rateCache = new Map<string, { rate: number; timestamp: number }>();
@@ -34,9 +35,14 @@ export class ExchangeRateService {
     @InjectRepository(Currency)
     private currencyRepository: Repository<Currency>,
   ) {
-    this.logger.log('🏦 ExchangeRateService initialized');
+    this.logger.log('🏦 ExchangeRateService initialized with Pro API');
     this.logger.log(`📊 Cache duration: ${this.CACHE_DURATION}ms`);
-    this.logger.log(`🌐 API URL: ${this.API_BASE_URL}`);
+    this.logger.log(`🌐 Pro API URL: ${this.API_BASE_URL}`);
+    this.logger.log(`🔑 API Key configured: ${this.API_KEY ? 'Yes' : 'No'}`);
+    
+    if (!this.API_KEY) {
+      this.logger.warn('⚠️ EXCHANGE_RATE_API_KEY not found in environment variables');
+    }
   }
 
   /**
@@ -199,18 +205,25 @@ export class ExchangeRateService {
    */
   private async fetchExchangeRateFromAPI(fromCurrency: string, toCurrency: string, preventRecursion: boolean = false): Promise<number> {
     try {
-      this.logger.log(`Attempting to fetch exchange rate from API: ${fromCurrency} -> ${toCurrency}`);
+      this.logger.log(`Attempting to fetch exchange rate from Pro API: ${fromCurrency} -> ${toCurrency}`);
       
-      const response = await axios.get(`${this.API_BASE_URL}/${fromCurrency}`, {
+      if (!this.API_KEY) {
+        throw new Error('EXCHANGE_RATE_API_KEY not configured');
+      }
+      
+      const apiUrl = `${this.API_BASE_URL}/${this.API_KEY}/latest/${fromCurrency}`;
+      this.logger.log(`🌐 Pro API Request URL: ${apiUrl}`);
+      
+      const response = await axios.get(apiUrl, {
         timeout: 10000, // 10 seconds timeout
       });
 
-      if (!response.data || !response.data.rates || !response.data.rates[toCurrency]) {
-        throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
+      if (!response.data || response.data.result !== 'success' || !response.data.conversion_rates || !response.data.conversion_rates[toCurrency]) {
+        throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency} in Pro API response`);
       }
 
-      this.logger.log(`Successfully fetched rate from API: ${fromCurrency} -> ${toCurrency} = ${response.data.rates[toCurrency]}`);
-      return response.data.rates[toCurrency];
+      this.logger.log(`✅ Successfully fetched rate from Pro API: ${fromCurrency} -> ${toCurrency} = ${response.data.conversion_rates[toCurrency]}`);
+      return response.data.conversion_rates[toCurrency];
     } catch (error) {
       this.logger.warn(`Failed to fetch exchange rate from API: ${fromCurrency} to ${toCurrency}`, error.message);
       

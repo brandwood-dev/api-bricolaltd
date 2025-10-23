@@ -80,7 +80,7 @@ export async function seedTools(dataSource: DataSource) {
       types: ['Pelle', 'Râteau', 'Binette'],
       priceRange: [8, 20],
     },
-
+  
     // Cleaning equipment
     {
       category: 'cleaning',
@@ -193,9 +193,9 @@ export async function seedTools(dataSource: DataSource) {
         model: toolData.model,
         year: toolData.year,
         condition: toolData.condition,
-        pickupAddress: owner.address || '123 Rue de la Paix, 75001 Paris, France',
-        latitude: 48.8566 + (Math.random() - 0.5) * 0.1, // Random around Paris
-        longitude: 2.3522 + (Math.random() - 0.5) * 0.1,
+        pickupAddress: owner.address || 'Doha, Qatar',
+        latitude: 25.276987 + (Math.random() - 0.5) * 0.1, // Random around Doha
+        longitude: 51.520008 + (Math.random() - 0.5) * 0.1,
         ownerInstructions: 'Outil en bon état, manipulation avec précaution.',
         basePrice: toolData.dailyRate,
         depositAmount: toolData.dailyRate * 2, // Set deposit as 2x daily rate

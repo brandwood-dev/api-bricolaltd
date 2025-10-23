@@ -132,4 +132,13 @@ export class CreateUserDto {
   @ApiProperty({ description: 'The reset password token expiration date', required: false })
   @IsOptional()
   resetPasswordExpires?: Date;
+
+  @ApiProperty({ 
+    description: 'The default currency code for the user (3-letter ISO code)', 
+    example: 'EUR',
+    required: false 
+  })
+  @IsString()
+  @IsOptional()
+  defaultCurrencyCode?: string;
 }
