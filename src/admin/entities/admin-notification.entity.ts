@@ -70,9 +70,10 @@ export class AdminNotification {
   @Column({ type: 'varchar', length: 255, nullable: true })
   userName?: string;
 
-  @ApiProperty({ description: 'Additional metadata as JSON' })
-  @Column({ type: 'json', nullable: true })
-  metadata?: Record<string, any>;
+  // Metadata column removed to fix row size too large issue
+  // @ApiProperty({ description: 'Additional metadata as JSON' })
+  // @Column({ type: 'json', nullable: true })
+  // metadata?: Record<string, any>;
 
   @ApiProperty({ description: 'When the notification was read' })
   @Column({ type: 'timestamp', nullable: true })

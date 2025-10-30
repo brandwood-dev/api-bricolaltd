@@ -195,4 +195,103 @@ export class BookingSchedulerService {
       throw error;
     }
   }
+
+  // Run every 30 minutes to check for deposit reminders
+  @Cron('*/30 * * * *')
+  async checkDepositReminders() {
+    this.logger.log('Checking for deposit reminders...');
+    
+    const now = new Date();
+    const oneMinuteFromNow = new Date(now.getTime() + 60 * 1000); // 1 minute for testing
+    const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000); // 2 minutes buffer
+    
+    try {
+      // Find bookings that were created 1 minute ago and need deposit payment
+      const bookingsNeedingDeposit = await this.bookingsRepository.find({
+        where: {
+          status: BookingStatus.PENDING,
+          createdAt: Between(oneMinuteFromNow, twoMinutesFromNow),
+        },
+        relations: ['user', 'tool', 'tool.owner'],
+      });
+
+      this.logger.log(`Found ${bookingsNeedingDeposit.length} bookings needing deposit reminder`);
+
+      for (const booking of bookingsNeedingDeposit) {
+        try {
+          await this.bookingNotificationService.notifyDepositReminder(booking);
+          this.logger.log(`Sent deposit reminder for booking ${booking.id}`);
+        } catch (error) {
+          this.logger.error(`Failed to send deposit reminder for booking ${booking.id}:`, error);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking for deposit reminders:', error);
+    }
+  }
+
+  // Run every hour to check for overdue deposits
+  @Cron('0 * * * *')
+  async checkOverdueDeposits() {
+    this.logger.log('Checking for overdue deposits...');
+    
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    try {
+      // Find bookings that are still pending after 24 hours (deposit not paid)
+      const overdueDepositBookings = await this.bookingsRepository.find({
+        where: {
+          status: BookingStatus.PENDING,
+          createdAt: LessThan(twentyFourHoursAgo),
+        },
+        relations: ['user', 'tool', 'tool.owner'],
+      });
+
+      this.logger.log(`Found ${overdueDepositBookings.length} bookings with overdue deposits`);
+
+      for (const booking of overdueDepositBookings) {
+        try {
+          // Cancel the booking due to unpaid deposit
+          booking.status = BookingStatus.CANCELLED;
+          booking.cancellationReason = 'Unpaid deposit - automatically cancelled after 24 hours';
+          await this.bookingsRepository.save(booking);
+          
+          await this.bookingNotificationService.notifyDepositOverdue(booking);
+          this.logger.log(`Cancelled booking ${booking.id} due to overdue deposit`);
+        } catch (error) {
+          this.logger.error(`Failed to cancel booking ${booking.id} for overdue deposit:`, error);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error checking for overdue deposits:', error);
+    }
+  }
+
+  // Manual method to schedule deposit reminder for a specific booking
+  async scheduleDepositReminder(bookingId: string): Promise<void> {
+    try {
+      const booking = await this.bookingsRepository.findOne({
+        where: { id: bookingId },
+        relations: ['user', 'tool', 'tool.owner'],
+      });
+
+      if (booking && booking.status === BookingStatus.PENDING) {
+        // For testing: send reminder after 1 minute
+        setTimeout(async () => {
+          try {
+            await this.bookingNotificationService.notifyDepositReminder(booking);
+            this.logger.log(`Sent scheduled deposit reminder for booking ${bookingId}`);
+          } catch (error) {
+            this.logger.error(`Failed to send scheduled deposit reminder for booking ${bookingId}:`, error);
+          }
+        }, 60 * 1000); // 1 minute delay for testing
+        
+        this.logger.log(`Scheduled deposit reminder for booking ${bookingId} in 1 minute`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to schedule deposit reminder for booking ${bookingId}:`, error);
+      throw error;
+    }
+  }
 }

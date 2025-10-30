@@ -71,9 +71,10 @@ export class CreateAdminNotificationDto {
   @IsOptional()
   userName?: string;
 
-  @ApiProperty({ description: 'Additional metadata', required: false })
-  @IsOptional()
-  metadata?: Record<string, any>;
+  // Metadata field removed to fix row size too large issue
+  // @ApiProperty({ description: 'Additional metadata', required: false })
+  // @IsOptional()
+  // metadata?: Record<string, any>;
 
   @ApiProperty({ description: 'Auto-read after specified time (in minutes)', required: false })
   @IsOptional()

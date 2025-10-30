@@ -163,7 +163,7 @@ export class AdminNotificationsService {
       priority,
       userId,
       userName,
-      metadata: { bookingId },
+      // metadata: { bookingId }, // Removed to fix row size issue
     });
   }
 
@@ -182,7 +182,7 @@ export class AdminNotificationsService {
       priority,
       userId,
       userName,
-      metadata: { userId },
+      // metadata: { userId }, // Removed to fix row size issue
     });
   }
 
@@ -191,7 +191,7 @@ export class AdminNotificationsService {
     message: string,
     type: NotificationType = NotificationType.SYSTEM,
     priority: NotificationPriority = NotificationPriority.HIGH,
-    metadata?: Record<string, any>,
+    // metadata?: Record<string, any>, // Removed to fix row size issue
   ): Promise<AdminNotification> {
     return await this.createAdminNotification({
       title,
@@ -199,7 +199,7 @@ export class AdminNotificationsService {
       type,
       category: NotificationCategory.SYSTEM,
       priority,
-      metadata,
+      // metadata, // Removed to fix row size issue
     });
   }
 
@@ -208,7 +208,7 @@ export class AdminNotificationsService {
     message: string,
     userId?: string,
     userName?: string,
-    metadata?: Record<string, any>,
+    // metadata?: Record<string, any>, // Removed to fix row size issue
   ): Promise<AdminNotification> {
     return await this.createAdminNotification({
       title,
@@ -218,7 +218,7 @@ export class AdminNotificationsService {
       priority: NotificationPriority.URGENT,
       userId,
       userName,
-      metadata,
+      // metadata, // Removed to fix row size issue
     });
   }
 
@@ -238,7 +238,7 @@ export class AdminNotificationsService {
       priority,
       userId,
       userName,
-      metadata: { transactionId },
+      // metadata: { transactionId }, // Removed to fix row size issue
     });
   }
 
@@ -257,7 +257,7 @@ export class AdminNotificationsService {
       priority: NotificationPriority.HIGH,
       userId,
       userName,
-      metadata: { disputeId },
+      // metadata: { disputeId }, // Removed to fix row size issue
     });
   }
 

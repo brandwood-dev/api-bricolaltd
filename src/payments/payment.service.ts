@@ -36,20 +36,42 @@ export class PaymentService {
   }): Promise<any> {
     const { amount, currency = 'gbp', metadata = {} } = options;
     try {
+      // 🔍 LOGS ULTRA-DÉTAILLÉS POUR DÉBOGUER LE PROBLÈME DE CONVERSION
+      this.logger.log(`🔍 [PaymentService] === DÉBUT ANALYSE BACKEND ===`);
+      this.logger.log(`🔍 [PaymentService] Montant reçu depuis frontend: ${amount}`);
+      this.logger.log(`🔍 [PaymentService] Type du montant: ${typeof amount}`);
+      this.logger.log(`🔍 [PaymentService] Devise: ${currency}`);
+      
+      // CORRECTION: Le montant reçu du frontend est déjà en centimes
+      // Exemple: pour £0.93, le frontend envoie 93 (centimes)
+      // Donc on utilise directement ce montant sans conversion
+      const amountInCents = Math.round(amount);
+      
+      this.logger.log(`🔍 [PaymentService] Montant final envoyé à Stripe (centimes): ${amountInCents}`);
+      this.logger.log(`🔍 [PaymentService] Équivalent en devise principale: £${amountInCents / 100}`);
+      
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Stripe utilise les centimes
+        amount: amountInCents, // Le montant est déjà en centimes depuis PaymentForm.tsx
         currency: currency.toLowerCase(),
         capture_method: 'manual', // Blocage des fonds sans capture immédiate
         metadata: {
           ...metadata,
           created_at: new Date().toISOString(),
+          frontend_amount: amount,
+          final_amount_cents: amountInCents,
         },
       });
 
-      this.logger.log(`Payment Intent créé: ${paymentIntent.id} pour ${amount} ${currency}`);
+      this.logger.log(`🔍 [PaymentService] Payment Intent créé avec succès:`);
+      this.logger.log(`🔍 [PaymentService] - ID: ${paymentIntent.id}`);
+      this.logger.log(`🔍 [PaymentService] - Montant Stripe: ${paymentIntent.amount} centimes`);
+      this.logger.log(`🔍 [PaymentService] - Équivalent: £${paymentIntent.amount / 100}`);
+      this.logger.log(`🔍 [PaymentService] - Devise: ${paymentIntent.currency}`);
+      this.logger.log(`🔍 [PaymentService] === FIN ANALYSE BACKEND ===`);
+      
       return paymentIntent;
     } catch (error) {
-      this.logger.error('Erreur lors de la création du Payment Intent:', error);
+      this.logger.error('🔍 [PaymentService] Erreur lors de la création du Payment Intent:', error);
       throw new BadRequestException(`Erreur de paiement: ${error.message}`);
     }
   }

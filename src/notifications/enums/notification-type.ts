@@ -42,6 +42,7 @@ export enum NotificationType {
   PAYMENT_RECEIVED = 'payment_received',
   PAYMENT_FAILED = 'payment_failed',
   PAYMENT_REFUNDED = 'payment_refunded',
+  PAYMENT_REMINDER = 'payment_reminder',
   DEPOSIT_RECEIVED = 'deposit_received',
   DEPOSIT_RETURNED = 'deposit_returned',
   WITHDRAWAL_REQUESTED = 'withdrawal_requested',

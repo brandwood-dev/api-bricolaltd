@@ -21,6 +21,8 @@ import { CheckAvailabilityDto, AvailabilityResponseDto } from './dto/check-avail
 import { BookingStatsQueryDto, BookingStatsResponseDto } from './dto/booking-stats.dto';
 import { AdminBookingQueryDto, AdminBookingResponseDto } from './dto/admin-booking-query.dto';
 import { ConfirmToolReturnDto } from './dto/confirm-tool-return.dto';
+import { ConfirmDepositSetupDto } from './dto/confirm-deposit-setup.dto';
+import { CreateBookingWithDepositDto } from './dto/create-booking-with-deposit.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import {
@@ -79,6 +81,19 @@ export class BookingsController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   createWithPayment(@Body() createBookingDto: CreateBookingDto) {
     return this.bookingsService.createBookingWithPayment(createBookingDto);
+  }
+
+  @Post('with-deposit-setup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new booking with automatic deposit setup' })
+  @ApiResponse({
+    status: 201,
+    description: 'The booking and deposit setup intent have been successfully created.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  createWithDepositSetup(@Body() createBookingDto: CreateBookingWithDepositDto) {
+    return this.bookingsService.createBookingWithDepositSetup(createBookingDto);
   }
 
   @Get()
@@ -182,6 +197,22 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found.' })
   confirmBooking(@Param('id') id: string) {
     return this.bookingsService.confirmBooking(id);
+  }
+
+  @Post(':id/confirm-deposit-setup')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm deposit setup intent for automatic capture' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deposit setup confirmed successfully and automatic capture scheduled.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  confirmDepositSetup(@Param('id') id: string, @Body() confirmData: ConfirmDepositSetupDto) {
+    return this.bookingsService.confirmDepositSetup(id, confirmData);
   }
 
   @Patch(':id/cancel')
@@ -374,6 +405,18 @@ export class BookingsController {
     return this.bookingsService.getBookingAnalytics(period);
   }
 
+  @Get('admin/deposit-jobs')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all deposit capture jobs (admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deposit capture jobs retrieved successfully.',
+  })
+  getDepositJobs(@Query('status') status?: string) {
+    return this.bookingsService.getDepositJobs(status);
+  }
+
   @Post('admin/bulk-action')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
@@ -413,6 +456,35 @@ export class BookingsController {
   })
   sendBookingNotification(@Param('id') id: string, @Body() notificationDto: { type: 'reminder' | 'update' | 'confirmation'; message?: string }) {
     return this.bookingsService.sendBookingNotification(id, notificationDto.type, notificationDto.message);
+  }
+
+  @Post(':id/cancel-deposit')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel booking due to unpaid deposit' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Booking cancelled due to unpaid deposit.',
+  })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  cancelBookingForDeposit(@Param('id') id: string, @Request() req) {
+    return this.bookingsService.cancelBookingForDeposit(id, req.user.id);
+  }
+
+  @Post(':id/refund-deposit')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refund deposit for a booking (admin only)' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Deposit refunded successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  refundDeposit(@Param('id') id: string, @Body() refundData: { amount?: number; reason?: string }) {
+    return this.bookingsService.refundDeposit(id, refundData.amount, refundData.reason);
   }
 
   @Delete(':id')

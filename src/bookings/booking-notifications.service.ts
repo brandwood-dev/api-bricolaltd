@@ -63,11 +63,11 @@ export class BookingNotificationsService {
       type: AdminNotificationType.INFO,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.BOOKING,
-      metadata: {
-        bookingId: booking.id,
-        amount: booking.totalPrice,
-        toolName: tool.title
-      }
+      // metadata: {
+      //   bookingId: booking.id,
+      //   amount: booking.totalPrice,
+      //   toolName: tool.title
+      // } // Removed to fix row size issue
     });
   }
 
@@ -135,11 +135,11 @@ export class BookingNotificationsService {
         type: AdminNotificationType.WARNING,
         priority: AdminNotificationPriority.HIGH,
         category: AdminNotificationCategory.BOOKING,
-        metadata: {
-          bookingId: booking.id,
-          cancelledBy,
-          amount: booking.totalPrice
-        }
+        // metadata: {
+        //   bookingId: booking.id,
+        //   cancelledBy,
+        //   amount: booking.totalPrice
+        // } // Removed to fix row size issue
       });
     }
   }

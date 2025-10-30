@@ -270,4 +270,73 @@ export class PaymentController {
       throw new BadRequestException(error.message);
     }
   }
+
+  @Post('create-deposit-intent')
+  @ApiOperation({ summary: 'Créer un Payment Intent pour l\'acompte' })
+  @ApiResponse({ status: 201, description: 'Payment Intent d\'acompte créé avec succès' })
+  async createDepositIntent(
+    @Body() body: { amount: number; currency?: string; bookingId: string },
+    @Request() req: any
+  ) {
+    try {
+      const { amount, currency = 'GBP', bookingId } = body;
+      
+      const metadata = {
+        user_id: req.user.id,
+        booking_id: bookingId,
+        type: 'deposit_payment'
+      };
+
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        amount: Math.round(amount * 100), // Convertir en centimes
+        currency: currency.toLowerCase(),
+        metadata
+      });
+
+      return {
+        success: true,
+        data: {
+          client_secret: paymentIntent.client_secret,
+          payment_intent_id: paymentIntent.id,
+        }
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  @Post('process-deposit/:bookingId')
+  @ApiOperation({ summary: 'Traiter le paiement d\'acompte après confirmation Stripe' })
+  @ApiResponse({ status: 200, description: 'Acompte traité avec succès' })
+  async processDeposit(
+    @Param('bookingId') bookingId: string,
+    @Body() body: { paymentIntentId: string },
+    @Request() req: any
+  ) {
+    try {
+      const { paymentIntentId } = body;
+      
+      // Vérifier le statut du Payment Intent
+      const paymentIntent = await this.paymentService.getPaymentIntent(paymentIntentId);
+      
+      if (paymentIntent.status !== 'succeeded') {
+        throw new BadRequestException('Le paiement n\'a pas été confirmé');
+      }
+
+      // Ici, vous pouvez ajouter la logique pour mettre à jour le statut de la réservation
+      // Par exemple, marquer l'acompte comme payé dans la base de données
+      
+      return {
+        success: true,
+        message: 'Acompte traité avec succès',
+        data: {
+          booking_id: bookingId,
+          payment_intent_id: paymentIntentId,
+          status: 'deposit_paid'
+        }
+      };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
 }

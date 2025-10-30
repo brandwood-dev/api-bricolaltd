@@ -364,6 +364,106 @@ export class BookingNotificationService {
     );
   }
 
+  async notifyDepositReminder(booking: Booking): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+
+    // Notify renter about deposit payment requirement
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.PAYMENT_REMINDER,
+      'Paiement d\'acompte requis',
+      `Votre réservation pour "${tool.title}" nécessite un paiement d'acompte. Veuillez effectuer le paiement pour confirmer votre réservation.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}/deposit`,
+    );
+  }
+
+  async notifyDepositOverdue(booking: Booking): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter about cancelled booking due to unpaid deposit
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_CANCELLED,
+      'Réservation annulée - Acompte impayé',
+      `Votre réservation pour "${tool.title}" a été automatiquement annulée car l'acompte n'a pas été payé dans les délais.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner about cancelled booking
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_CANCELLED,
+      'Réservation annulée - Acompte impayé',
+      `La réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été automatiquement annulée car l'acompte n'a pas été payé.`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+  }
+
+  async notifyDepositPaid(booking: Booking): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter about successful deposit payment
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.PAYMENT_RECEIVED,
+      'Acompte payé avec succès',
+      `Votre acompte pour la réservation de "${tool.title}" a été payé avec succès. Votre réservation est maintenant confirmée.`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner about deposit payment
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.PAYMENT_RECEIVED,
+      'Acompte reçu',
+      `L'acompte pour la réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été reçu. La réservation est confirmée.`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+  }
+
+  async sendBookingCancelledNotification(booking: Booking, reason?: string): Promise<void> {
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const renter = await this.usersService.findOne(booking.renterId);
+    const owner = await this.usersService.findOne(tool.ownerId);
+
+    // Notify renter about cancelled booking
+    await this.notificationsService.createSystemNotification(
+      booking.renterId,
+      NotificationType.BOOKING_CANCELLED,
+      'Réservation annulée',
+      `Votre réservation pour "${tool.title}" a été annulée.${reason ? ` Raison: ${reason}` : ''}`,
+      booking.id,
+      'booking',
+      `/bookings/${booking.id}`,
+    );
+
+    // Notify owner about cancelled booking
+    await this.notificationsService.createSystemNotification(
+      tool.ownerId,
+      NotificationType.BOOKING_CANCELLED,
+      'Réservation annulée',
+      `La réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été annulée.${reason ? ` Raison: ${reason}` : ''}`,
+      booking.id,
+      'booking',
+      `/admin/bookings/${booking.id}`,
+    );
+  }
+
   private formatDate(date: Date): string {
     return new Intl.DateTimeFormat('fr-FR', {
       day: '2-digit',

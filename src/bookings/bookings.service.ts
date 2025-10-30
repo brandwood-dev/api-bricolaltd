@@ -43,7 +43,14 @@ import { AvailabilityStatus } from '../tools/enums/availability-status.enum';
 import { BookingStatus } from './enums/booking-status.enum';
 import { BookingNotificationService } from './booking-notification.service';
 import { BookingNotificationsService } from './booking-notifications.service';
+import { BookingSchedulerService } from './booking-scheduler.service';
 import { PaymentService } from '../payments/payment.service';
+import { StripeDepositService } from './services/stripe-deposit.service';
+import { DepositSchedulerService } from './services/deposit-scheduler.service';
+import { CreateBookingWithDepositDto } from './dto/create-booking-with-deposit.dto';
+import { ConfirmDepositSetupDto } from './dto/confirm-deposit-setup.dto';
+import { DepositCaptureStatus } from './enums/deposit-capture-status.enum';
+import { DepositJobStatus } from './enums/deposit-job-status.enum';
 
 @Injectable()
 export class BookingsService {
@@ -54,10 +61,15 @@ export class BookingsService {
     private usersService: UsersService,
     private bookingNotificationService: BookingNotificationService,
     private bookingNotificationsService: BookingNotificationsService,
+    private bookingSchedulerService: BookingSchedulerService,
     private paymentService: PaymentService,
+    private stripeDepositService: StripeDepositService,
+    private depositSchedulerService: DepositSchedulerService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
+    console.log('🔍 [BookingService] create called with:', createBookingDto);
+    
     const {
       renterId,
       toolId,
@@ -70,36 +82,132 @@ export class BookingsService {
       pickupHour,
     } = createBookingDto;
 
+    console.log('🔍 [BookingService] Extracted data:', {
+      renterId,
+      toolId,
+      ownerId,
+      startDate,
+      endDate,
+      message,
+      paymentMethod,
+      totalPrice,
+      pickupHour,
+    });
+
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     const now = new Date();
 
+    // Create start date with pickup hour for proper comparison (with timezone handling)
+    const startWithPickupTime = new Date(start);
+    if (pickupHour) {
+      const [hours, minutes] = pickupHour.split(':').map(Number);
+      // Use local timezone for pickup time calculation
+      const localStartDate = new Date(start.getFullYear(), start.getMonth(), start.getDate(), hours, minutes || 0, 0, 0);
+      startWithPickupTime.setTime(localStartDate.getTime());
+    } else {
+      // Default to start of day if no pickup hour specified
+      startWithPickupTime.setHours(0, 0, 0, 0);
+    }
+
+    // Set end date to start of day for comparison
+    const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+    console.log('🔍 [BookingService] Date validation:', {
+      startDateInput: startDate,
+      endDateInput: endDate,
+      pickupHour: pickupHour,
+      startDateType: typeof startDate,
+      endDateType: typeof endDate,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      now: now.toISOString(),
+      startWithPickupTime: startWithPickupTime.toISOString(),
+      endOfDay: endOfDay.toISOString(),
+      startTime: start.getTime(),
+      endTime: end.getTime(),
+      comparison: start > end,
+      timeDifference: end.getTime() - start.getTime(),
+      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    });
+
+    // La date de fin ne peut JAMAIS être la même que la date de début
     if (start >= end) {
+      console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+      console.log('❌ [BookingService] Detailed comparison:', {
+        startDate: startDate,
+        endDate: endDate,
+        startParsed: start.toISOString(),
+        endParsed: end.toISOString(),
+        startWithPickupTime: startWithPickupTime.toISOString(),
+        endOfDay: endOfDay.toISOString(),
+        isStartGreaterOrEqual: start >= end
+      });
       throw new BadRequestException('End date must be after start date');
     }
 
-    if (start < now) {
-      throw new BadRequestException('Start date cannot be in the past');
+    // Minimum 48 hours advance booking requirement
+    // This allows time for: owner confirmation, deposit jobs (24h before), and notifications
+    const minimumAdvanceHours = 48;
+    const minimumStartTime = new Date(now.getTime() + (minimumAdvanceHours * 60 * 60 * 1000));
+    
+    console.log('🔍 [BookingService] 48-hour advance booking validation:', {
+      now: now.toISOString(),
+      startWithPickupTime: startWithPickupTime.toISOString(),
+      minimumStartTime: minimumStartTime.toISOString(),
+      minimumAdvanceHours: minimumAdvanceHours,
+      hoursUntilPickup: (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
+      pickupHour: pickupHour
+    });
+
+    if (startWithPickupTime < minimumStartTime) {
+      const hoursUntilPickup = (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      console.log('❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance');
+      console.log('❌ [BookingService] 48-hour validation details:', {
+        startWithPickupTime: startWithPickupTime.toISOString(),
+        now: now.toISOString(),
+        minimumStartTime: minimumStartTime.toISOString(),
+        hoursUntilPickup: hoursUntilPickup,
+        minimumRequired: minimumAdvanceHours
+      });
+      throw new BadRequestException(
+        `Les réservations doivent être faites au moins ${minimumAdvanceHours} heures à l'avance. ` +
+        `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
+        `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`
+      );
     }
 
     // Validate tool exists and is available
+    console.log('🔍 [BookingService] Fetching tool:', toolId);
     const tool = await this.toolsService.findOne(toolId);
     if (!tool) {
+      console.log('❌ [BookingService] Tool not found:', toolId);
       throw new NotFoundException('Tool not found');
     }
 
+    console.log('🔍 [BookingService] Tool found:', {
+      id: tool.id,
+      title: tool.title,
+      availabilityStatus: tool.availabilityStatus,
+      ownerId: tool.ownerId,
+    });
+
     if (tool.availabilityStatus !== AvailabilityStatus.AVAILABLE) {
+      console.log('❌ [BookingService] Tool not available:', tool.availabilityStatus);
       throw new BadRequestException('Tool is not available for booking');
     }
 
     // Get ownerId from tool if not provided
     const finalOwnerId = ownerId || tool.ownerId;
+    console.log('🔍 [BookingService] Final owner ID:', finalOwnerId);
 
     // Validate user exists
+    console.log('🔍 [BookingService] Validating user:', renterId);
     await this.usersService.findOne(renterId);
 
     // Check if the tool is already booked for the requested dates
+    console.log('🔍 [BookingService] Checking for conflicting bookings...');
     const conflictingBookings = await this.bookingsRepository.find({
       where: [
         {
@@ -117,7 +225,10 @@ export class BookingsService {
       ],
     });
 
+    console.log('🔍 [BookingService] Conflicting bookings found:', conflictingBookings.length);
+
     if (conflictingBookings.length > 0) {
+      console.log('❌ [BookingService] Tool already booked for requested dates');
       throw new BadRequestException(
         'Tool is already booked for the requested dates',
       );
@@ -138,6 +249,8 @@ export class BookingsService {
       paymentStatus: 'pending', // Initialize payment status
     };
 
+    console.log('🔍 [BookingService] Booking data to save:', bookingData);
+
     // Convert pickupHour string to Date if provided
     if (createBookingDto.pickupHour) {
       // Create a date object with today's date and the specified time
@@ -145,22 +258,40 @@ export class BookingsService {
       const pickupDate = new Date();
       pickupDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       bookingData.pickupHour = pickupDate;
+      console.log('🔍 [BookingService] Converted pickup hour:', pickupDate.toISOString());
     }
 
-    const booking = this.bookingsRepository.create(bookingData);
-    const savedBookings = await this.bookingsRepository.save(booking);
-    const savedBooking = Array.isArray(savedBookings)
-      ? savedBookings[0]
-      : savedBookings;
-
-    // Send notification
     try {
-      await this.bookingNotificationService.notifyBookingCreated(savedBooking);
-    } catch (error) {
-      console.error('Failed to send booking notification:', error);
-    }
+      const booking = this.bookingsRepository.create(bookingData);
+      console.log('🔍 [BookingService] Booking entity created:', booking);
+      
+      const savedBookings = await this.bookingsRepository.save(booking);
+      const savedBooking = Array.isArray(savedBookings) ? savedBookings[0] : savedBookings;
+      console.log('🔍 [BookingService] Booking saved successfully:', savedBooking);
 
-    return savedBooking;
+      // Send notification
+      try {
+        console.log('🔍 [BookingService] Sending booking notification...');
+        await this.bookingNotificationService.notifyBookingCreated(savedBooking);
+        console.log('🔍 [BookingService] Booking notification sent successfully');
+      } catch (error) {
+        console.error('❌ [BookingService] Failed to send booking notification:', error);
+      }
+
+      // Schedule deposit reminder for testing (1 minute delay)
+      try {
+        console.log('🔍 [BookingService] Scheduling deposit reminder...');
+        await this.bookingSchedulerService.scheduleDepositReminder(savedBooking.id);
+        console.log('🔍 [BookingService] Deposit reminder scheduled successfully');
+      } catch (error) {
+        console.error('❌ [BookingService] Failed to schedule deposit reminder:', error);
+      }
+
+      return savedBooking;
+    } catch (error) {
+      console.error('❌ [BookingService] Error saving booking:', error);
+      throw error;
+    }
   }
 
   private calculateTotalPrice(
@@ -168,10 +299,7 @@ export class BookingsService {
     startDate: Date,
     endDate: Date,
   ): number {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+    const diffDays = this.calculateDays(startDate, endDate);
     return pricePerDay * diffDays;
   }
 
@@ -540,6 +668,169 @@ export class BookingsService {
     }
   }
 
+  /**
+   * Create a booking with automatic deposit setup
+   */
+  async createBookingWithDepositSetup(createBookingDto: CreateBookingWithDepositDto): Promise<{
+    booking: Booking;
+    setupIntent: any;
+    paymentIntent: any;
+  }> {
+    // Convert paymentMethod to match CreateBookingDto type
+    const convertedDto: CreateBookingDto = {
+      ...createBookingDto,
+      paymentMethod: createBookingDto.paymentMethod === 'card' ? 'CARD' : 'PAYPAL'
+    };
+
+    // First create the booking
+    const booking = await this.create(convertedDto);
+
+    try {
+      // Get or create Stripe customer
+      const user = await this.usersService.findOne(booking.renterId);
+      const customerId = await this.stripeDepositService.createOrGetCustomer(
+        user.email,
+        user.firstName + ' ' + user.lastName
+      );
+
+      // Calculate rental amount (without deposit) for immediate capture
+      const tool = await this.toolsService.findOne(booking.toolId);
+      const totalDays = this.calculateDays(booking.startDate, booking.endDate);
+      const subtotal = tool.basePrice * totalDays;
+      const fees = Math.round(subtotal * 0.06 * 100) / 100;
+      const rentalAmount = subtotal + fees; // Amount to capture immediately (without deposit)
+
+      console.log('🔍 [BookingService] Creating payment for rental amount:', {
+        subtotal,
+        fees,
+        rentalAmount,
+        depositAmount: tool.depositAmount
+      });
+
+      // Create PaymentIntent for immediate capture of rental amount (without deposit)
+      const paymentIntent = await this.paymentService.createPaymentIntent({
+        amount: Math.round(rentalAmount * 100), // Convert to cents
+        currency: 'gbp',
+        bookingId: booking.id,
+        metadata: {
+          booking_id: booking.id,
+          renter_id: booking.renterId,
+          tool_id: booking.toolId,
+          owner_id: booking.ownerId,
+          type: 'rental_payment', // Distinguish from deposit
+        },
+      });
+
+      // Create SetupIntent for deposit (managed separately)
+      const setupData = await this.stripeDepositService.createSetupIntent(customerId, booking.id);
+
+      // Update booking with both payment and deposit setup data
+      booking.paymentIntentId = paymentIntent.id;
+      booking.paymentStatus = 'pending';
+      booking.setupIntentId = setupData.setupIntentId;
+      booking.depositCaptureScheduledAt = new Date(booking.startDate.getTime() - 24 * 60 * 60 * 1000); // 24h before
+      booking.depositCaptureStatus = DepositCaptureStatus.PENDING;
+      
+      await this.bookingsRepository.save(booking);
+
+      return {
+        booking,
+        setupIntent: setupData,
+        paymentIntent: paymentIntent,
+      };
+    } catch (error) {
+      // If setup creation fails, remove the booking
+      await this.bookingsRepository.remove(booking);
+      throw new BadRequestException(`Failed to create payment and deposit setup: ${error.message}`);
+    }
+  }
+
+  /**
+   * Confirm deposit setup after user completes the SetupIntent
+   */
+  async confirmDepositSetup(bookingId: string, confirmData: ConfirmDepositSetupDto): Promise<Booking> {
+    const booking = await this.findOne(bookingId);
+
+    if (!booking.setupIntentId) {
+      throw new BadRequestException('No setup intent found for this booking');
+    }
+
+    try {
+      // Confirm the SetupIntent with Stripe
+      const confirmResult = await this.stripeDepositService.confirmSetupIntent(
+        booking.setupIntentId
+      );
+
+      if (!confirmResult.success) {
+        throw new BadRequestException(`Failed to confirm deposit setup: ${confirmResult.error}`);
+      }
+
+      // Update booking with confirmed deposit data
+      booking.depositPaymentMethodId = confirmResult.paymentMethodId;
+      booking.depositCaptureStatus = DepositCaptureStatus.SUCCESS;
+      
+      const savedBooking = await this.bookingsRepository.save(booking);
+
+      // Schedule deposit capture and notification jobs
+      await this.depositSchedulerService.scheduleDepositCapture(savedBooking);
+
+      return savedBooking;
+    } catch (error) {
+      booking.depositCaptureStatus = DepositCaptureStatus.FAILED;
+      booking.depositFailureReason = error.message;
+      await this.bookingsRepository.save(booking);
+      throw new BadRequestException(`Failed to confirm deposit setup: ${error.message}`);
+    }
+  }
+
+  /**
+   * Refund deposit for a booking (admin only)
+   */
+  async refundDeposit(bookingId: string, amount?: number, reason?: string): Promise<{
+    success: boolean;
+    refundId?: string;
+    message: string;
+  }> {
+    const booking = await this.findOne(bookingId);
+
+    if (!booking.depositPaymentMethodId) {
+      throw new BadRequestException('No deposit payment method found for this booking');
+    }
+
+    if (booking.depositCaptureStatus !== DepositCaptureStatus.SUCCESS) {
+      throw new BadRequestException('Deposit has not been captured yet');
+    }
+
+    try {
+      // Get tool for deposit amount if not specified
+      const tool = await this.toolsService.findOne(booking.toolId);
+      const refundAmount = amount || tool.depositAmount;
+
+      // Process refund through Stripe
+      const refundResult = await this.stripeDepositService.refundDeposit(
+        booking.depositPaymentMethodId,
+        Math.round(refundAmount * 100), // Convert to cents
+        reason || 'Deposit refund'
+      );
+
+      if (refundResult.success) {
+        // Update booking status
+        booking.depositCaptureStatus = DepositCaptureStatus.CANCELLED;
+        await this.bookingsRepository.save(booking);
+
+        return {
+          success: true,
+          refundId: refundResult.refundId,
+          message: 'Deposit refunded successfully'
+        };
+      } else {
+        throw new BadRequestException('Failed to process refund');
+      }
+    } catch (error) {
+      throw new BadRequestException(`Failed to refund deposit: ${error.message}`);
+    }
+  }
+
   async acceptBooking(id: string): Promise<Booking> {
     const booking = await this.findOne(id);
 
@@ -679,40 +970,75 @@ export class BookingsService {
   async calculatePricing(
     calculatePricingDto: CalculatePricingDto,
   ): Promise<PricingResponseDto> {
-    const tool = await this.toolsService.findOne(calculatePricingDto.toolId);
-
-    const startDate = new Date(calculatePricingDto.startDate);
-    const endDate = new Date(calculatePricingDto.endDate);
-
-    // Validate dates
-    if (startDate >= endDate) {
-      throw new BadRequestException('End date must be after start date');
+    console.log('🔍 [BookingService] calculatePricing called with:', calculatePricingDto);
+    
+    try {
+      const tool = await this.toolsService.findOne(calculatePricingDto.toolId);
+      console.log('🔍 [BookingService] Tool found:', { id: tool.id, title: tool.title, basePrice: tool.basePrice });
+    
+      // Parse dates from YYYY-MM-DD format
+    const startDate = new Date(calculatePricingDto.startDate + 'T00:00:00.000Z');
+    const endDate = new Date(calculatePricingDto.endDate + 'T00:00:00.000Z');
+      
+      console.log('🔍 [BookingService] Parsed dates:', {
+        startDateInput: calculatePricingDto.startDate,
+        endDateInput: calculatePricingDto.endDate,
+        startDateParsed: startDate.toISOString(),
+        endDateParsed: endDate.toISOString()
+      });
+    
+      // Validate dates - la date de fin ne peut JAMAIS être la même que la date de début
+      if (startDate >= endDate) {
+        console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+        throw new BadRequestException('End date must be after start date');
+      }
+    
+      // Temporarily disable past date validation for testing
+      console.log('🔍 [BookingService] Date validation (temporarily disabled):', {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      
+      // if (startDate < new Date()) {
+      //   throw new BadRequestException('Start date cannot be in the past');
+      // }
+    
+      const totalDays = this.calculateDays(startDate, endDate);
+      console.log('🔍 [BookingService] Total days calculated:', totalDays);
+      
+      const subtotal = tool.basePrice * totalDays;
+      console.log('🔍 [BookingService] Subtotal calculated:', subtotal);
+    
+      // Calculate fees (6% platform fee)
+      const fees = Math.round(subtotal * 0.06 * 100) / 100;
+      console.log('🔍 [BookingService] Fees calculated:', fees);
+    
+      // Calculate deposit (20% of subtotal, minimum 50)
+      // const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
+      const deposit = tool.depositAmount;
+      console.log('🔍 [BookingService] Deposit (managed separately):', deposit);
+    
+      // Total amount to pay = subtotal + fees (WITHOUT deposit)
+      // Deposit is managed separately by the automatic system
+      const totalAmount = subtotal + fees;
+      console.log('🔍 [BookingService] Total amount to pay (without deposit):', totalAmount);
+      console.log('🔍 [BookingService] Deposit amount (handled separately):', deposit);
+    
+      const result = {
+        basePrice: tool.basePrice,
+        totalDays,
+        subtotal,
+        fees,
+        deposit,
+        totalAmount,
+      };
+      
+      console.log('🔍 [BookingService] Final pricing result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ [BookingService] Error in calculatePricing:', error);
+      throw error;
     }
-
-    if (startDate < new Date()) {
-      throw new BadRequestException('Start date cannot be in the past');
-    }
-
-    const totalDays = this.calculateDays(startDate, endDate);
-    const subtotal = tool.basePrice * totalDays;
-
-    // Calculate fees (5% platform fee)
-    const fees = Math.round(subtotal * 0.06 * 100) / 100;
-
-    // Calculate deposit (20% of subtotal, minimum 50)
-    // const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
-    const deposit = tool.depositAmount;
-
-    const totalAmount = subtotal + fees + deposit;
-
-    return {
-      basePrice: tool.basePrice,
-      totalDays,
-      subtotal,
-      fees,
-      deposit,
-      totalAmount,
-    };
   }
 
   async checkAvailability(
@@ -723,12 +1049,42 @@ export class BookingsService {
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
+    const now = new Date();
+
+    console.log('🔍 [BookingService] Date validation:', {
+      startDateInput: startDate,
+      endDateInput: endDate,
+      startDateType: typeof startDate,
+      endDateType: typeof endDate,
+      start: start.toISOString(),
+      end: end.toISOString(),
+      now: now.toISOString(),
+      startTime: start.getTime(),
+      endTime: end.getTime(),
+      comparison: start > end,
+      timeDifference: end.getTime() - start.getTime(),
+      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    });
 
     if (start >= end) {
+      console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+      console.log('❌ [BookingService] Detailed comparison:', {
+        startDate: startDate,
+        endDate: endDate,
+        startParsed: start.toISOString(),
+        endParsed: end.toISOString(),
+        startTime: start.getTime(),
+        endTime: end.getTime(),
+        isStartGreaterOrEqual: start >= end
+      });
       throw new BadRequestException('End date must be after start date');
     }
 
-    if (start < new Date()) {
+    // Enhanced date validation logic (consistent with create method)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    
+    if (startDay < today) {
       throw new BadRequestException('Start date cannot be in the past');
     }
 
@@ -929,7 +1285,10 @@ export class BookingsService {
 
   private calculateDays(startDate: Date, endDate: Date): number {
     const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Si début = 10 oct, fin = 11 oct → diffTime = 1 jour → return 1
+    // Si début = 10 oct, fin = 12 oct → diffTime = 2 jours → return 2
+    return days;
   }
 
   // Admin-specific methods
@@ -1225,5 +1584,62 @@ export class BookingsService {
     }
 
     return updatedBooking;
+  }
+
+  async cancelBookingForDeposit(id: string, userId: string): Promise<Booking> {
+    const booking = await this.bookingsRepository.findOne({
+      where: { id },
+      relations: ['renter', 'tool', 'tool.owner'],
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Booking not found');
+    }
+
+    // Vérifier que l'utilisateur est bien le locataire
+    if (booking.renter.id !== userId) {
+      throw new BadRequestException('You can only cancel your own bookings');
+    }
+
+    // Vérifier que la réservation peut être annulée
+    if (booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException('Cannot cancel this booking');
+    }
+
+    // Mettre à jour le statut de la réservation
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = 'Unpaid deposit';
+    booking.cancelledAt = new Date();
+
+    const updatedBooking = await this.bookingsRepository.save(booking);
+
+    // Envoyer des notifications
+    try {
+      await this.bookingNotificationService.sendBookingCancelledNotification(
+        updatedBooking,
+        'Unpaid deposit'
+      );
+    } catch (error) {
+      console.error('Failed to send cancellation notification:', error);
+    }
+
+    return updatedBooking;
+  }
+
+  async getDepositJobs(status?: string): Promise<any> {
+    try {
+      if (status) {
+        // Vérifier que le statut est valide
+        const validStatuses = Object.values(DepositJobStatus);
+        if (!validStatuses.includes(status as any)) {
+          throw new BadRequestException(`Invalid status: ${status}`);
+        }
+        return await this.depositSchedulerService.getDepositJobsByStatus(status as any);
+      } else {
+        return await this.depositSchedulerService.getAllDepositJobs();
+      }
+    } catch (error) {
+      throw new BadRequestException(`Failed to retrieve deposit jobs: ${error.message}`);
+    }
   }
 }

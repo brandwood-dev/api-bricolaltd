@@ -11,6 +11,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
 import { Tool } from '../../tools/entities/tool.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { DepositCaptureStatus } from '../enums/deposit-capture-status.enum';
 
 @Entity('booking')
 export class Booking {
@@ -195,6 +196,69 @@ export class Booking {
     required: false,
   })
   refundReason?: string;
+
+  @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'Timestamp when booking was cancelled',
+    required: false,
+  })
+  cancelledAt?: Date;
+
+  // Deposit automation fields
+  @Column({ name: 'setup_intent_id', nullable: true })
+  @ApiProperty({
+    description: 'Stripe SetupIntent ID for deposit payment method',
+    required: false,
+  })
+  setupIntentId?: string;
+
+  @Column({ name: 'deposit_payment_method_id', nullable: true })
+  @ApiProperty({
+    description: 'Stripe Payment Method ID for deposit capture',
+    required: false,
+  })
+  depositPaymentMethodId?: string;
+
+  @Column({ name: 'deposit_capture_scheduled_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'When the deposit capture is scheduled',
+    required: false,
+  })
+  depositCaptureScheduledAt?: Date;
+
+  @Column({ name: 'deposit_notification_sent_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'When the deposit notification was sent',
+    required: false,
+  })
+  depositNotificationSentAt?: Date;
+
+  @Column({ name: 'deposit_captured_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'When the deposit was captured',
+    required: false,
+  })
+  depositCapturedAt?: Date;
+
+  @Column({
+    name: 'deposit_capture_status',
+    type: 'enum',
+    enum: DepositCaptureStatus,
+    default: DepositCaptureStatus.PENDING,
+  })
+  @ApiProperty({
+    description: 'Status of the deposit capture',
+    enum: DepositCaptureStatus,
+    default: DepositCaptureStatus.PENDING,
+  })
+  depositCaptureStatus: DepositCaptureStatus;
+
+  @Column({ name: 'deposit_failure_reason', type: 'text', nullable: true })
+  @ApiProperty({
+    description: 'Reason for deposit capture failure',
+    required: false,
+  })
+  depositFailureReason?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   @ApiProperty({ description: 'The date when the booking was created' })

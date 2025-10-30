@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsUUID, IsString, Matches } from 'class-validator';
 
 export class CalculatePricingDto {
   @ApiProperty({ description: 'The ID of the tool being booked' })
@@ -7,14 +7,16 @@ export class CalculatePricingDto {
   @IsUUID()
   toolId: string;
 
-  @ApiProperty({ description: 'The start date of the booking', example: '2023-01-01T10:00:00Z' })
+  @ApiProperty({ description: 'The start date of the booking', example: '2025-01-01' })
   @IsNotEmpty()
-  @IsDateString()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'startDate must be in YYYY-MM-DD format' })
   startDate: string;
 
-  @ApiProperty({ description: 'The end date of the booking', example: '2023-01-03T18:00:00Z' })
+  @ApiProperty({ description: 'The end date of the booking', example: '2025-01-03' })
   @IsNotEmpty()
-  @IsDateString()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'endDate must be in YYYY-MM-DD format' })
   endDate: string;
 }
 
