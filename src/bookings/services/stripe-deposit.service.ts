@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
-import { DepositSetupData, DepositCaptureData, DepositCaptureResult } from '../interfaces/deposit-automation.interface';
+import {
+  DepositSetupData,
+  DepositCaptureData,
+  DepositCaptureResult,
+} from '../interfaces/deposit-automation.interface';
 import { DepositCaptureStatus } from '../enums/deposit-capture-status.enum';
 import { DepositNotificationService } from './deposit-notification.service';
 
@@ -18,9 +22,7 @@ export class StripeDepositService {
     if (!stripeSecretKey) {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
-    this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-02-24.acacia',
-    });
+    this.stripe = new Stripe(stripeSecretKey);
   }
 
   /**
@@ -35,7 +37,9 @@ export class StripeDepositService {
       });
 
       if (existingCustomers.data.length > 0) {
-        this.logger.log(`Customer existant trouvé: ${existingCustomers.data[0].id}`);
+        this.logger.log(
+          `Customer existant trouvé: ${existingCustomers.data[0].id}`,
+        );
         return existingCustomers.data[0].id;
       }
 
@@ -51,15 +55,22 @@ export class StripeDepositService {
       this.logger.log(`Nouveau customer créé: ${customer.id}`);
       return customer.id;
     } catch (error) {
-      this.logger.error(`Erreur lors de la création/récupération du customer: ${error.message}`);
-      throw new Error(`Impossible de créer le customer Stripe: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la création/récupération du customer: ${error.message}`,
+      );
+      throw new Error(
+        `Impossible de créer le customer Stripe: ${error.message}`,
+      );
     }
   }
 
   /**
    * Créer un SetupIntent pour enregistrer une méthode de paiement
    */
-  async createSetupIntent(customerId: string, bookingId: string): Promise<DepositSetupData> {
+  async createSetupIntent(
+    customerId: string,
+    bookingId: string,
+  ): Promise<DepositSetupData> {
     try {
       const setupIntent = await this.stripe.setupIntents.create({
         customer: customerId,
@@ -71,7 +82,9 @@ export class StripeDepositService {
         },
       });
 
-      this.logger.log(`SetupIntent créé: ${setupIntent.id} pour booking: ${bookingId}`);
+      this.logger.log(
+        `SetupIntent créé: ${setupIntent.id} pour booking: ${bookingId}`,
+      );
 
       if (!setupIntent.client_secret) {
         throw new Error('Failed to create setup intent: client_secret is null');
@@ -83,7 +96,9 @@ export class StripeDepositService {
         clientSecret: setupIntent.client_secret,
       };
     } catch (error) {
-      this.logger.error(`Erreur lors de la création du SetupIntent: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la création du SetupIntent: ${error.message}`,
+      );
       throw new Error(`Impossible de créer le SetupIntent: ${error.message}`);
     }
   }
@@ -97,36 +112,42 @@ export class StripeDepositService {
     error?: string;
   }> {
     try {
-      const setupIntent = await this.stripe.setupIntents.retrieve(setupIntentId);
+      const setupIntent =
+        await this.stripe.setupIntents.retrieve(setupIntentId);
 
       if (setupIntent.status !== 'succeeded') {
         return {
           success: false,
-          error: `SetupIntent non confirmé. Status: ${setupIntent.status}`
+          error: `SetupIntent non confirmé. Status: ${setupIntent.status}`,
         };
       }
 
       if (!setupIntent.payment_method) {
         return {
           success: false,
-          error: 'Aucune méthode de paiement attachée au SetupIntent'
+          error: 'Aucune méthode de paiement attachée au SetupIntent',
         };
       }
 
-      const paymentMethodId = typeof setupIntent.payment_method === 'string' 
-        ? setupIntent.payment_method 
-        : setupIntent.payment_method.id;
+      const paymentMethodId =
+        typeof setupIntent.payment_method === 'string'
+          ? setupIntent.payment_method
+          : setupIntent.payment_method.id;
 
-      this.logger.log(`SetupIntent confirmé: ${setupIntentId}, PaymentMethod: ${paymentMethodId}`);
+      this.logger.log(
+        `SetupIntent confirmé: ${setupIntentId}, PaymentMethod: ${paymentMethodId}`,
+      );
       return {
         success: true,
-        paymentMethodId
+        paymentMethodId,
       };
     } catch (error) {
-      this.logger.error(`Erreur lors de la confirmation du SetupIntent: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la confirmation du SetupIntent: ${error.message}`,
+      );
       return {
         success: false,
-        error: `Impossible de confirmer le SetupIntent: ${error.message}`
+        error: `Impossible de confirmer le SetupIntent: ${error.message}`,
       };
     }
   }
@@ -134,9 +155,13 @@ export class StripeDepositService {
   /**
    * Capturer automatiquement la caution
    */
-  async captureDeposit(captureData: DepositCaptureData): Promise<DepositCaptureResult> {
+  async captureDeposit(
+    captureData: DepositCaptureData,
+  ): Promise<DepositCaptureResult> {
     try {
-      this.logger.log(`Tentative de capture de caution pour booking: ${captureData.bookingId}`);
+      this.logger.log(
+        `Tentative de capture de caution pour booking: ${captureData.bookingId}`,
+      );
 
       // Créer un PaymentIntent pour capturer la caution
       const paymentIntent = await this.stripe.paymentIntents.create({
@@ -164,7 +189,9 @@ export class StripeDepositService {
         };
       } else if (paymentIntent.status === 'requires_action') {
         // Authentification 3D Secure requise
-        this.logger.warn(`Authentification 3D Secure requise pour: ${paymentIntent.id}`);
+        this.logger.warn(
+          `Authentification 3D Secure requise pour: ${paymentIntent.id}`,
+        );
         return {
           success: false,
           error: 'Authentification 3D Secure requise',
@@ -179,8 +206,10 @@ export class StripeDepositService {
         };
       }
     } catch (error) {
-      this.logger.error(`Erreur lors de la capture de caution: ${error.message}`);
-      
+      this.logger.error(
+        `Erreur lors de la capture de caution: ${error.message}`,
+      );
+
       // Analyser le type d'erreur Stripe
       if (error.type === 'StripeCardError') {
         return {
@@ -207,7 +236,11 @@ export class StripeDepositService {
   /**
    * Annuler/rembourser une caution
    */
-  async refundDeposit(paymentIntentId: string, amount: number, reason?: string): Promise<{
+  async refundDeposit(
+    paymentIntentId: string,
+    amount: number,
+    reason?: string,
+  ): Promise<{
     success: boolean;
     refundId?: string;
     error?: string;
@@ -222,7 +255,9 @@ export class StripeDepositService {
         },
       });
 
-      this.logger.log(`Remboursement créé: ${refund.id} pour PaymentIntent: ${paymentIntentId}`);
+      this.logger.log(
+        `Remboursement créé: ${refund.id} pour PaymentIntent: ${paymentIntentId}`,
+      );
       return {
         success: refund.status === 'succeeded',
         refundId: refund.id,
@@ -241,10 +276,13 @@ export class StripeDepositService {
    */
   async validatePaymentMethod(paymentMethodId: string): Promise<boolean> {
     try {
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      const paymentMethod =
+        await this.stripe.paymentMethods.retrieve(paymentMethodId);
       return paymentMethod && paymentMethod.type === 'card';
     } catch (error) {
-      this.logger.error(`Erreur lors de la validation de la méthode de paiement: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la validation de la méthode de paiement: ${error.message}`,
+      );
       return false;
     }
   }
@@ -254,19 +292,24 @@ export class StripeDepositService {
    */
   async getPaymentMethodDetails(paymentMethodId: string): Promise<any> {
     try {
-      const paymentMethod = await this.stripe.paymentMethods.retrieve(paymentMethodId);
+      const paymentMethod =
+        await this.stripe.paymentMethods.retrieve(paymentMethodId);
       return {
         id: paymentMethod.id,
         type: paymentMethod.type,
-        card: paymentMethod.card ? {
-          brand: paymentMethod.card.brand,
-          last4: paymentMethod.card.last4,
-          exp_month: paymentMethod.card.exp_month,
-          exp_year: paymentMethod.card.exp_year,
-        } : null,
+        card: paymentMethod.card
+          ? {
+              brand: paymentMethod.card.brand,
+              last4: paymentMethod.card.last4,
+              exp_month: paymentMethod.card.exp_month,
+              exp_year: paymentMethod.card.exp_year,
+            }
+          : null,
       };
     } catch (error) {
-      this.logger.error(`Erreur lors de la récupération des détails: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la récupération des détails: ${error.message}`,
+      );
       return null;
     }
   }
