@@ -246,7 +246,7 @@ export class BookingsService {
       paymentMethod: paymentMethod,
       message: message,
       pickupHour: pickupHour,
-      paymentStatus: 'pending', // Initialize payment status
+      paymentStatus: createBookingDto.paymentStatus || 'pending', // Use provided payment status or default to pending
     };
 
     console.log('🔍 [BookingService] Booking data to save:', bookingData);
@@ -840,10 +840,10 @@ export class BookingsService {
       );
     }
 
-    // Check if payment is authorized before accepting
-    if (booking.paymentStatus !== 'authorized') {
+    // Check if payment is authorized or captured before accepting
+    if (!['authorized', 'captured'].includes(booking.paymentStatus)) {
       throw new BadRequestException(
-        'Payment must be authorized before accepting the booking',
+        'Payment must be authorized or captured before accepting the booking',
       );
     }
 
@@ -1110,7 +1110,7 @@ export class BookingsService {
           endDate: MoreThanOrEqual(start),
         },
       ],
-      relations: ['user'],
+      relations: ['renter', 'owner'],
     });
 
     const available = conflictingBookings.length === 0;

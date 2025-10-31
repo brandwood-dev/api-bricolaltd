@@ -36,7 +36,7 @@ export class BookingSchedulerService {
           status: BookingStatus.ACCEPTED,
           startDate: Between(tomorrow, dayAfterTomorrow),
         },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       this.logger.log(`Found ${bookingsStartingTomorrow.length} bookings starting tomorrow`);
@@ -74,7 +74,7 @@ export class BookingSchedulerService {
           status: BookingStatus.ACCEPTED,
           endDate: Between(tomorrow, dayAfterTomorrow),
         },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       this.logger.log(`Found ${bookingsEndingTomorrow.length} bookings ending tomorrow`);
@@ -106,7 +106,7 @@ export class BookingSchedulerService {
           status: BookingStatus.ACCEPTED,
           endDate: LessThan(today),
         },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       this.logger.log(`Found ${overdueBookings.length} overdue bookings`);
@@ -139,7 +139,7 @@ export class BookingSchedulerService {
           status: BookingStatus.ACCEPTED,
           endDate: LessThan(threeDaysAgo),
         },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       this.logger.log(`Found ${bookingsToComplete.length} bookings to auto-complete`);
@@ -165,7 +165,7 @@ export class BookingSchedulerService {
     try {
       const booking = await this.bookingsRepository.findOne({
         where: { id: bookingId },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       if (booking) {
@@ -183,7 +183,7 @@ export class BookingSchedulerService {
     try {
       const booking = await this.bookingsRepository.findOne({
         where: { id: bookingId },
-        relations: ['user', 'tool'],
+        relations: ['renter', 'owner', 'tool'],
       });
 
       if (booking) {
@@ -212,7 +212,7 @@ export class BookingSchedulerService {
           status: BookingStatus.PENDING,
           createdAt: Between(oneMinuteFromNow, twoMinutesFromNow),
         },
-        relations: ['user', 'tool', 'tool.owner'],
+        relations: ['renter', 'owner', 'tool', 'tool.owner'],
       });
 
       this.logger.log(`Found ${bookingsNeedingDeposit.length} bookings needing deposit reminder`);
@@ -245,7 +245,7 @@ export class BookingSchedulerService {
           status: BookingStatus.PENDING,
           createdAt: LessThan(twentyFourHoursAgo),
         },
-        relations: ['user', 'tool', 'tool.owner'],
+        relations: ['renter', 'owner', 'tool', 'tool.owner'],
       });
 
       this.logger.log(`Found ${overdueDepositBookings.length} bookings with overdue deposits`);
@@ -273,7 +273,7 @@ export class BookingSchedulerService {
     try {
       const booking = await this.bookingsRepository.findOne({
         where: { id: bookingId },
-        relations: ['user', 'tool', 'tool.owner'],
+        relations: ['renter', 'owner', 'tool', 'tool.owner'],
       });
 
       if (booking && booking.status === BookingStatus.PENDING) {

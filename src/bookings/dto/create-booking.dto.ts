@@ -76,4 +76,14 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   pickupHour?: string;
+
+  @ApiProperty({ 
+    description: 'The payment status for the booking',
+    required: false,
+    enum: ['pending', 'authorized', 'captured', 'failed'],
+    default: 'pending'
+  })
+  @IsOptional()
+  @IsString()
+  paymentStatus?: string;
 }
