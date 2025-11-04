@@ -204,6 +204,13 @@ export class Booking {
   })
   cancelledAt?: Date;
 
+  @Column({ name: 'accepted_at', type: 'timestamp', nullable: true })
+  @ApiProperty({
+    description: 'Timestamp when booking was accepted',
+    required: false,
+  })
+  acceptedAt?: Date;
+
   // Deposit automation fields
   @Column({ name: 'setup_intent_id', nullable: true })
   @ApiProperty({

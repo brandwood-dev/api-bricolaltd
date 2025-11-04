@@ -803,16 +803,23 @@ export class UsersService {
         .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
         .getCount();
 
-      // Calculer les gains totaux depuis les bookings complétés
-      const earningsResult = await this.bookingRepository
-        .createQueryBuilder('booking')
-        .innerJoin('booking.tool', 'tool')
-        .select('SUM(booking.totalPrice)', 'totalEarnings')
-        .where('tool.ownerId = :userId', { userId })
-        .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
-        .getRawOne();
-
-      const totalEarnings = parseFloat(earningsResult?.totalEarnings || '0');
+      // Utiliser les données du wallet pour les gains totaux (cohérence avec le composant Wallet)
+      let totalEarnings = 0;
+      try {
+        const walletStats = await this.walletsService.calculateStats(userId);
+        totalEarnings = walletStats.cumulativeBalance;
+      } catch (error) {
+        console.log('Erreur lors du calcul des statistiques wallet:', error);
+        // Fallback vers l'ancien calcul si le wallet n'est pas disponible
+        const earningsResult = await this.bookingRepository
+          .createQueryBuilder('booking')
+          .innerJoin('booking.tool', 'tool')
+          .select('SUM(booking.totalPrice)', 'totalEarnings')
+          .where('tool.ownerId = :userId', { userId })
+          .andWhere('booking.status = :status', { status: BookingStatus.COMPLETED })
+          .getRawOne();
+        totalEarnings = parseFloat(earningsResult?.totalEarnings || '0');
+      }
 
       // Calculer la note moyenne des reviews reçues sur les outils de l'utilisateur
       const ratingResult = await this.reviewRepository

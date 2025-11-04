@@ -73,6 +73,27 @@ export class WalletsService {
     return this.walletsRepository.save(wallet);
   }
 
+  /**
+   * Ajoute des fonds disponibles (pour les revenus de location)
+   * Met à jour à la fois le balance cumulé ET le solde disponible
+   */
+  async addAvailableFunds(id: string, amount: number): Promise<Wallet> {
+    if (amount <= 0) {
+      throw new BadRequestException('Amount must be greater than 0');
+    }
+
+    const wallet = await this.findOne(id);
+    // Mettre à jour le balance cumulé (total des gains)
+    wallet.balance = Number(wallet.balance) + amount;
+    // Mettre à jour le solde disponible pour retrait
+    wallet.reservedBalance = Number(wallet.reservedBalance) + amount;
+    
+    console.log(`[WALLET_UPDATE] Adding available funds to wallet ${id}: +${amount}€`);
+    console.log(`[WALLET_UPDATE] New balance: ${wallet.balance}€, New available: ${wallet.reservedBalance}€`);
+    
+    return this.walletsRepository.save(wallet);
+  }
+
   async deductFunds(id: string, amount: number): Promise<Wallet> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than 0');
@@ -120,57 +141,30 @@ export class WalletsService {
   async calculateStats(userId: string): Promise<{
     cumulativeBalance: number;
     availableBalance: number;
+    pendingBalance: number;
     successfulTransactionsCount: number;
   }> {
-    // Calcul du solde cumulé (revenus uniquement)
-    const incomeResult = await this.transactionsRepository
-      .createQueryBuilder('transaction')
-      .select('COALESCE(SUM(transaction.amount), 0)', 'total')
-      .where('transaction.recipientId = :userId', { userId })
-      .andWhere('transaction.type IN (:...types)', { 
-        types: [TransactionType.RENTAL_INCOME, TransactionType.DEPOSIT] 
-      })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
-      .getRawOne();
+    // Récupérer le wallet de l'utilisateur avec les vraies valeurs de la DB
+    const wallet = await this.findByUserId(userId);
 
-    // Calcul des retraits
-    const withdrawalResult = await this.transactionsRepository
-      .createQueryBuilder('transaction')
-      .select('COALESCE(SUM(transaction.amount), 0)', 'total')
-      .where('transaction.senderId = :userId', { userId })
-      .andWhere('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
-      .getRawOne();
-
-    // Calcul des paiements sortants
-    const paymentResult = await this.transactionsRepository
-      .createQueryBuilder('transaction')
-      .select('COALESCE(SUM(transaction.amount), 0)', 'total')
-      .where('transaction.senderId = :userId', { userId })
-      .andWhere('transaction.type = :type', { type: TransactionType.PAYMENT })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
-      .getRawOne();
-
-    // Comptage des transactions réussies (paiements + retraits)
+    // Comptage des transactions réussies (paiements + retraits + revenus de location)
     const successfulTransactionsResult = await this.transactionsRepository
       .createQueryBuilder('transaction')
       .select('COUNT(*)', 'count')
       .where('(transaction.senderId = :userId OR transaction.recipientId = :userId)', { userId })
       .andWhere('transaction.type IN (:...types)', { 
-        types: [TransactionType.PAYMENT, TransactionType.WITHDRAWAL] 
+        types: [TransactionType.PAYMENT, TransactionType.WITHDRAWAL, TransactionType.RENTAL_INCOME] 
       })
       .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
       .getRawOne();
 
-    const cumulativeBalance = parseFloat(incomeResult.total) || 0;
-    const withdrawals = parseFloat(withdrawalResult.total) || 0;
-    const payments = parseFloat(paymentResult.total) || 0;
-    const availableBalance = cumulativeBalance - withdrawals;
     const successfulTransactionsCount = parseInt(successfulTransactionsResult.count) || 0;
 
+    // Utiliser directement les champs de la base de données
     return {
-      cumulativeBalance,
-      availableBalance,
+      cumulativeBalance: parseFloat(wallet.balance.toString()) || 0, // balance = total des gains cumulés
+      availableBalance: parseFloat(wallet.reservedBalance.toString()) || 0, // reserved_balance = solde disponible pour retrait
+      pendingBalance: parseFloat(wallet.pendingBalance.toString()) || 0, // pending_balance = solde en attente
       successfulTransactionsCount
     };
   }

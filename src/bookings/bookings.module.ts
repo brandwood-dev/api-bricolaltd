@@ -20,6 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AdminModule } from '../admin/admin.module';
 import { PaymentModule } from '../payments/payment.module';
 import { EmailsModule } from '../emails/emails.module';
+import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { EmailsModule } from '../emails/emails.module';
     forwardRef(() => AdminModule),
     PaymentModule,
     EmailsModule,
+    TransactionsModule,
   ],
   controllers: [BookingsController],
   providers: [

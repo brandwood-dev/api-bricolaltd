@@ -51,6 +51,12 @@ import { CreateBookingWithDepositDto } from './dto/create-booking-with-deposit.d
 import { ConfirmDepositSetupDto } from './dto/confirm-deposit-setup.dto';
 import { DepositCaptureStatus } from './enums/deposit-capture-status.enum';
 import { DepositJobStatus } from './enums/deposit-job-status.enum';
+import { WalletsService } from '../wallets/wallets.service';
+import { TransactionsService } from '../transactions/transactions.service';
+import { Transaction } from '../transactions/entities/transaction.entity';
+import { TransactionType } from '../transactions/enums/transaction-type.enum';
+import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
+import { QueryRunner } from 'typeorm';
 
 @Injectable()
 export class BookingsService {
@@ -65,6 +71,8 @@ export class BookingsService {
     private paymentService: PaymentService,
     private stripeDepositService: StripeDepositService,
     private depositSchedulerService: DepositSchedulerService,
+    private walletsService: WalletsService,
+    private transactionsService: TransactionsService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -832,6 +840,8 @@ export class BookingsService {
   }
 
   async acceptBooking(id: string): Promise<Booking> {
+    console.log(`[BOOKING_ACCEPT] Starting acceptance for booking ${id}`);
+    
     const booking = await this.findOne(id);
 
     if (booking.status !== BookingStatus.PENDING) {
@@ -847,24 +857,49 @@ export class BookingsService {
       );
     }
 
-    // Generate 6-character alphanumeric validation code
-    const validationCode = this.generateValidationCode();
+    // Démarrer une transaction de base de données
+    const queryRunner = this.bookingsRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    booking.status = BookingStatus.ACCEPTED;
-    booking.validationCode = validationCode;
-
-    const savedBooking = await this.bookingsRepository.save(booking);
-
-    // Send notification with validation code
     try {
-      await this.bookingNotificationService.notifyBookingAccepted(
-        savedBooking,
-      );
-    } catch (error) {
-      console.error('Failed to send booking acceptance notification:', error);
-    }
+      // Calcul et distribution des revenus
+      await this.distributeBookingRevenue(booking, queryRunner);
 
-    return savedBooking;
+      // Generate 6-character alphanumeric validation code
+      const validationCode = this.generateValidationCode();
+
+      // Mise à jour complète du statut
+      booking.status = BookingStatus.ACCEPTED;
+      booking.paymentStatus = 'accepted'; // Nouveau statut
+      booking.validationCode = validationCode;
+      booking.acceptedAt = new Date(); // Nouvelle propriété
+
+      const savedBooking = await queryRunner.manager.save(booking);
+
+      // Commit de la transaction
+      await queryRunner.commitTransaction();
+
+      console.log(`[BOOKING_ACCEPT] Booking ${id} accepted successfully with code ${validationCode}`);
+
+      // Send notification with validation code
+      try {
+        await this.bookingNotificationService.notifyBookingAccepted(
+          savedBooking,
+        );
+      } catch (error) {
+        console.error('Failed to send booking acceptance notification:', error);
+      }
+
+      return savedBooking;
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('Booking acceptance failed:', error);
+      throw new BadRequestException('Failed to accept booking');
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async validateBookingCode(id: string, validationCode: string): Promise<{ message: string; data: Booking }> {
@@ -960,6 +995,106 @@ export class BookingsService {
       result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
+  }
+
+  /**
+   * Distribue les revenus de la réservation entre le propriétaire et l'admin
+   */
+  private async distributeBookingRevenue(
+    booking: Booking, 
+    queryRunner: QueryRunner
+  ): Promise<void> {
+    console.log(`[REVENUE_DISTRIBUTION] Starting for booking ${booking.id}`);
+    
+    // 1. Calcul des montants
+    const totalAmount = Number(booking.totalPrice);
+    const adminCommission = Math.round(totalAmount * 0.16 * 100) / 100; // 16%
+    const ownerRevenue = Math.round(totalAmount * 0.78 * 100) / 100;    // 78%
+    
+    console.log(`[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`);
+
+    // 2. Récupération des informations nécessaires
+    const tool = await this.toolsService.findOne(booking.toolId);
+    
+    // 3. Récupération des wallets
+    const ownerWallet = await this.walletsService.findByUserId(tool.ownerId);
+    
+    // Utiliser l'ID admin fourni
+    const adminUserId = 'b7baf92e-8105-4fb7-9ab5-b57b1532dc6d';
+    let adminWallet;
+    try {
+      adminWallet = await this.walletsService.findByUserId(adminUserId);
+    } catch (error) {
+      // Si le wallet admin n'existe pas, le créer
+      console.log(`[REVENUE_DISTRIBUTION] Creating admin wallet for user ${adminUserId}`);
+      adminWallet = await this.walletsService.create({ userId: adminUserId, balance: 0 });
+    }
+
+    // 4. Distribution des fonds
+    // Pour le propriétaire : utiliser addAvailableFunds pour mettre à jour balance ET reservedBalance
+    await this.walletsService.addAvailableFunds(ownerWallet.id, ownerRevenue);
+    // Pour l'admin : utiliser addFunds classique (pas besoin de disponibilité immédiate)
+    await this.walletsService.addFunds(adminWallet.id, adminCommission);
+
+    // 5. Création des transactions pour traçabilité
+    await this.createRevenueTransactions(
+      booking, 
+      ownerRevenue, 
+      adminCommission, 
+      ownerWallet.id,
+      adminWallet.id,
+      tool.ownerId,
+      queryRunner
+    );
+
+    console.log(`[REVENUE_DISTRIBUTION] Completed for booking ${booking.id}`);
+  }
+
+  /**
+   * Crée les transactions de revenus pour traçabilité
+   */
+  private async createRevenueTransactions(
+    booking: Booking,
+    ownerRevenue: number,
+    adminCommission: number,
+    ownerWalletId: string,
+    adminWalletId: string,
+    ownerId: string,
+    queryRunner: QueryRunner
+  ): Promise<void> {
+    
+    // Transaction pour le propriétaire
+    const ownerTransaction = queryRunner.manager.create(Transaction, {
+      amount: ownerRevenue,
+      type: TransactionType.RENTAL_INCOME,
+      status: TransactionStatus.COMPLETED,
+      description: `Revenus de location - Réservation #${booking.id.substring(0, 8)}`,
+      walletId: ownerWalletId,
+      recipientId: ownerId,
+      senderId: booking.renterId,
+      bookingId: booking.id,
+      externalReference: `booking_revenue_${booking.id}`,
+      createdAt: new Date(),
+    });
+
+    // Transaction pour l'administrateur
+    const adminTransaction = queryRunner.manager.create(Transaction, {
+      amount: adminCommission,
+      type: TransactionType.RENTAL_INCOME,
+      status: TransactionStatus.COMPLETED,
+      description: `Commission plateforme - Réservation #${booking.id.substring(0, 8)}`,
+      walletId: adminWalletId,
+      recipientId: 'b7baf92e-8105-4fb7-9ab5-b57b1532dc6d',
+      senderId: booking.renterId,
+      bookingId: booking.id,
+      externalReference: `booking_commission_${booking.id}`,
+      createdAt: new Date(),
+    });
+
+    // Sauvegarder les transactions
+    await queryRunner.manager.save(Transaction, [ownerTransaction, adminTransaction]);
+    
+    console.log(`[TRANSACTIONS] Created revenue transactions for booking ${booking.id}`);
   }
 
   async remove(id: string): Promise<void> {
