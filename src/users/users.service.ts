@@ -151,7 +151,51 @@ export class UsersService {
       defaultCurrencyCode,
     });
 
-    return this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+    
+    // Créer automatiquement un wallet pour le nouvel utilisateur
+    try {
+      this.logger.log(`Création d'un wallet pour le nouvel utilisateur: ${savedUser.id}`);
+      
+      // Utiliser le WalletsService pour créer le wallet
+      await this.walletsService.create({
+        userId: savedUser.id,
+        balance: 0,
+      });
+      
+      this.logger.log(`✅ Wallet créé avec succès pour l'utilisateur ${savedUser.id}`);
+      
+    } catch (walletError) {
+      this.logger.error(`❌ Erreur lors de la création du wallet pour l'utilisateur ${savedUser.id}:`, walletError);
+      // Ne pas échouer l'inscription si la création du wallet échoue
+      // Logguer l'erreur mais continuer le processus
+    }
+
+    // Créer automatiquement les préférences utilisateur (alignées avec le seed)
+    try {
+      this.logger.log(`Création des préférences utilisateur pour: ${savedUser.id}`);
+      const preferenceCurrency = 'GBP';
+      const preferences = this.userPreferenceRepository.create({
+        userId: savedUser.id,
+        language: 'fr',
+        theme: 'light',
+        currency: preferenceCurrency,
+        distanceUnit: 'km',
+        emailNotifications: true,
+        pushNotifications: true,
+        smsNotifications: false,
+        marketingEmails: true,
+        showOnlineStatus: true,
+        searchRadiusKm: 50,
+      });
+      await this.userPreferenceRepository.save(preferences);
+      this.logger.log(`✅ Préférences créées avec succès pour ${savedUser.id}`);
+    } catch (prefError) {
+      this.logger.error(`❌ Erreur lors de la création des préférences pour l'utilisateur ${savedUser.id}:`, prefError);
+      // Ne pas échouer l'inscription si la création des préférences échoue
+    }
+
+    return savedUser;
   }
 
   /**
