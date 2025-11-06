@@ -199,4 +199,107 @@ export class WalletsService {
 
     return this.transactionsRepository.save(withdrawalTransaction);
   }
+
+  /**
+   * Ajoute des fonds en attente (pending) pour une réservation
+   * Ces fonds ne seront disponibles qu'après validation du code
+   */
+  async addPendingFunds(walletId: string, amount: number): Promise<Wallet> {
+    if (amount <= 0) {
+      throw new BadRequestException('Amount must be greater than 0');
+    }
+  
+    const wallet = await this.findOne(walletId);
+  
+    // Ajouter uniquement au solde en attente (pending)
+    wallet.pendingBalance = Number(wallet.pendingBalance) + amount;
+  
+    console.log(`[WALLET_PENDING] Adding pending funds to wallet ${walletId}: +${amount}€`);
+    console.log(`[WALLET_PENDING] New pending: ${wallet.pendingBalance}€`);
+  
+    return this.walletsRepository.save(wallet);
+  }
+
+  /**
+   * Transfère les fonds en attente vers les fonds disponibles
+   * Utilisé lors de la validation du code de réservation
+   */
+  async transferPendingToAvailable(walletId: string, bookingId: string): Promise<Wallet> {
+    const wallet = await this.findOne(walletId);
+    
+    // Trouver les transactions de revenu pour cette réservation
+    const revenueTransactions = await this.transactionsRepository.find({
+      where: {
+        walletId: walletId,
+        bookingId: bookingId,
+        type: TransactionType.RENTAL_INCOME,
+        status: TransactionStatus.COMPLETED
+      }
+    });
+    
+    if (revenueTransactions.length === 0) {
+      console.log(`[WALLET_TRANSFER] No revenue transactions found for booking ${bookingId} on wallet ${walletId}`);
+      console.log(`[WALLET_TRANSFER] Wallet state -> pending: ${wallet.pendingBalance}€, available: ${wallet.reservedBalance}€, cumulative: ${wallet.balance}€`);
+      return wallet;
+    }
+    
+    const totalRevenue = revenueTransactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    console.log(`[WALLET_TRANSFER] Revenue tx count: ${revenueTransactions.length}, totalRevenue: ${totalRevenue}€ for booking ${bookingId} on wallet ${walletId}`);
+
+    const transferable = Math.min(Number(wallet.pendingBalance), totalRevenue);
+    if (transferable <= 0) {
+      console.warn(`[WALLET_TRANSFER] Nothing transferable. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€`);
+      return wallet;
+    }
+    if (Number(wallet.pendingBalance) < totalRevenue) {
+      console.warn(`[WALLET_TRANSFER] Adjusting to pending. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€ -> will transfer ${transferable}€`);
+    }
+    
+    // Transférer du pending vers available ET augmenter le cumulatif
+    wallet.pendingBalance = Number(wallet.pendingBalance) - transferable;
+    wallet.reservedBalance = Number(wallet.reservedBalance) + transferable;
+    wallet.balance = Number(wallet.balance) + transferable;
+    
+    console.log(`[WALLET_TRANSFER] Transferring ${transferable}€ from pending to available+cumulative for booking ${bookingId} (wallet ${walletId})`);
+    console.log(`[WALLET_TRANSFER] New pending: ${wallet.pendingBalance}€, New available: ${wallet.reservedBalance}€, New cumulative: ${wallet.balance}€`);
+    
+    return this.walletsRepository.save(wallet);
+  }
+
+  /**
+   * Retire les fonds en attente lors de l'annulation d'une réservation
+   */
+  async withdrawPendingFunds(walletId: string, bookingId: string): Promise<Wallet> {
+    const wallet = await this.findOne(walletId);
+    
+    // Trouver les transactions de revenu pour cette réservation
+    const revenueTransactions = await this.transactionsRepository.find({
+      where: {
+        walletId: walletId,
+        bookingId: bookingId,
+        type: TransactionType.RENTAL_INCOME,
+        status: TransactionStatus.COMPLETED
+      }
+    });
+    
+    if (revenueTransactions.length === 0) {
+      console.log(`[WALLET_WITHDRAW] No revenue transactions found for booking ${bookingId}`);
+      return wallet;
+    }
+    
+    const totalRevenue = revenueTransactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
+    
+    if (Number(wallet.pendingBalance) < totalRevenue) {
+      console.warn(`[WALLET_WITHDRAW] Insufficient pending balance: ${wallet.pendingBalance}€ < ${totalRevenue}€`);
+      return wallet;
+    }
+    
+    // Retirer UNIQUEMENT du solde en attente (pending)
+    wallet.pendingBalance = Number(wallet.pendingBalance) - totalRevenue;
+    
+    console.log(`[WALLET_WITHDRAW] Withdrawing ${totalRevenue}€ from pending for cancelled booking ${bookingId}`);
+    console.log(`[WALLET_WITHDRAW] New pending: ${wallet.pendingBalance}€`);
+    
+    return this.walletsRepository.save(wallet);
+  }
 }

@@ -53,7 +53,7 @@ export class PaymentService {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents, // Le montant est déjà en centimes depuis PaymentForm.tsx
         currency: currency.toLowerCase(),
-        capture_method: 'manual', // Blocage des fonds sans capture immédiate
+        capture_method: 'automatic', // Capture automatique après autorisation
         metadata: {
           ...metadata,
           created_at: new Date().toISOString(),

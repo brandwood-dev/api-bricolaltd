@@ -6,9 +6,10 @@ import { NewsController } from './news.controller';
 import { UsersModule } from '../users/users.module';
 import { S3Module } from '../common/services/s3.module';
 import { NewsFileUploadMiddleware } from '../common/middlewares/news-file-upload.middleware';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([News]), UsersModule, S3Module],
+  imports: [TypeOrmModule.forFeature([News]), UsersModule, S3Module, CategoriesModule],
   controllers: [NewsController],
   providers: [NewsService],
   exports: [NewsService],

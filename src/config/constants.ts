@@ -1,0 +1,1 @@
+export const ADMIN_USER_ID: string = process.env.ADMIN_USER_ID ?? 'b7baf92e-8105-4fb7-9ab5-b57b1532dc6d';

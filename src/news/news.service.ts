@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { News } from './entities/news.entity';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { S3Service } from '../common/services/s3.service';
+import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class NewsService {
@@ -12,13 +13,121 @@ export class NewsService {
     @InjectRepository(News)
     private newsRepository: Repository<News>,
     private readonly s3Service: S3Service,
+    private readonly categoriesService: CategoriesService,
   ) {}
+
+  // Validation dédiée à la création
+  async validateCreatePayload(
+    createNewsDto: CreateNewsDto,
+    files?: Express.Multer.File[],
+  ): Promise<{ valid: boolean; errors: Record<string, string[]>; errorCodes: Record<string, string[]> }> {
+    const errors: Record<string, string[]> = {};
+    const errorCodes: Record<string, string[]> = {};
+
+    const pushError = (field: string, message: string, code: string) => {
+      if (!errors[field]) errors[field] = [];
+      if (!errorCodes[field]) errorCodes[field] = [];
+      errors[field].push(message);
+      errorCodes[field].push(code);
+    };
+
+    // Title validation
+    const title = (createNewsDto.title || '').trim();
+    if (!title) {
+      pushError('title', 'Le titre est requis.', 'TITLE_REQUIRED');
+    } else {
+      if (title.length < 5)
+        pushError('title', 'Le titre doit contenir au moins 5 caractères.', 'TITLE_TOO_SHORT');
+      if (title.length > 200)
+        pushError('title', 'Le titre ne doit pas dépasser 200 caractères.', 'TITLE_TOO_LONG');
+    }
+
+    // Content validation
+    const content = (createNewsDto.content || '').trim();
+    if (!content) {
+      pushError('content', 'Le contenu est requis.', 'CONTENT_REQUIRED');
+    } else {
+      if (content.length < 50)
+        pushError('content', 'Le contenu doit contenir au moins 50 caractères.', 'CONTENT_TOO_SHORT');
+    }
+
+    // Category validation (required and must exist)
+    const categoryName = (createNewsDto.category || '').trim();
+    const categoryId = (createNewsDto.categoryId || '').trim();
+    if (!categoryName && !categoryId) {
+      pushError('category', 'La catégorie est requise.', 'CATEGORY_REQUIRED');
+    } else {
+      try {
+        if (categoryId) {
+          await this.categoriesService.findCategoryById(categoryId);
+        } else if (categoryName) {
+          await this.categoriesService.findCategoryByName(categoryName);
+        }
+      } catch (err) {
+        pushError('category', 'La catégorie fournie n\'existe pas.', 'CATEGORY_NOT_FOUND');
+      }
+    }
+
+    // URL validation for imageUrl and additionalImages (if provided)
+    const isValidImageUrl = (url?: string) => {
+      if (!url) return true;
+      try {
+        const u = new URL(url);
+        const allowedExt = ['.jpg', '.jpeg', '.png', '.webp'];
+        const lower = u.pathname.toLowerCase();
+        return ['http:', 'https:'].includes(u.protocol) && allowedExt.some((ext) => lower.endsWith(ext));
+      } catch {
+        return false;
+      }
+    };
+
+    if (createNewsDto.imageUrl && !isValidImageUrl(createNewsDto.imageUrl)) {
+      pushError('imageUrl', "L'URL de l'image de couverture est invalide (http(s) et formats jpg/png/webp).", 'IMAGE_URL_INVALID');
+    }
+    if (createNewsDto.additionalImages && createNewsDto.additionalImages.length > 0) {
+      createNewsDto.additionalImages.forEach((url, idx) => {
+        if (!isValidImageUrl(url)) {
+          pushError('additionalImages', `L'URL d'image additionnelle #${idx + 1} est invalide.`, 'ADDITIONAL_IMAGE_URL_INVALID');
+        }
+      });
+    }
+
+    // Files validation: images only, <=5MB each, max 5 additional images
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+    let additionalFilesCount = 0;
+    if (files && files.length > 0) {
+      files.forEach((file, idx) => {
+        if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+          pushError('files', `Le fichier #${idx + 1} n'est pas une image.`, 'INVALID_MIME_TYPE');
+        }
+        if (file.size > MAX_IMAGE_SIZE) {
+          pushError('files', `Le fichier #${idx + 1} dépasse 5 Mo.`, 'IMAGE_TOO_LARGE');
+        }
+      });
+      // Estimate additional files count: if no imageUrl provided, first file is main image
+      additionalFilesCount = createNewsDto.imageUrl ? files.length : Math.max(files.length - 1, 0);
+    }
+
+    const urlAdditionalCount = createNewsDto.additionalImages?.length || 0;
+    if (additionalFilesCount + urlAdditionalCount > 5) {
+      pushError('additionalImages', 'Maximum 5 images additionnelles autorisées.', 'TOO_MANY_ADDITIONAL_IMAGES');
+    }
+
+    const valid = Object.keys(errors).length === 0;
+    return { valid, errors, errorCodes };
+  }
 
   async create(
     createNewsDto: CreateNewsDto,
     files?: Express.Multer.File[],
     user?: any,
   ) {
+    // Validate before processing
+    const validation = await this.validateCreatePayload(createNewsDto, files);
+    if (!validation.valid) {
+      throw new BadRequestException({ message: 'Validation failed', errors: validation.errors, errorCodes: validation.errorCodes });
+    }
+
     let imageUrl = createNewsDto.imageUrl;
     let additionalImages: string[] = createNewsDto.additionalImages || [];
 

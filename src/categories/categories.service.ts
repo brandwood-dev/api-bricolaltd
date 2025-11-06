@@ -37,12 +37,14 @@ export class CategoriesService {
     return this.categoriesRepository.save(category);
   }
 
+  // Find all categories
   async findAllCategories(): Promise<Category[]> {
     return this.categoriesRepository.find({
       relations: ['subcategories'],
     });
   }
 
+  // Find category by ID
   async findCategoryById(id: string): Promise<Category> {
     const category = await this.categoriesRepository.findOne({
       where: { id },
@@ -56,6 +58,21 @@ export class CategoriesService {
     return category;
   }
 
+  // New: Find category by name (for validation by name)
+  async findCategoryByName(name: string): Promise<Category> {
+    const category = await this.categoriesRepository.findOne({
+      where: { name },
+      relations: ['subcategories'],
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with name ${name} not found`);
+    }
+
+    return category;
+  }
+
+  // Remove category
   async removeCategory(id: string): Promise<void> {
     const category = await this.findCategoryById(id);
     await this.categoriesRepository.remove(category);
