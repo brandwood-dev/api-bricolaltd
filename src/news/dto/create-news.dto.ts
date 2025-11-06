@@ -35,26 +35,7 @@ export class CreateNewsDto {
   @IsUrl({ require_tld: false }, { message: 'imageUrl must be a valid URL' })
   imageUrl?: string;
 
-  @ApiProperty({
-    description: 'Additional image URLs for the news',
-    type: [String],
-    required: false,
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  additionalImages?: string[];
 
-  @ApiProperty({
-    description: 'Image files to upload',
-    type: 'array',
-    items: {
-      type: 'string',
-      format: 'binary',
-    },
-    required: false,
-  })
-  files?: any[];
 
   @ApiProperty({
     description: 'Whether this news article is public',
@@ -94,12 +75,4 @@ export class CreateNewsDto {
   @IsString()
   category?: string;
 
-  @ApiProperty({
-    description: 'Category ID for the news article',
-    example: 'category-uuid',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
 }

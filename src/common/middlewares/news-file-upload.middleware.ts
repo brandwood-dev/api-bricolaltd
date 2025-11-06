@@ -36,41 +36,40 @@ export class NewsFileUploadMiddleware implements NestMiddleware {
   }
 
   use(req: Request, res: Response, next: NextFunction) {
-    // Use multer.fields() to handle multiple field names
+    // Handle multiple field names without altering req.files shape
     const uploadHandler = this.upload.fields([
       { name: 'mainImage', maxCount: 1 },
       { name: 'additionalImages', maxCount: 10 },
-      { name: 'files', maxCount: 10 } // Keep backward compatibility
+      { name: 'files', maxCount: 10 }, // Backward compatibility
     ]);
 
     uploadHandler(req, res, (err: any) => {
       if (err) {
+        console.error('[NewsFileUploadMiddleware] Multer error:', err);
         return res.status(400).json({ message: err.message });
       }
-      
-      // Transform the files structure for backward compatibility
-      if (req.files && typeof req.files === 'object' && !Array.isArray(req.files)) {
-        const files: Express.Multer.File[] = [];
-        
-        // Add mainImage first if it exists
-        if (req.files['mainImage']) {
-          files.push(...req.files['mainImage']);
-        }
-        
-        // Add additionalImages
-        if (req.files['additionalImages']) {
-          files.push(...req.files['additionalImages']);
-        }
-        
-        // Add legacy 'files' field
-        if (req.files['files']) {
-          files.push(...req.files['files']);
-        }
-        
-        // Set the combined files array for backward compatibility
-        (req as any).files = files;
+
+      const f: any = (req as any).files;
+      if (Array.isArray(f)) {
+        console.log('[NewsFileUploadMiddleware] files array received', {
+          count: f.length,
+          names: f.map((ff: any) => ff?.originalname).filter(Boolean),
+        });
+      } else if (f && typeof f === 'object') {
+        const keys = Object.keys(f);
+        const summary = keys.map((k) => ({
+          field: k,
+          count: Array.isArray((f as any)[k]) ? (f as any)[k].length : 0,
+          names: Array.isArray((f as any)[k])
+            ? (f as any)[k].map((ff: any) => ff?.originalname).filter(Boolean)
+            : [],
+        }));
+        console.log('[NewsFileUploadMiddleware] files fields received', summary);
+      } else {
+        console.log('[NewsFileUploadMiddleware] no files received');
       }
-      
+
+      // IMPORTANT: Do not transform req.files; keep original mapping
       next();
     });
   }

@@ -29,10 +29,12 @@ export class NewsService {
       if (!errorCodes[field]) errorCodes[field] = [];
       errors[field].push(message);
       errorCodes[field].push(code);
+      console.warn('[NewsService][Validation][Error]', { field, code, message });
     };
 
     // Title validation
     const title = (createNewsDto.title || '').trim();
+    console.log('[NewsService][Validation] title received:', title, 'length:', title.length);
     if (!title) {
       pushError('title', 'Le titre est requis.', 'TITLE_REQUIRED');
     } else {
@@ -44,28 +46,19 @@ export class NewsService {
 
     // Content validation
     const content = (createNewsDto.content || '').trim();
+    console.log('[NewsService][Validation] content length:', content.length, 'preview:', content.substring(0, 60));
     if (!content) {
       pushError('content', 'Le contenu est requis.', 'CONTENT_REQUIRED');
     } else {
-      if (content.length < 50)
-        pushError('content', 'Le contenu doit contenir au moins 50 caractères.', 'CONTENT_TOO_SHORT');
+      if (content.length < 10)
+        pushError('content', 'Le contenu doit contenir au moins 10 caractères.', 'CONTENT_TOO_SHORT');
     }
 
-    // Category validation (required and must exist)
+    // Category validation (require category name only)
     const categoryName = (createNewsDto.category || '').trim();
-    const categoryId = (createNewsDto.categoryId || '').trim();
-    if (!categoryName && !categoryId) {
+    console.log('[NewsService][Validation] category received:', categoryName);
+    if (!categoryName) {
       pushError('category', 'La catégorie est requise.', 'CATEGORY_REQUIRED');
-    } else {
-      try {
-        if (categoryId) {
-          await this.categoriesService.findCategoryById(categoryId);
-        } else if (categoryName) {
-          await this.categoriesService.findCategoryByName(categoryName);
-        }
-      } catch (err) {
-        pushError('category', 'La catégorie fournie n\'existe pas.', 'CATEGORY_NOT_FOUND');
-      }
     }
 
     // URL validation for imageUrl and additionalImages (if provided)
@@ -81,22 +74,16 @@ export class NewsService {
       }
     };
 
+    console.log('[NewsService][Validation] imageUrl:', createNewsDto.imageUrl);
     if (createNewsDto.imageUrl && !isValidImageUrl(createNewsDto.imageUrl)) {
       pushError('imageUrl', "L'URL de l'image de couverture est invalide (http(s) et formats jpg/png/webp).", 'IMAGE_URL_INVALID');
     }
-    if (createNewsDto.additionalImages && createNewsDto.additionalImages.length > 0) {
-      createNewsDto.additionalImages.forEach((url, idx) => {
-        if (!isValidImageUrl(url)) {
-          pushError('additionalImages', `L'URL d'image additionnelle #${idx + 1} est invalide.`, 'ADDITIONAL_IMAGE_URL_INVALID');
-        }
-      });
-    }
-
-    // Files validation: images only, <=5MB each, max 5 additional images
+    // Files validation: images only, <=5MB each
     const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-    let additionalFilesCount = 0;
+    console.log('[NewsService][Validation] files received count:', files?.length || 0);
     if (files && files.length > 0) {
       files.forEach((file, idx) => {
+        console.log(`[NewsService][Validation] file #${idx+1} mimetype:`, file.mimetype, 'size:', file.size);
         if (!file.mimetype || !file.mimetype.startsWith('image/')) {
           pushError('files', `Le fichier #${idx + 1} n'est pas une image.`, 'INVALID_MIME_TYPE');
         }
@@ -104,13 +91,6 @@ export class NewsService {
           pushError('files', `Le fichier #${idx + 1} dépasse 5 Mo.`, 'IMAGE_TOO_LARGE');
         }
       });
-      // Estimate additional files count: if no imageUrl provided, first file is main image
-      additionalFilesCount = createNewsDto.imageUrl ? files.length : Math.max(files.length - 1, 0);
-    }
-
-    const urlAdditionalCount = createNewsDto.additionalImages?.length || 0;
-    if (additionalFilesCount + urlAdditionalCount > 5) {
-      pushError('additionalImages', 'Maximum 5 images additionnelles autorisées.', 'TOO_MANY_ADDITIONAL_IMAGES');
     }
 
     const valid = Object.keys(errors).length === 0;
@@ -129,56 +109,44 @@ export class NewsService {
     }
 
     let imageUrl = createNewsDto.imageUrl;
-    let additionalImages: string[] = createNewsDto.additionalImages || [];
 
-    // If files are uploaded, upload them to S3 and get the URLs
+    // If files are uploaded, upload only the first as main image
     if (files && files.length > 0) {
-      // Use the first file as the main image if no imageUrl is provided
-      if (!imageUrl && files.length > 0) {
+      if (!imageUrl) {
         const mainImageResult = await this.s3Service.uploadFile(
           files[0],
           'news',
         );
         imageUrl = mainImageResult.url;
       }
-
-      // Upload additional images starting from index 1 or 0 depending on whether we used one for the main image
-      const startIndex = !imageUrl ? 1 : 0;
-
-      if (startIndex < files.length) {
-        const additionalFiles = files.slice(startIndex);
-        const uploadResults = await this.s3Service.uploadFiles(
-          additionalFiles,
-          'news',
-        );
-        additionalImages = [
-          ...additionalImages,
-          ...uploadResults.map((result) => result.url),
-        ];
-      }
     }
 
     const news = this.newsRepository.create({
       ...createNewsDto,
       imageUrl,
-      additionalImages:
-        additionalImages.length > 0 ? additionalImages : undefined,
       isPublic: createNewsDto.isPublic ?? true,
       isFeatured: createNewsDto.isFeatured ?? false,
+      adminId: user?.id ?? undefined,
     });
 
-    return this.newsRepository.save(news);
+    const saved = await this.newsRepository.save(news);
+
+    // Compute and attach adminName, but do not expose admin object
+    const adminName = user ? ((user.displayName) || [user.firstName, user.lastName].filter(Boolean).join(' ').trim()) : undefined;
+    const { admin, ...safe } = saved as any;
+    return { ...safe, adminName } as News;
   }
 
   async findAll(query?: { 
     search?: string;
     isPublic?: boolean;
+    isFeatured?: boolean;
     category?: string;
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: string;
-  }): Promise<{ data: News[]; total: number; page: number; limit: number; totalPages: number }> {
+  }): Promise<{ data: any[]; total: number; page: number; limit: number; totalPages: number }> {
     const whereCondition: any = {};
 
     if (query?.search) {
@@ -187,6 +155,10 @@ export class NewsService {
 
     if (query?.isPublic !== undefined) {
       whereCondition.isPublic = query.isPublic;
+    }
+
+    if (query?.isFeatured !== undefined) {
+      whereCondition.isFeatured = query.isFeatured;
     }
 
     if (query?.category) {
@@ -200,18 +172,26 @@ export class NewsService {
     const sortBy = query?.sortBy || 'createdAt';
     const sortOrder = query?.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-    const [data, total] = await this.newsRepository.findAndCount({
-      where: Object.keys(whereCondition).length > 0 ? whereCondition : {},
-      order: { [sortBy]: sortOrder },
-      skip,
-      take: limit,
-      relations: ['admin'],
+    const qb = this.newsRepository.createQueryBuilder('news')
+      .leftJoin('news.admin', 'admin')
+      .addSelect(['admin.firstName', 'admin.lastName', 'admin.displayName'])
+      .where(Object.keys(whereCondition).length > 0 ? whereCondition : {})
+      .orderBy(`news.${sortBy}`, sortOrder)
+      .skip(skip)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    const safeData = data.map((n) => {
+      const adminName = n?.admin ? (n.admin.displayName || [n.admin.firstName, n.admin.lastName].filter(Boolean).join(' ').trim()) : undefined;
+      const { admin, ...rest } = n as any;
+      return { ...rest, adminName };
     });
 
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: safeData,
       total,
       page,
       limit,
@@ -233,18 +213,14 @@ export class NewsService {
     files?: Express.Multer.File[],
   ) {
     const news = await this.findOne(id);
-    let additionalImages = news.additionalImages || [];
-
-    // If files are uploaded, process them
+    // If files are uploaded, process only the first as main image when replaceMainImage is true
     if (files && files.length > 0) {
-      // Check if we should replace the main image
       if (updateNewsDto.replaceMainImage) {
         // Delete the old main image from S3 if it exists
         if (news.imageUrl) {
           try {
             await this.s3Service.deleteFile(news.imageUrl);
           } catch (error) {
-            // Log the error but continue with the update
             console.error('Error deleting old main image from S3:', error);
           }
         }
@@ -255,30 +231,7 @@ export class NewsService {
           'news',
         );
         updateNewsDto.imageUrl = mainImageResult.url;
-
-        // Process remaining files as additional images
-        if (files.length > 1) {
-          const additionalFiles = files.slice(1);
-          const uploadResults = await this.s3Service.uploadFiles(
-            additionalFiles,
-            'news',
-          );
-          additionalImages = [
-            ...additionalImages,
-            ...uploadResults.map((result) => result.url),
-          ];
-        }
-      } else {
-        // Add all files as additional images
-        const uploadResults = await this.s3Service.uploadFiles(files, 'news');
-        additionalImages = [
-          ...additionalImages,
-          ...uploadResults.map((result) => result.url),
-        ];
       }
-
-      // Update the additionalImages field
-      updateNewsDto.additionalImages = additionalImages;
     }
 
     // Update the news entity with the new data
@@ -297,18 +250,6 @@ export class NewsService {
       } catch (error) {
         // Log the error but continue with the deletion
         console.error('Error deleting main image from S3:', error);
-      }
-    }
-
-    // Delete all additional images from S3 if they exist
-    if (news.additionalImages && news.additionalImages.length > 0) {
-      for (const imageUrl of news.additionalImages) {
-        try {
-          await this.s3Service.deleteFile(imageUrl);
-        } catch (error) {
-          // Log the error but continue with the deletion
-          console.error('Error deleting additional image from S3:', error);
-        }
       }
     }
 
@@ -341,12 +282,19 @@ export class NewsService {
     });
   }
 
-  async findLatest(limit: number = 5): Promise<News[]> {
-    return this.newsRepository.find({
-      where: { isPublic: true },
-      order: { createdAt: 'DESC' },
-      take: limit,
-      relations: ['admin'],
+  async findLatest(limit: number = 5): Promise<any[]> {
+    const qb = this.newsRepository.createQueryBuilder('news')
+      .leftJoin('news.admin', 'admin')
+      .addSelect(['admin.firstName', 'admin.lastName', 'admin.displayName'])
+      .where('news.isPublic = :isPublic', { isPublic: true })
+      .orderBy('news.createdAt', 'DESC')
+      .take(limit);
+
+    const items = await qb.getMany();
+    return items.map((n) => {
+      const adminName = n?.admin ? (n.admin.displayName || [n.admin.firstName, n.admin.lastName].filter(Boolean).join(' ').trim()) : undefined;
+      const { admin, ...rest } = n as any;
+      return { ...rest, adminName };
     });
   }
 }

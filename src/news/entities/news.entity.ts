@@ -34,13 +34,7 @@ export class News {
   })
   imageUrl?: string;
 
-  @Column('simple-array', { nullable: true })
-  @ApiProperty({
-    description: 'Additional image URLs for the news',
-    required: false,
-    type: [String],
-  })
-  additionalImages?: string[];
+
 
   @Column({ default: true })
   @ApiProperty({ description: 'Whether the news is published', default: true })

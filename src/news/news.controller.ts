@@ -11,12 +11,15 @@ import {
   Res,
   BadRequestException,
   Logger,
+  Query,
 } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { AdminGuard } from '../auth/guards/admin.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Response, Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('news')
 export class NewsController {
@@ -24,42 +27,42 @@ export class NewsController {
 
   constructor(private readonly newsService: NewsService) {}
 
-  @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Post()
   async create(
     @Body() createNewsDto: CreateNewsDto,
     @Req() req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
-    @Res() res: Response,
   ) {
     this.logger.debug('Début création article');
-
-    // Consolider les fichiers depuis les différents champs gérés par le middleware
-    const allFiles: Express.Multer.File[] = [];
-    const files = req.files || {};
-    const mainImageFiles = files?.mainImage || [];
-    const additionalImageFiles = files?.additionalImages || [];
-    const genericFiles = files?.files || [];
-    allFiles.push(...mainImageFiles, ...additionalImageFiles, ...genericFiles);
-
-    // Extraire les additionalImages[] envoyées via champs bracketés (additionalImages[0], etc.)
-    const body: any = req.body || {};
-    const additionalImageUrls: string[] = [];
-    Object.keys(body).forEach((key) => {
-      if (key.startsWith('additionalImages[')) {
-        const val = body[key];
-        if (typeof val === 'string' && val.trim().length > 0) {
-          additionalImageUrls.push(val.trim());
-        }
-      }
+    console.log('[NewsController][Create] incoming', {
+      url: (req as any).originalUrl || '/news',
+      method: (req as any).method || 'POST',
+      contentType: req.headers['content-type'],
+      hasAuth: Boolean(req.headers['authorization']),
     });
-    if (additionalImageUrls.length > 0) {
-      createNewsDto.additionalImages = [
-        ...(createNewsDto.additionalImages || []),
-        ...additionalImageUrls,
-      ];
+    console.log('[NewsController][Create] body keys', Object.keys(req.body || {}));
+    console.log('[NewsController][Create] dto snapshot', createNewsDto);
+
+    // Consolidate files from middleware without depending on shape
+    const allFiles: Express.Multer.File[] = [];
+    const incomingFiles: any = (req as any).files;
+    let filesObj: { [fieldname: string]: Express.Multer.File[] } = {};
+
+    if (Array.isArray(incomingFiles)) {
+      console.warn('[NewsController][Create] req.files is array (legacy)');
+      allFiles.push(...incomingFiles);
+    } else if (incomingFiles && typeof incomingFiles === 'object') {
+      filesObj = incomingFiles as { [fieldname: string]: Express.Multer.File[] };
+      const mainImageFiles = filesObj?.mainImage || [];
+      const genericFiles = filesObj?.files || [];
+      allFiles.push(...mainImageFiles, ...genericFiles);
+      console.log('[NewsController][Create] files fields', Object.keys(filesObj));
+      console.log('[NewsController][Create] mainImage count', mainImageFiles.length, 'files count', genericFiles.length);
+    } else {
+      console.log('[NewsController][Create] no files provided');
     }
 
-    this.logger.debug({ body: createNewsDto, files: Object.keys(files || {}) });
+    this.logger.debug({ body: createNewsDto, filesConsolidated: allFiles.length });
 
     // Validation dédiée via le service
     try {
@@ -67,8 +70,10 @@ export class NewsController {
         createNewsDto,
         allFiles,
       );
+      console.log('[NewsController][Create] validation result', validation);
       if (!validation.valid) {
         this.logger.warn('Échec validation création article', validation);
+        console.warn('[NewsController][Create][ValidationError]', validation);
         throw new BadRequestException({
           message: 'Validation failed',
           errors: validation.errors,
@@ -77,6 +82,7 @@ export class NewsController {
       }
     } catch (err) {
       this.logger.error('Erreur lors de la validation', err);
+      console.error('[NewsController][Create][ValidationException]', err);
       throw err;
     }
 
@@ -84,16 +90,45 @@ export class NewsController {
       const user = (req as any).user;
       const created = await this.newsService.create(createNewsDto, allFiles, user);
       this.logger.log(`Article créé avec succès: ${created.id}`);
-      return res.json(created);
+      console.log('[NewsController][Create] created article id', created?.id);
+      return created;
     } catch (error) {
       this.logger.error("Erreur lors de la création de l'article", error);
+      console.error('[NewsController][Create][CreateException]', error);
       throw error;
     }
   }
 
   @Get()
-  findAll() {
-    return this.newsService.findAll();
+  findAll(
+    @Query('search') search?: string,
+    @Query('isPublic') isPublicStr?: string,
+    @Query('isFeatured') isFeaturedStr?: string,
+    @Query('category') category?: string,
+    @Query('page') pageStr?: string,
+    @Query('limit') limitStr?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+  ) {
+    const isPublic = typeof isPublicStr === 'string' ? isPublicStr === 'true' : undefined
+    const isFeatured = typeof isFeaturedStr === 'string' ? isFeaturedStr === 'true' : undefined
+    const page = pageStr ? parseInt(pageStr, 10) || 1 : 1
+    const limit = limitStr ? parseInt(limitStr, 10) || 10 : 10
+    const order = (sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc'
+
+    const filters = {
+      search,
+      isPublic,
+      isFeatured,
+      category,
+      page,
+      limit,
+      sortBy: sortBy || 'createdAt',
+      sortOrder: order,
+    }
+
+    console.log('[NewsController][FindAll] filters:', filters)
+    return this.newsService.findAll(filters)
   }
 
   @Get('public')
@@ -116,27 +151,62 @@ export class NewsController {
     return this.newsService.findOne(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateNewsDto: UpdateNewsDto,
     @Req() req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
   ) {
-    // Consolider les fichiers depuis les différents champs
+    // Consolidate files from middleware without depending on shape
     const allFiles: Express.Multer.File[] = [];
-    const files = req.files || {};
-    const mainImageFiles = files?.mainImage || [];
-    const additionalImageFiles = files?.additionalImages || [];
-    const genericFiles = files?.files || [];
-    allFiles.push(...mainImageFiles, ...additionalImageFiles, ...genericFiles);
+    const incomingFiles: any = (req as any).files;
+    let filesObj: { [fieldname: string]: Express.Multer.File[] } = {};
+
+    if (Array.isArray(incomingFiles)) {
+      console.warn('[NewsController][Update] req.files is array (legacy)');
+      allFiles.push(...incomingFiles);
+    } else if (incomingFiles && typeof incomingFiles === 'object') {
+      filesObj = incomingFiles as { [fieldname: string]: Express.Multer.File[] };
+      const mainImageFiles = filesObj?.mainImage || [];
+      const genericFiles = filesObj?.files || [];
+      allFiles.push(...mainImageFiles, ...genericFiles);
+      console.log('[NewsController][Update] files fields', Object.keys(filesObj));
+      console.log('[NewsController][Update] mainImage count', mainImageFiles.length, 'files count', genericFiles.length);
+    } else {
+      console.log('[NewsController][Update] no files provided');
+    }
 
     return this.newsService.update(id, updateNewsDto, allFiles);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.newsService.remove(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/toggle-featured')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Toggle featured status of a news article' })
+  @ApiResponse({ status: 200, description: 'News article featured status toggled successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async toggleFeatured(@Param('id') id: string) {
+    console.log('[NewsController][ToggleFeatured] called for id', id)
+    return this.newsService.toggleFeatured(id)
+  }
+  
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/toggle-public')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Toggle public status of a news article' })
+  @ApiResponse({ status: 200, description: 'News article public status toggled successfully.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async togglePublic(@Param('id') id: string) {
+    console.log('[NewsController][TogglePublic] called for id', id)
+    return this.newsService.togglePublic(id)
   }
 }
