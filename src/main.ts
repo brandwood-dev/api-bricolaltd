@@ -1,26 +1,26 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
-import { Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core'
+import { AppModule } from './app.module'
+import { ValidationPipe } from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { ConfigService } from '@nestjs/config'
+import { ResponseInterceptor } from './common/interceptors/response.interceptor'
+import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware'
+import { Reflector } from '@nestjs/core'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
-  const reflector = app.get(Reflector);
+  const app = await NestFactory.create(AppModule)
+  const configService = app.get(ConfigService)
+  const reflector = app.get(Reflector)
   
   // Enable CORS
   app.enableCors({
     origin: configService.get('CORS_ORIGIN', '*').split(',').map(origin => origin.trim()),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
-  });
+  })
   
   // Set global prefix
-  app.setGlobalPrefix('api');
+  app.setGlobalPrefix('api')
   
   // Global validation pipe
   app.useGlobalPipes(
@@ -32,13 +32,12 @@ async function bootstrap() {
         enableImplicitConversion: true,
       },
     }),
-  );
+  )
 
-  // Add global interceptors: class serializer then response wrapper
+  // Add global interceptors: response wrapper only (avoid class serializer globally)
   app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(reflector),
     new ResponseInterceptor(),
-  );
+  )
 
   // Swagger documentation setup
   const config = new DocumentBuilder()
@@ -52,13 +51,13 @@ async function bootstrap() {
     .addTag('wallets', 'Wallet and payment management')
     .addTag('transactions', 'Transaction history')
     .addTag('reviews', 'User reviews')
-    .build();
+    .build()
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  const document = SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('api/docs', app, document)
 
-  const port = configService.get('PORT', 4000);
-  await app.listen(port);
+  const port = configService.get('PORT', 4000)
+  await app.listen(port)
 }
 
-bootstrap();
+bootstrap()

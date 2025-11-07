@@ -181,6 +181,7 @@ export class UsersController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'sortBy', required: false, type: String })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
+  @ApiQuery({ name: 'country', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return paginated users with filters.' })
   async findAll(
     @Query('page') page: number = 1,
@@ -193,6 +194,7 @@ export class UsersController {
     @Query('endDate') endDate?: string,
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+    @Query('country') country?: string,
   ) {
     const filters = {
       search,
@@ -201,6 +203,7 @@ export class UsersController {
       status: isActive === true ? 'active' as const : isActive === false ? 'inactive' as const : undefined,
       dateFrom: startDate ? new Date(startDate) : undefined,
       dateTo: endDate ? new Date(endDate) : undefined,
+      country,
     };
     const pagination = { page, limit, sortBy, sortOrder };
     return this.usersService.findAllForAdmin(filters, pagination);
@@ -227,6 +230,7 @@ export class UsersController {
   @ApiQuery({ name: 'dateFrom', required: false, type: String })
   @ApiQuery({ name: 'dateTo', required: false, type: String })
   @ApiQuery({ name: 'city', required: false, type: String })
+  @ApiQuery({ name: 'country', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Return CSV file with users data.' })
   async exportUsers(
     @Query('search') search?: string,
@@ -236,6 +240,7 @@ export class UsersController {
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('city') city?: string,
+    @Query('country') country?: string,
   ) {
     const filters = {
       search,
@@ -245,6 +250,7 @@ export class UsersController {
       dateFrom: dateFrom ? new Date(dateFrom) : undefined,
       dateTo: dateTo ? new Date(dateTo) : undefined,
       city,
+      country,
     };
     return this.usersService.exportUsers(filters);
   }
@@ -260,6 +266,7 @@ export class UsersController {
   @ApiQuery({ name: 'startDate', required: false, type: String })
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiQuery({ name: 'city', required: false, type: String })
+  @ApiQuery({ name: 'country', required: false, type: String })
   @ApiResponse({ status: 200, description: 'CSV file with users data.' })
   async exportUsersCSV(
     @Res() res: Response,
@@ -270,6 +277,7 @@ export class UsersController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('city') city?: string,
+    @Query('country') country?: string,
   ) {
     const filters = {
       search,
@@ -279,6 +287,7 @@ export class UsersController {
       dateFrom: startDate ? new Date(startDate) : undefined,
       dateTo: endDate ? new Date(endDate) : undefined,
       city,
+      country,
     };
     
     const csvData = await this.usersService.exportUsersCSV(filters);
@@ -291,7 +300,9 @@ export class UsersController {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-cache');
     
-    return res.send(csvData);
+    // Send the response without returning the Express response object
+    res.send(csvData);
+    return;
   }
 
   @Get(':id')

@@ -47,6 +47,7 @@ export interface AdminUserFilters {
   dateFrom?: Date;
   dateTo?: Date;
   city?: string;
+  country?: string;
 }
 
 export interface PaginationOptions {
@@ -732,6 +733,18 @@ export class UsersService {
       queryBuilder.andWhere('LOWER(user.city) LIKE LOWER(:city)', {
         city: `%${filters.city}%`,
       });
+    }
+
+    // Country filter: accept ISO alpha-2 (user.countryId) or full name
+    if (filters.country) {
+      const value = filters.country.trim();
+      if (/^[A-Za-z]{2}$/.test(value)) {
+        queryBuilder.andWhere('user.countryId = :countryId', { countryId: value.toUpperCase() });
+      } else {
+        queryBuilder.leftJoin('user.country', 'country').andWhere('LOWER(country.name) LIKE LOWER(:countryName)', {
+          countryName: `%${value}%`,
+        });
+      }
     }
 
     if (filters.dateFrom) {
@@ -1593,6 +1606,18 @@ export class UsersService {
       });
     }
 
+    // Country filter: accept ISO alpha-2 (user.countryId) or full name
+    if (filters.country) {
+      const value = filters.country.trim();
+      if (/^[A-Za-z]{2}$/.test(value)) {
+        queryBuilder.andWhere('user.countryId = :countryId', { countryId: value.toUpperCase() });
+      } else {
+        queryBuilder.leftJoin('user.country', 'country').andWhere('LOWER(country.name) LIKE LOWER(:countryName)', {
+          countryName: `%${value}%`,
+        });
+      }
+    }
+
     if (filters.dateFrom) {
       queryBuilder.andWhere('user.createdAt >= :dateFrom', {
         dateFrom: filters.dateFrom,
@@ -1619,19 +1644,11 @@ export class UsersService {
       'Email',
       'Prénom',
       'Nom',
-      'Nom d\'affichage',
       'Téléphone',
-      'Ville',
+      'Pays',
       'Adresse',
       'Statut',
-      'Email Vérifié',
-      'Vérifié',
-      'Admin',
-      'Suspendu',
       'Date de création',
-      'Date de mise à jour',
-      'Date de vérification',
-      'Dernière connexion'
     ];
     
     // Convert users data to CSV rows
@@ -1640,19 +1657,11 @@ export class UsersService {
       user.email,
       user.firstName || '',
       user.lastName || '',
-      user.displayName || '',
       user.phoneNumber || '',
-      user.city || '',
+      user.country?.name || '',
       user.address || '',
       user.isActive ? 'Actif' : 'Inactif',
-      user.verifiedEmail ? 'Vérifié' : 'Non vérifié',
-      user.isVerified ? 'Vérifié' : 'Non vérifié',
-      user.isAdmin ? 'Oui' : 'Non',
-      user.isSuspended ? user.isSuspended : 'Non',
       user.createdAt ? new Date(user.createdAt).toLocaleDateString('fr-FR') : '',
-      user.updatedAt ? new Date(user.updatedAt).toLocaleDateString('fr-FR') : '',
-      user.verifiedAt ? new Date(user.verifiedAt).toLocaleDateString('fr-FR') : '',
-      user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR') : ''
     ]);
     
     // Escape CSV values (handle commas, quotes, newlines)
