@@ -10,6 +10,7 @@ export class BlogShareController {
 
   // Public HTML endpoint for social media crawlers to read OG/Twitter meta tags
   @Get('share/:id')
+  @Get('share/:id/')
   @SetMetadata('isPublic', true)
   async shareHtml(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
     try {
@@ -53,22 +54,16 @@ export class BlogShareController {
   <meta name="twitter:title" content="${escapeHtml(title)}" />
   <meta name="twitter:description" content="${escapeHtml(description)}" />
   <meta name="twitter:image" content="${imageUrl}" />
-
-  <!-- Meta refresh to redirect human users to the canonical page -->
-  <meta http-equiv="refresh" content="0;url=${canonicalUrl}" />
 </head>
 <body>
-  <noscript>
-    <a href="${canonicalUrl}">Continuer vers l’article</a>
-  </noscript>
-  <script>
-    try { window.location.replace('${canonicalUrl}'); } catch (e) { window.location.href = '${canonicalUrl}'; }
-  </script>
+  <p>Page de partage pour les réseaux sociaux. Accédez à l’article ici :
+    <a href="${canonicalUrl}">${canonicalUrl}</a>
+  </p>
 </body>
 </html>`;
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.send(html);
+      res.status(200).send(html);
     } catch (err) {
       this.logger.error('Error generating share HTML', err as any);
       res.status(404).send('<html><body>Article non trouvé</body></html>');
