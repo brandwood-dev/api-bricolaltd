@@ -30,7 +30,18 @@ export class BlogShareController {
 
       const imageUrl = ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
       const title = news.title || 'Article Bricola';
-      const description = (news.summary || title).toString().trim();
+      const sanitizeText = (input: string): string => {
+        return input
+          .replace(/<[^>]+>/g, ' ') // strip HTML tags if any
+          .replace(/\s+/g, ' ') // normalize whitespace
+          .trim()
+      }
+      const truncate = (input: string, max = 300): string =>
+        input.length > max ? input.slice(0, max - 1) + '…' : input
+
+      const rawDescription = ((news as any).summary || '') as string
+      const normalizedDescription = sanitizeText(rawDescription || title)
+      const description = truncate(normalizedDescription, 300)
       const fbAppId = process.env.FACEBOOK_APP_ID;
 
       // Detect social crawlers (serve 200 HTML); otherwise redirect users to canonical URL
