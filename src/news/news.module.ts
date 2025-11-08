@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { News } from './entities/news.entity';
 import { NewsService } from './news.service';
 import { NewsController } from './news.controller';
+import { BlogShareController } from './blog-share.controller';
 import { UsersModule } from '../users/users.module';
 import { S3Module } from '../common/services/s3.module';
 import { NewsFileUploadMiddleware } from '../common/middlewares/news-file-upload.middleware';
@@ -10,7 +11,7 @@ import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([News]), UsersModule, S3Module, CategoriesModule],
-  controllers: [NewsController],
+  controllers: [NewsController, BlogShareController],
   providers: [NewsService],
   exports: [NewsService],
 })
