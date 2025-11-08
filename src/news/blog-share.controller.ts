@@ -30,7 +30,20 @@ export class BlogShareController {
 
       const imageUrl = ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
       const title = news.title || 'Article Bricola';
-      const description = news.summary || title;
+      const description = (news.summary || title).toString().trim();
+      const fbAppId = process.env.FACEBOOK_APP_ID;
+
+      // Detect social crawlers (serve 200 HTML); otherwise redirect users to canonical URL
+      const ua = (req.headers['user-agent'] || '').toLowerCase();
+      const isCrawler = /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|pinterest|embedly|quora|vk\s*share|meta-external|googlebot|bingbot|yandex|duckduckbot|baiduspider|applebot/.test(ua);
+
+      // If this is a user click from Facebook, fbclid is typically present → redirect
+      const isFacebookClick = typeof req.query?.fbclid === 'string' && req.query.fbclid.length > 0;
+
+      if (!isCrawler || isFacebookClick) {
+        res.redirect(302, canonicalUrl);
+        return;
+      }
 
       const html = `<!doctype html>
 <html lang="fr">
@@ -38,14 +51,19 @@ export class BlogShareController {
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="${escapeHtml(description)}" />
   <link rel="canonical" href="${canonicalUrl}" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="${escapeHtml(title)}" />
   <meta property="og:description" content="${escapeHtml(description)}" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:alt" content="${escapeHtml(title)}" />
   <meta property="og:url" content="${canonicalUrl}" />
   <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="Bricola LTD" />
+  <meta property="og:locale" content="fr_FR" />
+  ${fbAppId ? `<meta property="fb:app_id" content="${fbAppId}" />` : ''}
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
 
@@ -56,13 +74,14 @@ export class BlogShareController {
   <meta name="twitter:image" content="${imageUrl}" />
 </head>
 <body>
-  <p>Page de partage pour les réseaux sociaux. Accédez à l’article ici :
+  <p>Page de partage pour les réseaux sociaux (crawler). Accédez à l’article ici :
     <a href="${canonicalUrl}">${canonicalUrl}</a>
   </p>
 </body>
 </html>`;
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.status(200).send(html);
     } catch (err) {
       this.logger.error('Error generating share HTML', err as any);
