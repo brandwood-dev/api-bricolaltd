@@ -312,4 +312,18 @@ export class ReviewsService {
     const review = await this.findOneAppReview(id);
     await this.reviewAppRepository.remove(review);
   }
+
+  // Public stats for tool reviews: total count and global average rating
+  async getToolReviewsStatsPublic(): Promise<{ total: number; averageRating: number }> {
+    const result = await this.reviewToolRepository
+      .createQueryBuilder('review')
+      .select('COUNT(*)', 'total')
+      .addSelect('AVG(review.rating)', 'averageRating')
+      .getRawOne();
+
+    return {
+      total: parseInt(result?.total ?? '0') || 0,
+      averageRating: parseFloat(result?.averageRating ?? '0') || 0,
+    };
+  }
 }

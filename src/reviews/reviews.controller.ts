@@ -86,6 +86,14 @@ export class ReviewsController {
     return this.reviewsService.findAllToolReviews();
   }
 
+  @Get('tools/stats')
+  @ApiOperation({ summary: 'Get global tool reviews statistics (public)' })
+  @ApiResponse({ status: 200, description: 'Return global stats: total and average rating.' })
+  @SetMetadata('isPublic', true)
+  getToolReviewsStatsPublic() {
+    return this.reviewsService.getToolReviewsStatsPublic();
+  }
+
   @Get('tools/tool/:toolId')
   @ApiOperation({ summary: 'Get tool reviews by tool id' })
   @ApiResponse({ status: 200, description: 'Return the tool reviews.' })
