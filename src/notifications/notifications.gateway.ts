@@ -32,6 +32,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   private readonly logger = new Logger(NotificationsGateway.name);
   private connectedUsers = new Map<string, string[]>(); // userId -> socketIds
+  // For test verification: keep a simple map of last notification per user
+  private lastNotificationByUser = new Map<string, any>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -40,13 +42,38 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
+      const authTokenRaw = client.handshake.auth?.token as string | undefined;
+      const authToken = authTokenRaw && authTokenRaw.startsWith('Bearer ')
+        ? authTokenRaw.slice(7)
+        : authTokenRaw;
+      const headerAuth = client.handshake.headers?.authorization as string | undefined;
+      const headerToken = headerAuth && headerAuth.startsWith('Bearer ')
+        ? headerAuth.split(' ')[1]
+        : undefined;
+      const token = authToken || headerToken;
+
+      const secretUsed = process.env.JWT_SECRET || 'bricola_secret_key';
+      this.logger.log(
+        `WS auth: got token from ${authToken ? 'auth' : headerToken ? 'header' : 'none'}; ` +
+        `preview=${token ? token.substring(0, 12) + '...' : 'none'}; ` +
+        `hasBearerHeader=${headerAuth ? headerAuth.startsWith('Bearer ') : false}; ` +
+        `hadBearerInAuth=${authTokenRaw ? authTokenRaw.startsWith('Bearer ') : false}; ` +
+        `secretUsed=${secretUsed ? (secretUsed.substring(0, 6) + '...') : 'undefined'}`,
+      );
       if (!token) {
         client.disconnect();
         return;
       }
 
-      const payload = this.jwtService.verify(token);
+      // Decode token to inspect payload prior to verification
+      const decoded: any = this.jwtService.decode(token) || {};
+      this.logger.log(
+        `WS token decode: sub=${decoded?.sub ?? 'none'}; isAdmin=${decoded?.isAdmin ?? 'n/a'}; ` +
+        `iat=${decoded?.iat ?? 'n/a'}; exp=${decoded?.exp ?? 'n/a'}`,
+      );
+
+      // Verify explicitly with known secret to avoid module misconfig surprises
+      const payload = this.jwtService.verify(token, { secret: secretUsed });
       client.userId = payload.sub;
       client.user = payload;
 
@@ -68,7 +95,18 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       
       this.logger.log(`User ${client.userId} connected with socket ${client.id}`);
     } catch (error) {
-      this.logger.error('Connection error:', error);
+      this.logger.error(
+        `Connection error: name=${error?.name} msg=${error?.message} stack=${error?.stack?.split('\n')[0]}`,
+      );
+      try {
+        const rawAuth = client.handshake?.auth?.token || '';
+        const rawHeader = client.handshake?.headers?.authorization || '';
+        this.logger.error(
+          `Token debug: authTokenPreview=${rawAuth ? rawAuth.substring(0, 12) + '...' : 'none'}; ` +
+          `headerAuthPreview=${rawHeader ? rawHeader.substring(0, 20) + '...' : 'none'}; ` +
+          `hasDots=${(rawAuth || rawHeader).includes('.')}`,
+        );
+      } catch {}
       client.disconnect();
     }
   }
@@ -122,6 +160,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   // Method to send notification to specific user
   async sendNotificationToUser(userId: string, notification: any) {
     this.server.to(`user_${userId}`).emit('new_notification', notification);
+    // Track last notification to allow verification in tests
+    this.lastNotificationByUser.set(userId, notification);
     
     // Update unread count
     const unreadCount = await this.notificationsService.getUnreadCount(userId);
@@ -131,5 +171,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   // Method to broadcast notification to all connected users
   broadcastNotification(notification: any) {
     this.server.emit('broadcast_notification', notification);
+  }
+
+  // Expose a lightweight getter for tests
+  getLastNotificationForUser(userId: string) {
+    return this.lastNotificationByUser.get(userId);
   }
 }

@@ -6,13 +6,11 @@ import { EmailsService } from './emails.service';
 import { EmailsController } from './emails.controller';
 import { EmailSenderService } from './email-sender.service';
 import { SendGridService } from './sendgrid.service';
-import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Email]),
     ConfigModule,
-    UsersModule,
   ],
   controllers: [EmailsController],
   providers: [EmailsService, EmailSenderService, SendGridService],

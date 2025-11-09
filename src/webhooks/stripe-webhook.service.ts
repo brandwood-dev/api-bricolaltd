@@ -1,4 +1,10 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import {
+  NotificationCategory as AdminNotificationCategory,
+  NotificationPriority as AdminNotificationPriority,
+  NotificationType as AdminNotificationType,
+} from '../admin/dto/admin-notifications.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +25,7 @@ export class StripeWebhookService {
     private bookingsRepository: Repository<Booking>,
     private configService: ConfigService,
     private paymentService: PaymentService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {
     // Initialiser Stripe
     const Stripe = require('stripe');
@@ -176,6 +183,15 @@ export class StripeWebhookService {
 
     // Mettre à jour la réservation si applicable
     await this.updateBookingFromPaymentIntent(paymentIntent, 'payment_confirmed');
+
+    // Créer une notification admin pour paiement réussi
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Paiement confirmé',
+      message: `Payment Intent ${paymentIntent.id} confirmé pour réservation ${paymentIntent.metadata?.booking_id ?? 'N/A'}. Montant: ${(paymentIntent.amount_received ?? paymentIntent.amount)/100} ${paymentIntent.currency?.toUpperCase()}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
@@ -188,6 +204,15 @@ export class StripeWebhookService {
 
     // Mettre à jour la réservation si applicable
     await this.updateBookingFromPaymentIntent(paymentIntent, 'payment_failed');
+
+    // Créer notification admin pour échec de paiement
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Échec de paiement',
+      message: `Payment Intent ${paymentIntent.id} échoué. Raison: ${paymentIntent.last_payment_error?.message ?? 'Inconnue'}. Réservation: ${paymentIntent.metadata?.booking_id ?? 'N/A'}`,
+      type: AdminNotificationType.ERROR,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handlePaymentIntentCanceled(paymentIntent: any): Promise<void> {
@@ -234,22 +259,48 @@ export class StripeWebhookService {
   // Gestionnaires d'événements Charge
   private async handleChargeSucceeded(charge: any): Promise<void> {
     this.logger.log(`Charge réussi: ${charge.id}`);
-    // Logique spécifique pour les charges réussies
+    // Notification admin pour charge réussie
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Charge réussie',
+      message: `Charge ${charge.id} réussie. Montant: ${charge.amount/100} ${charge.currency?.toUpperCase()} — PaymentIntent: ${charge.payment_intent ?? 'N/A'}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleChargeFailed(charge: any): Promise<void> {
     this.logger.log(`Charge échoué: ${charge.id}`);
-    // Logique spécifique pour les charges échouées
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Charge échouée',
+      message: `Charge ${charge.id} échouée. Raison: ${charge.failure_message ?? 'Inconnue'} — Code: ${charge.failure_code ?? 'N/A'}`,
+      type: AdminNotificationType.ERROR,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleChargeCaptured(charge: any): Promise<void> {
     this.logger.log(`Charge capturé: ${charge.id}`);
-    // Logique spécifique pour les charges capturées
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Charge capturée',
+      message: `Charge ${charge.id} capturée. Montant: ${charge.amount_captured/100} ${charge.currency?.toUpperCase()}`,
+      type: AdminNotificationType.INFO,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleChargeRefunded(charge: any): Promise<void> {
     this.logger.log(`Charge remboursé: ${charge.id}`);
-    // Logique spécifique pour les remboursements
+    const totalRefunded = (charge.amount_refunded ?? 0)/100;
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Remboursement traité',
+      message: `Charge ${charge.id} remboursée. Montant remboursé: ${totalRefunded} ${charge.currency?.toUpperCase()}`,
+      type: AdminNotificationType.INFO,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleChargeUpdated(charge: any): Promise<void> {
@@ -259,49 +310,103 @@ export class StripeWebhookService {
 
   private async handleChargePending(charge: any): Promise<void> {
     this.logger.log(`Charge en attente: ${charge.id}`);
-    // Logique spécifique si nécessaire
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Charge en attente',
+      message: `Charge ${charge.id} en attente d'autorisation/capture.`,
+      type: AdminNotificationType.INFO,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleChargeExpired(charge: any): Promise<void> {
     this.logger.log(`Charge expiré: ${charge.id}`);
-    // Logique spécifique si nécessaire
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Charge expirée',
+      message: `Charge ${charge.id} expirée — aucune capture effectuée à temps.`,
+      type: AdminNotificationType.WARNING,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   // Gestionnaires d'événements Dispute
   private async handleDisputeCreated(dispute: any): Promise<void> {
     this.logger.log(`Litige créé: ${dispute.id}`);
-    // Logique pour gérer les nouveaux litiges
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Litige initié',
+      message: `Litige ${dispute.id} créé sur charge ${dispute.charge}. Montant contesté: ${(dispute.amount ?? 0)/100} ${dispute.currency?.toUpperCase()}`,
+      type: AdminNotificationType.WARNING,
+      priority: AdminNotificationPriority.URGENT,
+      category: AdminNotificationCategory.DISPUTE,
+    });
   }
 
   private async handleDisputeUpdated(dispute: any): Promise<void> {
     this.logger.log(`Litige mis à jour: ${dispute.id}`);
-    // Logique pour les mises à jour de litiges
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Litige mis à jour',
+      message: `Litige ${dispute.id} mis à jour. Statut: ${dispute.status}`,
+      type: AdminNotificationType.INFO,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.DISPUTE,
+    });
   }
 
   private async handleDisputeClosed(dispute: any): Promise<void> {
     this.logger.log(`Litige fermé: ${dispute.id}`);
-    // Logique pour les litiges fermés
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Litige fermé',
+      message: `Litige ${dispute.id} fermé. Résultat: ${dispute.status}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.DISPUTE,
+    });
   }
 
   private async handleDisputeFundsWithdrawn(dispute: any): Promise<void> {
     this.logger.log(`Fonds retirés pour litige: ${dispute.id}`);
-    // Logique pour les retraits de fonds dus aux litiges
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Fonds retirés (litige)',
+      message: `Fonds retirés pour litige ${dispute.id}. Montant: ${(dispute.amount ?? 0)/100} ${dispute.currency?.toUpperCase()}`,
+      type: AdminNotificationType.ERROR,
+      priority: AdminNotificationPriority.URGENT,
+      category: AdminNotificationCategory.DISPUTE,
+    });
   }
 
   private async handleDisputeFundsReinstated(dispute: any): Promise<void> {
     this.logger.log(`Fonds rétablis pour litige: ${dispute.id}`);
-    // Logique pour les rétablissements de fonds
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Fonds rétablis (litige)',
+      message: `Fonds rétablis pour litige ${dispute.id}. Montant: ${(dispute.amount ?? 0)/100} ${dispute.currency?.toUpperCase()}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.DISPUTE,
+    });
   }
 
   // Gestionnaires d'événements Invoice
   private async handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
     this.logger.log(`Paiement de facture réussi: ${invoice.id}`);
-    // Logique spécifique si nécessaire
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Paiement facture réussi',
+      message: `Facture ${invoice.id} payée avec succès. Montant: ${(invoice.amount_paid ?? invoice.amount_due ?? 0)/100} ${(invoice.currency ?? 'eur').toUpperCase()}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   private async handleInvoicePaymentFailed(invoice: any): Promise<void> {
     this.logger.log(`Paiement de facture échoué: ${invoice.id}`);
-    // Logique spécifique si nécessaire
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Paiement facture échoué',
+      message: `Facture ${invoice.id} paiement échoué. Client: ${invoice.customer ?? 'N/A'}`,
+      type: AdminNotificationType.ERROR,
+      priority: AdminNotificationPriority.HIGH,
+      category: AdminNotificationCategory.PAYMENT,
+    });
   }
 
   // Méthodes utilitaires

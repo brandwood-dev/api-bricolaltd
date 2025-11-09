@@ -7,6 +7,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import { NotificationType as AdminNotificationType, NotificationPriority as AdminNotificationPriority, NotificationCategory as AdminNotificationCategory } from '../admin/dto/admin-notifications.dto';
 import { UsersService } from '../users/users.service';
 import { SendGridService } from '../emails/sendgrid.service';
 
@@ -17,6 +19,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly sendGridService: SendGridService,
+    private readonly adminNotificationsService: AdminNotificationsService,
   ) {}
 
   @Post('register')
@@ -32,6 +35,21 @@ export class AuthController {
     
     // Envoyer l'email avec SendGrid (code uniquement)
     await this.sendGridService.sendVerificationEmail(user.email, verifyCode);
+
+    // Émettre une notification admin pour la création de compte utilisateur
+    try {
+      await this.adminNotificationsService.createAdminNotification({
+        title: 'Nouvelle inscription utilisateur',
+        message: `Utilisateur ${user.firstName} ${user.lastName} (${user.email}) s'est inscrit.`,
+        type: AdminNotificationType.SUCCESS,
+        priority: AdminNotificationPriority.MEDIUM,
+        category: AdminNotificationCategory.USER,
+        userId: user.id,
+        userName: `${user.firstName} ${user.lastName}`,
+      });
+    } catch (e) {
+      // Ne pas bloquer l'inscription si la notification échoue
+    }
     
     return this.authService.login(user);
   }

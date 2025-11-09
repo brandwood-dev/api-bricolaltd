@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
@@ -109,6 +110,15 @@ export class AdminToolsController {
       throw new BadRequestException('Rejection reason is required');
     }
     return this.adminToolsService.rejectTool(id, updateToolStatusDto.reason);
+  }
+
+  // Test endpoint to validate rejection notifications and emails
+  @Post('test/rejection-templates')
+  @AdminPermissions('manage_tools')
+  @ApiOperation({ summary: 'Run rejection templates test for 6 reasons' })
+  @ApiResponse({ status: 200, description: 'Test executed successfully.' })
+  async runRejectionTemplatesTest(@Body() body: { ownerEmail: string; ownerId?: string }) {
+    return this.adminToolsService.runRejectionTemplatesTest(body.ownerEmail, body.ownerId);
   }
 
   @Patch(':id/status')

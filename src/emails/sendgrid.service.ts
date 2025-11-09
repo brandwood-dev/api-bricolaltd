@@ -1,19 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 const sgMail = require('@sendgrid/mail');
 import { ConfigService } from '@nestjs/config';
+import { EmailsService } from './emails.service';
+import { EmailType } from './dto/create-email.dto';
 
 export interface SendGridEmailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  userId?: string; // optional: persist email log for this user
 }
 
 @Injectable()
 export class SendGridService {
   private readonly logger = new Logger(SendGridService.name);
 
-  constructor(private configService: ConfigService) {
+  constructor(private configService: ConfigService, private emailsService: EmailsService) {
     const apiKey = this.configService.get('SENDGRID_API_KEY');
     if (apiKey) {
       sgMail.setApiKey(apiKey);
@@ -42,6 +45,20 @@ export class SendGridService {
       const response = await sgMail.send(msg);
       this.logger.log(`Email sent successfully to ${options.to}`);
       this.logger.log(`SendGrid response status: ${response[0].statusCode}`);
+      // Persist a lightweight email log for validation in tests if userId provided
+      if (options.userId) {
+        try {
+          await this.emailsService.create({
+            userId: options.userId,
+            subject: options.subject,
+            content: options.html,
+            type: EmailType.GENERAL,
+            isRead: false,
+          });
+        } catch (persistErr) {
+          this.logger.warn(`Failed to persist email log for user ${options.userId}: ${persistErr?.message || persistErr}`);
+        }
+      }
       
       return true;
     } catch (error) {

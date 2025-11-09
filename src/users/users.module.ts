@@ -41,6 +41,7 @@ import { ExchangeRate } from './entities/exchange-rate.entity';
 import { ExchangeRateController } from './exchange-rate.controller';
 import { ExchangeRateService } from './exchange-rate.service';
 import { SendGridService } from '../emails/sendgrid.service';
+import { EmailsModule } from '../emails/emails.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { SendGridService } from '../emails/sendgrid.service';
       ExchangeRate
     ]), 
     S3Module,
+    EmailsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -94,7 +96,6 @@ import { SendGridService } from '../emails/sendgrid.service';
     CountryService,
     AccountDeletionRequestService,
     WalletsService,
-    SendGridService,
     ExchangeRateService
   ],
   exports: [

@@ -46,11 +46,16 @@ import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.se
 import { AdminReviewsController } from './admin-reviews.controller';
 import { AdminReviewsService } from './admin-reviews.service';
 import { AdminBookingsController } from './admin-bookings.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { EmailsModule } from '../emails/emails.module';
+import { ToolRejectionEmailService } from '../tools/services/tool-rejection-email.service';
 
 @Module({
   imports: [
     UsersModule,
     forwardRef(() => BookingsModule),
+    forwardRef(() => NotificationsModule),
+    EmailsModule,
     TypeOrmModule.forFeature([
       User,
       Country,
@@ -107,6 +112,7 @@ import { AdminBookingsController } from './admin-bookings.controller';
     EnhancedAdminGuard,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
+    ToolRejectionEmailService,
   ],
   exports: [
     AdminDashboardService,

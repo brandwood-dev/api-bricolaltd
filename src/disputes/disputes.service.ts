@@ -13,6 +13,7 @@ import { UsersService } from '../users/users.service';
 import { DisputeStatus } from './enums/dispute-status.enum';
 import { S3Service } from '../common/services/s3.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type';
 
 @Injectable()
@@ -24,6 +25,7 @@ export class DisputesService {
     private usersService: UsersService,
     private s3Service: S3Service,
     private notificationsService: NotificationsService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   async create(createDisputeDto: CreateDisputeDto): Promise<Dispute> {
@@ -90,6 +92,15 @@ export class DisputesService {
         savedDispute.id,
         'dispute',
         `/disputes/${savedDispute.id}`,
+      );
+
+      // Admin notification for dispute creation
+      await this.adminNotificationsService.createDisputeNotification(
+        'Litige créé',
+        `Un litige a été créé pour la réservation ${booking.id} (${tool?.title || 'outil'}).`,
+        savedDispute.id,
+        initiator.id,
+        `${initiator.firstName} ${initiator.lastName}`,
       );
     } catch (error) {
       // Log error but don't fail the dispute creation

@@ -6,12 +6,14 @@ import { StripeWebhookService } from './stripe-webhook.service';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { PaymentModule } from '../payments/payment.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Transaction, Booking]),
     ConfigModule,
     PaymentModule,
+    AdminModule,
   ],
   controllers: [StripeWebhookController],
   providers: [StripeWebhookService],

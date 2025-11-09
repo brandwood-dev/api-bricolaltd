@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, RequestMethod } from '@nestjs/common';
+import { Module, MiddlewareConsumer, RequestMethod, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Tool } from './entities/tool.entity';
 import { ToolPhoto } from './entities/tool-photo.entity';
@@ -10,9 +10,15 @@ import { ToolPhotosController } from './controllers/tool-photos.controller';
 import { UsersModule } from '../users/users.module';
 import { S3Module } from '../common/services/s3.module';
 import { FileUploadMiddleware } from '../common/middlewares/file-upload.middleware';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Tool, ToolPhoto, ReviewTool, Currency]), UsersModule, S3Module],
+  imports: [
+    TypeOrmModule.forFeature([Tool, ToolPhoto, ReviewTool, Currency]),
+    UsersModule,
+    S3Module,
+    forwardRef(() => AdminModule),
+  ],
   controllers: [ToolsController, ToolPhotosController],
   providers: [ToolsService],
   exports: [ToolsService],

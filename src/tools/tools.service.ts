@@ -17,6 +17,8 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { ReviewTool } from '../reviews/entities/review-tool.entity';
 import { S3Service } from '../common/services/s3.service';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import { NotificationPriority } from '../admin/dto/admin-notifications.dto';
 
 @Injectable()
 export class ToolsService {
@@ -28,6 +30,7 @@ export class ToolsService {
     @InjectRepository(ReviewTool)
     private reviewToolRepository: Repository<ReviewTool>,
     private readonly s3Service: S3Service,
+    private readonly adminNotificationsService: AdminNotificationsService,
   ) {}
 
   async create(
@@ -67,7 +70,18 @@ export class ToolsService {
       await this.toolPhotoRepository.save(toolPhotos);
     }
 
-    return this.findOne(savedTool.id);
+    const finalTool = await this.findOne(savedTool.id);
+    // Notify admins of tool creation
+    try {
+      await this.adminNotificationsService.createUserNotification(
+        'Outil créé',
+        `Un nouvel outil "${finalTool.title}" a été créé.`,
+        finalTool.owner?.id,
+        finalTool.owner ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}` : undefined,
+        NotificationPriority.MEDIUM,
+      );
+    } catch {}
+    return finalTool;
   }
 
   async findAll(query?: {
@@ -402,12 +416,21 @@ export class ToolsService {
     const { rating, reviewCount } = await this.calculateToolRating(id);
     (finalTool as any).rating = rating;
     (finalTool as any).reviewCount = reviewCount;
-
+    // Notify admins of tool update
+    try {
+      await this.adminNotificationsService.createUserNotification(
+        'Outil modifié',
+        `L'outil "${finalTool.title}" a été modifié.`,
+        finalTool.owner?.id,
+        finalTool.owner ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}` : undefined,
+        NotificationPriority.MEDIUM,
+      );
+    } catch {}
     return finalTool;
   }
 
   async remove(id: string): Promise<void> {
-    //const tool = await this.findOne(id);
+    const tool = await this.findOne(id);
 
     // Get all photos for this tool
     const photos = await this.toolPhotoRepository.find({
@@ -434,6 +457,16 @@ export class ToolsService {
     if (result.affected === 0) {
       throw new NotFoundException(`Tool with ID ${id} not found`);
     }
+    // Notify admins of tool deletion
+    try {
+      await this.adminNotificationsService.createUserNotification(
+        'Outil supprimé',
+        `L'outil "${tool.title}" a été supprimé par son propriétaire.`,
+        tool.owner?.id,
+        tool.owner ? `${tool.owner.firstName} ${tool.owner.lastName}` : undefined,
+        NotificationPriority.HIGH,
+      );
+    } catch {}
   }
 
   async updateAvailability(id: string, isAvailable: boolean): Promise<Tool> {

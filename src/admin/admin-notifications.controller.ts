@@ -96,6 +96,45 @@ export class AdminNotificationsController {
     };
   }
 
+  // Test endpoints to verify notifications pipeline (WS + email on critical)
+  @Post('test/basic')
+  @AdminPermissions('manage_notifications')
+  @ApiOperation({ summary: 'Create a basic test admin notification' })
+  @ApiResponse({ status: 201, description: 'Test notification created successfully' })
+  async createBasicTestNotification() {
+    const notification = await this.adminNotificationsService.createAdminNotification({
+      title: 'Test Notification',
+      message: 'This is a test admin notification to verify WS delivery.',
+      type: NotificationType.INFO,
+      priority: NotificationPriority.MEDIUM,
+      category: NotificationCategory.SYSTEM,
+    });
+
+    return {
+      data: notification,
+      message: 'Test notification created successfully',
+    };
+  }
+
+  @Post('test/critical')
+  @AdminPermissions('manage_notifications')
+  @ApiOperation({ summary: 'Create a critical test admin notification (emails expected)' })
+  @ApiResponse({ status: 201, description: 'Critical test notification created successfully' })
+  async createCriticalTestNotification() {
+    const notification = await this.adminNotificationsService.createAdminNotification({
+      title: 'Critical Test Notification',
+      message: 'This is a critical test notification to verify email alerts.',
+      type: NotificationType.ERROR,
+      priority: NotificationPriority.URGENT,
+      category: NotificationCategory.SECURITY,
+    });
+
+    return {
+      data: notification,
+      message: 'Critical test notification created successfully',
+    };
+  }
+
   @Patch('mark-read')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Mark notifications as read' })

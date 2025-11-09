@@ -151,6 +151,13 @@ export class NotificationsController {
     return this.notificationsService.markAsUnread(id, req.user.id);
   }
 
+  @Delete('my')
+  @ApiOperation({ summary: 'Delete all notifications for current user' })
+  @ApiResponse({ status: 200, description: 'All notifications deleted successfully' })
+  deleteMyNotifications(@Request() req) {
+    return this.notificationsService.deleteByUserId(req.user.id);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a notification' })
   @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
