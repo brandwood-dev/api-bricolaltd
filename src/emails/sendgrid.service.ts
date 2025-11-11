@@ -313,4 +313,156 @@ Email de test - Ne pas répondre
       text,
     });
   }
+
+  async sendAccountDeletionEmail(
+    email: string,
+    language: 'fr' | 'en' | 'ar' = 'fr',
+    userId?: string,
+  ): Promise<boolean> {
+    // Multilingual subjects
+    const subjects = {
+      fr: '✅ Confirmation de suppression de compte - Bricola',
+      en: '✅ Account Deletion Confirmation - Bricola',
+      ar: '✅ تأكيد حذف الحساب - Bricola',
+    } as const;
+
+    // HTML templates per language
+    const htmlTemplates = {
+      fr: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Confirmation de suppression</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+          .notice { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">Bricola</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Confirmation de suppression de compte</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #16a34a; margin-top: 0;">Votre compte a été supprimé</h2>
+            <p>Bonjour,</p>
+            <p>Nous confirmons la suppression de votre compte Bricola. Nous sommes désolés de vous voir partir.</p>
+            <div class="notice">
+              <strong>🗓 Suppression des données :</strong> Vos données personnelles seront définitivement supprimées de nos systèmes sous <strong>90 jours</strong>, conformément à notre politique de confidentialité et aux exigences légales.
+            </div>
+            <p>Si vous avez effectué des transactions ou des réservations, certaines données minimales peuvent être conservées temporairement afin de respecter nos obligations légales et comptables.</p>
+            <p>Pour toute question, vous pouvez nous contacter à l'adresse suivante : support@bricolaltd.com</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Bricola. Tous droits réservés.</p>
+            <p>Email automatique - Ne pas répondre</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      `,
+      en: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Account Deletion Confirmation</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+          .notice { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">Bricola</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Account Deletion Confirmation</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #16a34a; margin-top: 0;">Your account has been deleted</h2>
+            <p>Hello,</p>
+            <p>We confirm the deletion of your Bricola account. We're sorry to see you go.</p>
+            <div class="notice">
+              <strong>🗓 Data removal:</strong> Your personal data will be permanently removed from our systems within <strong>90 days</strong>, in accordance with our privacy policy and legal requirements.
+            </div>
+            <p>If you had transactions or bookings, some minimal data may be retained temporarily to meet legal and accounting obligations.</p>
+            <p>If you have questions, please contact us at: support@bricolaltd.com</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Bricola. All rights reserved.</p>
+            <p>Automated email - Do not reply</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      `,
+      ar: `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8">
+        <title>تأكيد حذف الحساب</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; direction: rtl; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #16a34a, #15803d); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+          .notice { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 28px;">Bricola</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">تأكيد حذف الحساب</p>
+          </div>
+          <div class="content">
+            <h2 style="color: #16a34a; margin-top: 0;">تم حذف حسابك</h2>
+            <p>مرحباً،</p>
+            <p>نؤكد حذف حسابك في Bricola. يؤسفنا رحيلك.</p>
+            <div class="notice">
+              <strong>🗓 حذف البيانات:</strong> سيتم حذف بياناتك الشخصية نهائياً من أنظمتنا خلال <strong>90 يوماً</strong> وفقاً لسياسة الخصوصية والمتطلبات القانونية.
+            </div>
+            <p>إذا كانت لديك معاملات أو حجوزات، فقد يتم الاحتفاظ ببعض البيانات الأساسية مؤقتاً للامتثال للالتزامات القانونية والمحاسبية.</p>
+            <p>لأي استفسار، يرجى التواصل معنا عبر: support@bricolaltd.com</p>
+          </div>
+          <div class="footer">
+            <p>© 2024 Bricola. جميع الحقوق محفوظة.</p>
+            <p>بريد تلقائي - لا ترد</p>
+          </div>
+        </div>
+      </body>
+      </html>
+      `,
+    } as const;
+
+    const textTemplates = {
+      fr: `Votre compte a été supprimé. Vos données seront définitivement supprimées sous 90 jours.`,
+      en: `Your account has been deleted. Your data will be permanently removed within 90 days.`,
+      ar: `تم حذف حسابك. سيتم حذف بياناتك نهائياً خلال 90 يوماً.`,
+    } as const;
+
+    const subject = subjects[language] || subjects.fr;
+    const html = htmlTemplates[language] || htmlTemplates.fr;
+    const text = textTemplates[language] || textTemplates.fr;
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+      userId,
+    });
+  }
 }

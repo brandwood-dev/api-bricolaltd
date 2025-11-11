@@ -519,7 +519,16 @@ export class UsersController {
     @Param('id') id: string,
     @Request() req: any,
   ) {
-    return this.usersService.validateAccountDeletion(id, req.user);
+    const ts = new Date().toISOString();
+    const result = await this.usersService.validateAccountDeletion(id, req.user);
+    // Ensure standard API envelope
+    return {
+      data: result,
+      message: 'Request successful',
+      success: true,
+      timestamp: ts,
+      userId: req?.user?.id,
+    };
   }
 
   @Post('bulk-action')

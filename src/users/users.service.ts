@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In, MoreThan, LessThan, Between } from 'typeorm';
+import { Repository, Like, In, MoreThan, LessThan, Between, Not } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -636,6 +636,32 @@ export class UsersService {
 
       console.log('Account deleted successfully for user:', userId);
       console.log('=== END DEBUG deleteUserAccount ===');
+      // Try to send account deletion email (non-blocking)
+      try {
+        // Retrieve minimal info for email
+        const userEmail = user.email;
+        // Get user preference for language if available
+        let language: 'fr' | 'en' | 'ar' = 'fr';
+        try {
+          const pref = await this.userPreferenceRepository.findOne({ where: { userId } });
+          if (pref && (['fr', 'en', 'ar'] as const).includes(pref.language as any)) {
+            language = pref.language as any;
+          }
+        } catch (e) {
+          // ignore preference fetch errors
+        }
+        // Send email without blocking the response
+        this.sendGridService
+          .sendAccountDeletionEmail(userEmail, language, userId)
+          .then((ok) => {
+            if (!ok) {
+              this.logger.warn(`Account deletion email not sent to ${userEmail}`);
+            }
+          })
+          .catch((e) => this.logger.warn(`Failed to send account deletion email: ${e?.message || e}`));
+      } catch (e) {
+        this.logger.warn(`Post-deletion email flow failed: ${e?.message || e}`);
+      }
 
       return { message: 'Account deleted successfully' };
     } catch (error) {
@@ -1776,40 +1802,39 @@ export class UsersService {
     };
 
     try {
-      // Check for pending/confirmed bookings as renter
-      const userBookings = await this.usersRepository
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.bookingsAsRenter', 'booking')
-        .leftJoinAndSelect('booking.tool', 'tool')
-        .where('user.id = :userId', { userId })
-        .andWhere('booking.status IN (:...statuses)', {
-          statuses: ['PENDING', 'ACCEPTED', 'ONGOING'],
-        })
-        .getOne();
+      const ts = new Date().toISOString();
+      this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} msg=Starting validation`);
+      // Normalize/legacy booking statuses to check
+      const bookingStatuses = ['PENDING', 'ACCEPTED', 'ONGOING', 'CONFIRMED']; // include legacy 'CONFIRMED'
+      this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} bookingStatuses=${JSON.stringify(bookingStatuses)}`);
 
-      if (userBookings && userBookings.bookingsAsRenter && userBookings.bookingsAsRenter.length > 0) {
-        validationResult.blockingIssues.pendingBookings = userBookings.bookingsAsRenter.length;
-        validationResult.details.pendingBookings = userBookings.bookingsAsRenter;
+      // Check for pending/accepted/ongoing bookings as renter (use relation id for reliability)
+      const renterBookings = await this.bookingRepository.find({
+        where: { renter: { id: userId }, status: In(bookingStatuses) },
+        relations: ['tool'],
+      });
+      this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} renterBookings.count=${renterBookings.length}`);
+      if (renterBookings.length > 0) {
+        validationResult.blockingIssues.pendingBookings = renterBookings.length;
+        validationResult.details.pendingBookings = renterBookings;
+        this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} pendingBookings.set=${renterBookings.length}`);
         validationResult.canDelete = false;
       }
 
-      // Check for confirmed reservations as tool owner
-      const ownerBookings = await this.usersRepository
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.tools', 'tool')
-        .leftJoinAndSelect('tool.bookings', 'booking')
-        .leftJoinAndSelect('booking.renter', 'renter')
-        .where('user.id = :userId', { userId })
-        .andWhere('booking.status IN (:...statuses)', {
-          statuses: ['PENDING', 'ACCEPTED', 'ONGOING'],
-        })
-        .getOne();
-
-      if (ownerBookings && ownerBookings.tools && ownerBookings.tools.length > 0) {
-        const confirmedBookings = ownerBookings.tools.flatMap(tool => tool.bookings || []);
-        if (confirmedBookings.length > 0) {
-          validationResult.blockingIssues.confirmedReservations = confirmedBookings.length;
-          validationResult.details.confirmedReservations = confirmedBookings;
+      // Check for reservations for user's tools as owner (use relation id for reliability)
+      const toolsOwned = await this.toolRepository.find({ where: { owner: { id: userId } } });
+      const toolIds = toolsOwned.map(t => t.id);
+      this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} toolsOwned.count=${toolIds.length}`);
+      if (toolIds.length > 0) {
+        const ownerReservations = await this.bookingRepository.find({
+          where: { tool: { id: In(toolIds) }, status: In(bookingStatuses) },
+          relations: ['renter', 'tool'],
+        });
+        this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} ownerReservations.count=${ownerReservations.length}`);
+        if (ownerReservations.length > 0) {
+          validationResult.blockingIssues.confirmedReservations = ownerReservations.length;
+          validationResult.details.confirmedReservations = ownerReservations;
+          this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} confirmedReservations.set=${ownerReservations.length}`);
           validationResult.canDelete = false;
         }
       }
@@ -1823,13 +1848,14 @@ export class UsersService {
           ]
         });
         validationResult.blockingIssues.ongoingDisputes = ongoingDisputes;
+        this.logger.log(`[DELETION_VALIDATION] ts=${ts} user=${userId} ongoingDisputes.count=${ongoingDisputes}`);
         
         if (ongoingDisputes > 0) {
           validationResult.canDelete = false;
-          this.logger.warn(`User ${userId} has ${ongoingDisputes} ongoing disputes`);
+          this.logger.warn(`[DELETION_VALIDATION] ts=${ts} user=${userId} msg=Has ongoing disputes count=${ongoingDisputes}`);
         }
       } catch (error) {
-        this.logger.error(`Error checking ongoing disputes for user ${userId}:`, error);
+        this.logger.error(`[DELETION_VALIDATION] ts=${ts} user=${userId} msg=Error checking ongoing disputes err=${error?.message || error}`);
         validationResult.blockingIssues.ongoingDisputes = 0;
       }
 
@@ -1846,22 +1872,30 @@ export class UsersService {
         
         if (unreturnedTools > 0) {
           validationResult.canDelete = false;
-          this.logger.warn(`User ${userId} has ${unreturnedTools} unreturned tools`);
+          this.logger.warn(`[DELETION_VALIDATION] ts=${ts} user=${userId} msg=Has unreturned tools count=${unreturnedTools}`);
         }
       } catch (error) {
-        this.logger.error(`Error checking unreturned tools for user ${userId}:`, error);
+        this.logger.error(`[DELETION_VALIDATION] ts=${ts} user=${userId} msg=Error checking unreturned tools err=${error?.message || error}`);
         validationResult.blockingIssues.unreturnedTools = 0;
       }
 
     } catch (error) {
-      console.error('Error validating account deletion:', error);
+      const tsErr = new Date().toISOString();
+      this.logger.error(`[DELETION_VALIDATION] ts=${tsErr} user=${userId} msg=Error validating account deletion err=${error?.message || error}`);
       // In case of error, be conservative and don't allow deletion
       validationResult.canDelete = false;
     }
 
-    return {
-      data: validationResult,
-      message: 'Account deletion validation completed'
-    };
+    // Log final validation result before returning
+    const tsFinal = new Date().toISOString();
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.canDelete=${validationResult.canDelete}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.blockingIssues=${JSON.stringify(validationResult.blockingIssues)}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.details.pendingBookings=${validationResult.details.pendingBookings.length}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.details.confirmedReservations=${validationResult.details.confirmedReservations.length}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.details.ongoingDisputes=${validationResult.details.ongoingDisputes.length}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.details.unreturnedTools=${validationResult.details.unreturnedTools.length}`);
+    this.logger.log(`[DELETION_VALIDATION] ts=${tsFinal} user=${userId} final.validationResult=${JSON.stringify(validationResult)}`);
+
+    return validationResult;
   }
 }
