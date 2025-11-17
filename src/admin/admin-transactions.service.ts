@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from '../transactions/entities/transaction.entity';
@@ -6,14 +6,20 @@ import { PaymentTransaction } from '../transactions/entities/payment-transaction
 import { TransactionFilterParams } from '../transactions/dto/transaction-filter.dto';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type';
+import { SendGridService } from '../emails/sendgrid.service';
 
 @Injectable()
 export class AdminTransactionsService {
+  private readonly logger = new Logger(AdminTransactionsService.name);
   constructor(
     @InjectRepository(Transaction)
     private transactionRepository: Repository<Transaction>,
     @InjectRepository(PaymentTransaction)
     private paymentTransactionRepository: Repository<PaymentTransaction>,
+    private notificationsService: NotificationsService,
+    private sendGridService: SendGridService,
   ) {}
 
   async getTransactions(filters: TransactionFilterParams) {
@@ -75,7 +81,7 @@ export class AdminTransactionsService {
     };
   }
 
-  async getTransactionStats(startDate?: string, endDate?: string) {
+  async getTransactionStats(startDate?: string, endDate?: string, type?: string) {
     const queryBuilder = this.transactionRepository.createQueryBuilder('transaction');
 
     if (startDate) {
@@ -84,6 +90,10 @@ export class AdminTransactionsService {
 
     if (endDate) {
       queryBuilder.andWhere('transaction.createdAt <= :endDate', { endDate });
+    }
+
+    if (type) {
+      queryBuilder.andWhere('transaction.type = :filterType', { filterType: type });
     }
 
     // Get total transactions count
@@ -135,7 +145,7 @@ export class AdminTransactionsService {
     
     const previousPeriodEnd = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const previousRevenueResult = await this.transactionRepository
+    const previousRevenueQB = this.transactionRepository
       .createQueryBuilder('transaction')
       .select('SUM(transaction.amount)', 'previousRevenue')
       .andWhere('transaction.status IN (:...statuses)', { statuses: [TransactionStatus.COMPLETED] })
@@ -144,7 +154,10 @@ export class AdminTransactionsService {
       })
       .andWhere('transaction.createdAt >= :start', { start: previousPeriodStart })
       .andWhere('transaction.createdAt <= :end', { end: previousPeriodEnd })
-      .getRawOne();
+    if (type) {
+      previousRevenueQB.andWhere('transaction.type = :filterType', { filterType: type });
+    }
+    const previousRevenueResult = await previousRevenueQB.getRawOne();
 
     const previousRevenue = parseFloat(previousRevenueResult?.previousRevenue || '0');
     const revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
@@ -227,8 +240,56 @@ export class AdminTransactionsService {
       // Add reason to transaction metadata or description if available
       transaction.description = reason;
     }
+    const saved = await this.transactionRepository.save(transaction);
 
-    return this.transactionRepository.save(transaction);
+    if (status === TransactionStatus.CANCELLED) {
+      const userId = transaction.senderId || transaction.recipientId;
+      const userEmail = (transaction as any)?.sender?.email || (transaction as any)?.recipient?.email;
+      const amount = Number(transaction.amount || 0).toFixed(2);
+      const title = 'Votre demande de retrait a été annulée';
+      const message = reason
+        ? `Votre demande de retrait de £${amount} a été annulée. Motif: ${reason}.`
+        : `Votre demande de retrait de £${amount} a été annulée.`;
+      this.logger.log(`Cancel withdrawal: tx=${transaction.id} userId=${userId} email=${userEmail} amount=£${amount} reason=${reason || ''}`);
+      try {
+        if (userId) {
+          await this.notificationsService.createSystemNotification(
+            userId,
+            NotificationType.WITHDRAWAL_FAILED,
+            title,
+            message,
+            transaction.id,
+            'transaction',
+            `/profile?tab=wallet`
+          );
+          this.logger.log(`User notification created for userId=${userId}`);
+        }
+      } catch {}
+      try {
+        if (userEmail) {
+          const html = `
+            <html><body>
+              <h2>${title}</h2>
+              <p>${message}</p>
+              <p>Identifiant de la demande: ${transaction.id}</p>
+            </body></html>
+          `;
+          const sent = await this.sendGridService.sendEmail({
+            to: userEmail,
+            subject: '🔔 Notification de retrait annulé - Bricola',
+            html,
+            userId,
+          });
+          this.logger.log(`Cancellation email sent=${sent} to=${userEmail}`);
+        } else {
+          this.logger.warn(`Cancellation email skipped: no email found for tx=${transaction.id}`);
+        }
+      } catch (e) {
+        this.logger.error(`Failed to send cancellation email for tx=${transaction.id}`, e as any);
+      }
+    }
+
+    return saved;
   }
 
   async processRefund(refundData: { transactionId: string; amount: number; reason: string; notifyUser?: boolean }) {

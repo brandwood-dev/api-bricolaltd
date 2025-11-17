@@ -47,6 +47,27 @@ export class Transaction {
   })
   externalReference?: string;
 
+  @Column({ nullable: true, name: 'payment_provider' })
+  @ApiProperty({
+    description: 'The payment provider used (e.g., STRIPE, WISE)',
+    required: false,
+  })
+  paymentProvider?: string;
+
+  @Column({ nullable: true, name: 'provider_reference' })
+  @ApiProperty({
+    description: 'Provider-specific reference ID',
+    required: false,
+  })
+  providerReference?: string;
+
+  @Column({ type: 'json', nullable: true, name: 'provider_metadata' })
+  @ApiProperty({
+    description: 'Provider-specific metadata (JSON)',
+    required: false,
+  })
+  providerMetadata?: Record<string, any>;
+
   @Column({ nullable: true, name: 'payment_method' })
   @ApiProperty({
     description: 'The payment method used',
@@ -132,4 +153,16 @@ export class Transaction {
     required: false,
   })
   processedAt?: Date;
+
+  @Column({ nullable: true, name: 'wize_transfer_id' })
+  @ApiProperty({ description: 'Wise transfer id', required: false })
+  wizeTransferId?: string;
+
+  @Column({ nullable: true, name: 'wize_status' })
+  @ApiProperty({ description: 'Wise transfer status', required: false })
+  wizeStatus?: string;
+
+  @Column({ type: 'json', nullable: true, name: 'wize_response' })
+  @ApiProperty({ description: 'Wise API response snapshot', required: false })
+  wizeResponse?: Record<string, any>;
 }

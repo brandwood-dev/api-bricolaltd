@@ -7,6 +7,9 @@ import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
+import { WithdrawalProcessingService } from './withdrawal-processing.service';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import { NotificationPriority, NotificationCategory, NotificationType } from '../admin/dto/admin-notifications.dto';
 
 @Injectable()
 export class WalletsService {
@@ -15,6 +18,8 @@ export class WalletsService {
     private walletsRepository: Repository<Wallet>,
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    private withdrawalProcessingService: WithdrawalProcessingService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   async create(createWalletDto: CreateWalletDto): Promise<Wallet> {
@@ -185,7 +190,7 @@ export class WalletsService {
     // Récupérer le wallet de l'utilisateur
     const wallet = await this.findByUserId(userId);
 
-    // Créer la transaction de retrait avec status PENDING
+    // Créer la transaction de retrait
     const withdrawalTransaction = this.transactionsRepository.create({
       amount,
       type: TransactionType.WITHDRAWAL,
@@ -193,11 +198,47 @@ export class WalletsService {
       senderId: userId,
       recipientId: userId, // Pour les retraits, sender et recipient sont le même utilisateur
       walletId: wallet.id,
-      description: `Demande de retrait de ${amount}€`,
+      description: `Demande de retrait de ${amount} GBP`,
       externalReference: accountDetails ? JSON.stringify(accountDetails) : undefined,
     });
 
-    return this.transactionsRepository.save(withdrawalTransaction);
+    const saved = await this.transactionsRepository.save(withdrawalTransaction);
+
+    try {
+      await this.adminNotificationsService.createPaymentNotification(
+        'Nouvelle demande de retrait',
+        `Demande de retrait de £${amount.toFixed(2)} (User ${userId})`,
+        userId,
+        undefined,
+        saved.id,
+        amount > 500 ? NotificationPriority.HIGH : NotificationPriority.MEDIUM,
+      );
+    } catch {}
+
+    // Règle d'approbation admin: > 500 GBP nécessite approbation
+    const approvalThresholdGbp = 500;
+    if (amount <= approvalThresholdGbp) {
+      const method: 'wise' | 'stripe_connect' | 'stripe_payout' = accountDetails?.method || 'wise';
+      const stripeAccountId = accountDetails?.stripeAccountId;
+      const bankAccountDetails = accountDetails?.bankDetails || {
+        iban: accountDetails?.iban,
+        bic: accountDetails?.bic,
+        accountHolderName: accountDetails?.accountHolderName,
+        currency: 'GBP',
+      };
+      try {
+        await this.withdrawalProcessingService.processWithdrawal(
+          saved.id,
+          stripeAccountId,
+          bankAccountDetails,
+          method,
+        );
+      } catch (e) {
+        // Leave PENDING/FAILED according to processing service
+      }
+    }
+
+    return saved;
   }
 
   /**

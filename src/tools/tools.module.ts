@@ -15,7 +15,7 @@ import { AdminModule } from '../admin/admin.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Tool, ToolPhoto, ReviewTool, Currency]),
-    UsersModule,
+    forwardRef(() => UsersModule),
     S3Module,
     forwardRef(() => AdminModule),
   ],

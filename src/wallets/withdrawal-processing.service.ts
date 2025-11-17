@@ -5,6 +5,7 @@ import { Transaction } from '../transactions/entities/transaction.entity';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { ConfigService } from '@nestjs/config';
+import { WiseService } from './wise.service';
 
 @Injectable()
 export class WithdrawalProcessingService {
@@ -15,6 +16,7 @@ export class WithdrawalProcessingService {
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
     private configService: ConfigService,
+    private wiseService: WiseService,
   ) {
     // Initialiser Stripe avec la clé secrète
     const Stripe = require('stripe');
@@ -30,7 +32,8 @@ export class WithdrawalProcessingService {
   async processWithdrawal(
     transactionId: string,
     stripeAccountId?: string,
-    bankAccountDetails?: any
+    bankAccountDetails?: any,
+    method?: 'wise' | 'stripe_connect' | 'stripe_payout'
   ): Promise<Transaction> {
     const transaction = await this.transactionsRepository.findOne({
       where: { id: transactionId },
@@ -50,33 +53,73 @@ export class WithdrawalProcessingService {
     }
 
     try {
-      let stripeTransfer;
+      let providerResult: any;
+      const useMethod: 'wise' | 'stripe_connect' | 'stripe_payout' = method
+        || (bankAccountDetails ? 'wise' : (stripeAccountId ? 'stripe_connect' : 'stripe_payout'));
 
-      if (stripeAccountId) {
-        // Utiliser Stripe Connect pour transférer vers le compte connecté
-        stripeTransfer = await this.createStripeConnectTransfer(
+      if (useMethod === 'stripe_connect' && stripeAccountId) {
+        providerResult = await this.createStripeConnectTransfer(
           transaction.amount,
           stripeAccountId,
           transaction.id
         );
-      } else if (bankAccountDetails) {
-        // Utiliser Stripe Payouts pour virement bancaire
-        stripeTransfer = await this.createStripePayout(
+      } else if (useMethod === 'stripe_payout' && bankAccountDetails) {
+        providerResult = await this.createStripePayout(
           transaction.amount,
           bankAccountDetails,
           transaction.id
         );
+      } else if (useMethod === 'wise' && bankAccountDetails) {
+        if (!this.validateBankDetails(bankAccountDetails)) {
+          throw new BadRequestException('Détails bancaires invalides (IBAN/BIC)');
+        }
+        const quote = await this.wiseService.createQuote({
+          sourceCurrency: 'GBP',
+          targetCurrency: bankAccountDetails.currency,
+          sourceAmount: Number(transaction.amount),
+          profile: this.configService.get('WISE_PROFILE_ID') || '',
+          payOut: 'BALANCE',
+        });
+
+        const recipientAccount = await this.wiseService.createRecipientAccount({
+          currency: bankAccountDetails.currency,
+          type: bankAccountDetails.iban ? 'iban' : 'bank_account',
+          profile: this.configService.get('WISE_PROFILE_ID') || '',
+          accountHolderName: bankAccountDetails.accountHolderName,
+          details: {
+            iban: bankAccountDetails.iban,
+            bic: bankAccountDetails.bic,
+            accountNumber: bankAccountDetails.accountNumber,
+            routingNumber: bankAccountDetails.routingNumber,
+          },
+        });
+
+        const transfer = await this.wiseService.createAndFundTransfer({
+          targetAccount: recipientAccount.id,
+          quoteUuid: quote.id,
+          customerTransactionId: transaction.id,
+          details: {
+            reference: `Retrait Bricola - ${transaction.id}`,
+            transferPurpose: 'verification.transfers.purpose.pay.bills',
+            sourceOfFunds: 'verification.source.of.funds.other',
+          },
+        });
+        providerResult = transfer;
+
+        transaction.externalReference = String(transfer.id);
+        (transaction as any).wizeTransferId = String(transfer.id);
+        (transaction as any).wizeStatus = transfer.status;
       } else {
         throw new BadRequestException('Aucune méthode de paiement spécifiée');
       }
 
-      // Mettre à jour la transaction avec le succès
       transaction.status = TransactionStatus.COMPLETED;
       transaction.processedAt = new Date();
-      transaction.externalReference = stripeTransfer.id;
+      if (providerResult?.id && !transaction.externalReference) {
+        transaction.externalReference = providerResult.id;
+      }
 
       this.logger.log(`Retrait traité avec succès: ${transaction.id}`);
-      
       return await this.transactionsRepository.save(transaction);
 
     } catch (error) {
@@ -89,6 +132,45 @@ export class WithdrawalProcessingService {
       await this.transactionsRepository.save(transaction);
       throw new BadRequestException(`Échec du retrait: ${error.message}`);
     }
+  }
+
+  private validateBankDetails(details: any): boolean {
+    const iban = details?.iban;
+    const bic = details?.bic;
+    const accountNumber = details?.accountNumber;
+    const routingNumber = details?.routingNumber;
+
+    if (iban) {
+      if (!this.isValidIban(iban)) return false;
+    }
+    if (bic) {
+      if (!this.isValidBic(bic)) return false;
+    }
+    // Basic checks for non-IBAN accounts
+    if (!iban && (accountNumber || routingNumber)) {
+      if (!accountNumber || accountNumber.length < 6) return false;
+    }
+    return true;
+  }
+
+  private isValidIban(iban: string): boolean {
+    const trimmed = iban.replace(/\s+/g, '').toUpperCase();
+    const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/;
+    if (!ibanRegex.test(trimmed)) return false;
+    const rearranged = trimmed.slice(4) + trimmed.slice(0, 4);
+    const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+    let remainder = 0;
+    for (let i = 0; i < numeric.length; i += 7) {
+      const block = String(remainder) + numeric.substr(i, 7);
+      remainder = Number(block) % 97;
+    }
+    return remainder === 1;
+  }
+
+  private isValidBic(bic: string): boolean {
+    const trimmed = bic.replace(/\s+/g, '').toUpperCase();
+    const bicRegex = /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+    return bicRegex.test(trimmed);
   }
 
   /**

@@ -35,6 +35,8 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Tool } from '../tools/entities/tool.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { WalletsService } from '../wallets/wallets.service';
+import { forwardRef } from '@nestjs/common';
+import { WalletsModule } from '../wallets/wallets.module';
 import { Email } from '../emails/entities/email.entity';
 import { Currency } from './entities/currency.entity';
 import { ExchangeRate } from './entities/exchange-rate.entity';
@@ -77,7 +79,8 @@ import { EmailsModule } from '../emails/emails.module';
         signOptions: { expiresIn: '24h' },
       }),
       inject: [ConfigService],
-    })
+    }),
+    forwardRef(() => WalletsModule),
   ],
   controllers: [
     UsersController, 
@@ -95,7 +98,6 @@ import { EmailsModule } from '../emails/emails.module';
     UserPreferenceService,
     CountryService,
     AccountDeletionRequestService,
-    WalletsService,
     ExchangeRateService
   ],
   exports: [

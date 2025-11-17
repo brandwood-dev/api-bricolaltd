@@ -43,11 +43,13 @@ export class AdminTransactionsController {
   @ApiResponse({ status: 200, description: 'Return transaction statistics.' })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
+  @ApiQuery({ name: 'type', required: false, type: String })
   async getTransactionStats(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
+    @Query('type') type?: string,
   ) {
-    return this.adminTransactionsService.getTransactionStats(startDate, endDate);
+    return this.adminTransactionsService.getTransactionStats(startDate, endDate, type);
   }
 
   @Get('by-type')

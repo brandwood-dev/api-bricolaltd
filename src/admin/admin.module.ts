@@ -43,6 +43,7 @@ import { AdminNotificationsController } from './admin-notifications.controller';
 import { AdminNotificationsService } from './admin-notifications.service';
 import { AdminNotification } from './entities/admin-notification.entity';
 import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.service';
+import { WalletsModule } from '../wallets/wallets.module';
 import { AdminReviewsController } from './admin-reviews.controller';
 import { AdminReviewsService } from './admin-reviews.service';
 import { AdminBookingsController } from './admin-bookings.controller';
@@ -52,10 +53,11 @@ import { ToolRejectionEmailService } from '../tools/services/tool-rejection-emai
 
 @Module({
   imports: [
-    UsersModule,
+    forwardRef(() => UsersModule),
     forwardRef(() => BookingsModule),
     forwardRef(() => NotificationsModule),
     EmailsModule,
+    forwardRef(() => WalletsModule),
     TypeOrmModule.forFeature([
       User,
       Country,
@@ -108,7 +110,7 @@ import { ToolRejectionEmailService } from '../tools/services/tool-rejection-emai
     AdminTransactionsService,
     AdminNotificationsService,
     AdminReviewsService,
-    WithdrawalProcessingService,
+    
     EnhancedAdminGuard,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
