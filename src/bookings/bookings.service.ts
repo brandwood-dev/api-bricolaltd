@@ -903,6 +903,21 @@ export class BookingsService {
       );
     }
 
+    const totalAmountRaw = Number(booking.totalPrice);
+    let totalAmount = isNaN(totalAmountRaw) ? 0 : totalAmountRaw;
+    if (!(totalAmount > 0)) {
+      console.log(`[BOOKING_ACCEPT] ⚠️ Invalid totalPrice detected (${booking.totalPrice}). Recomputing from tool and dates...`);
+      const tool = await this.toolsService.findOne(booking.toolId);
+      const startDate = new Date(booking.startDate);
+      const endDate = new Date(booking.endDate);
+      const totalDays = this.calculateDays(startDate, endDate);
+      const subtotal = Number(tool.basePrice) * Number(totalDays);
+      const fees = Math.round(subtotal * 0.06 * 100) / 100;
+      totalAmount = Math.round((subtotal + fees) * 100) / 100;
+      booking.totalPrice = totalAmount;
+      console.log(`[BOOKING_ACCEPT] ✅ totalPrice recomputed: days=${totalDays}, subtotal=${subtotal}€, fees=${fees}€, total=${totalAmount}€`);
+    }
+
     // Check if payment is authorized or captured before accepting
     // if (!['authorized', 'captured'].includes(booking.paymentStatus)) {
     //   console.log(`[BOOKING_ACCEPT] ❌ Rejected - Payment status is ${booking.paymentStatus}, expected authorized/captured`);
@@ -962,7 +977,7 @@ export class BookingsService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       console.error(`[BOOKING_ACCEPT] ❌ Booking acceptance failed for ${id}:`, error);
-      throw new BadRequestException('Failed to accept booking');
+      throw new BadRequestException(`Failed to accept booking: ${error?.message || 'unknown error'}`);
     } finally {
       await queryRunner.release();
       console.log(`[BOOKING_ACCEPT] Database transaction released`);

@@ -97,6 +97,46 @@ export class NewsService {
     return { valid, errors, errorCodes };
   }
 
+  // Helper method to process inline images in content
+  private async processInlineImages(content: string, files?: Express.Multer.File[]): Promise<string> {
+    if (!content || !files || files.length === 0) {
+      return content;
+    }
+
+    let processedContent = content;
+    
+    // Find image placeholders and replace with uploaded URLs
+    const imagePlaceholderRegex = /\{\{IMAGE_(\d+)\}\}/g;
+    const matches = [...content.matchAll(imagePlaceholderRegex)];
+    
+    // Upload inline images (skip the first file if it's the main cover image)
+    const inlineFiles = files.slice(1); // Skip cover image
+    
+    for (let i = 0; i < matches.length && i < inlineFiles.length; i++) {
+      const placeholder = matches[i][0];
+      const fileIndex = parseInt(matches[i][1]);
+      const file = inlineFiles[fileIndex];
+      
+      if (file) {
+        try {
+          const uploadResult = await this.s3Service.uploadFile(file, 'news/inline');
+          const imageUrl = uploadResult.url;
+          
+          // Replace placeholder with actual image tag
+          const imageTag = `<img src="${imageUrl}" alt="Image" style="max-width: 100%; height: auto;" />`;
+          processedContent = processedContent.replace(placeholder, imageTag);
+          
+          console.log(`[NewsService] Replaced inline image placeholder ${placeholder} with URL: ${imageUrl}`);
+        } catch (error) {
+          console.error(`[NewsService] Failed to upload inline image ${placeholder}:`, error);
+          // Keep placeholder if upload fails
+        }
+      }
+    }
+    
+    return processedContent;
+  }
+
   async create(
     createNewsDto: CreateNewsDto,
     files?: Express.Multer.File[],
@@ -121,8 +161,12 @@ export class NewsService {
       }
     }
 
+    // Process inline images in content
+    const processedContent = await this.processInlineImages(createNewsDto.content, files);
+
     const news = this.newsRepository.create({
       ...createNewsDto,
+      content: processedContent,
       imageUrl,
       isPublic: createNewsDto.isPublic ?? true,
       isFeatured: createNewsDto.isFeatured ?? false,
@@ -213,6 +257,7 @@ export class NewsService {
     files?: Express.Multer.File[],
   ) {
     const news = await this.findOne(id);
+    
     // If files are uploaded, process only the first as main image when replaceMainImage is true
     if (files && files.length > 0) {
       if (updateNewsDto.replaceMainImage) {
@@ -232,6 +277,11 @@ export class NewsService {
         );
         updateNewsDto.imageUrl = mainImageResult.url;
       }
+    }
+
+    // Process inline images in content if content is being updated
+    if (updateNewsDto.content) {
+      updateNewsDto.content = await this.processInlineImages(updateNewsDto.content, files);
     }
 
     // Update the news entity with the new data
