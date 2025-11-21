@@ -1166,23 +1166,38 @@ export class BookingsService {
     
     // Utiliser l'ID admin depuis l'environnement, avec fallback
     const adminUserId: string = ADMIN_USER_ID;
-    let adminWallet;
+    let adminWallet: any = null;
+    let adminUserExists = true;
     try {
-      adminWallet = await this.walletsService.findByUserId(adminUserId);
-    } catch (error) {
-      // Si le wallet admin n'existe pas, le créer
-      console.log(`[REVENUE_DISTRIBUTION] Creating admin wallet for user ${adminUserId}`);
-      adminWallet = await this.walletsService.create({ userId: adminUserId, balance: 0 });
+      await this.usersService.findOne(adminUserId);
+    } catch (e) {
+      adminUserExists = false;
+      console.warn(`[REVENUE_DISTRIBUTION] Admin user ${adminUserId} not found. Skipping admin commission allocation.`);
+    }
+    if (adminUserExists) {
+      try {
+        adminWallet = await this.walletsService.findByUserId(adminUserId);
+      } catch (error) {
+        console.log(`[REVENUE_DISTRIBUTION] Creating admin wallet for user ${adminUserId}`);
+        adminWallet = await this.walletsService.create({ userId: adminUserId, balance: 0 });
+      }
     }
 
     // 4. Distribution des fonds
     // Pour le propriétaire : utiliser addPendingFunds pour mettre à jour pendingBalance
     const updatedOwnerWallet = await this.walletsService.addPendingFunds(ownerWallet.id, ownerRevenue);
     // Pour l'admin : utiliser addPendingFunds pour mettre à jour pendingBalance
-    const updatedAdminWallet = await this.walletsService.addPendingFunds(adminWallet.id, adminCommission);
+    let updatedAdminWallet: any = null;
+    if (adminWallet) {
+      updatedAdminWallet = await this.walletsService.addPendingFunds(adminWallet.id, adminCommission);
+    } else {
+      console.warn(`[BOOKING_ACCEPT] Admin commission ${adminCommission}€ skipped due to missing admin user/wallet`);
+    }
 
     console.log(`[BOOKING_ACCEPT] Moving ${ownerRevenue}€ to pending for owner ${tool.ownerId} (wallet ${ownerWallet.id}) -> pending now ${updatedOwnerWallet.pendingBalance}€`);
-    console.log(`[BOOKING_ACCEPT] Moving ${adminCommission}€ to pending for admin ${adminUserId} (wallet ${adminWallet.id}) -> pending now ${updatedAdminWallet.pendingBalance}€`);
+    if (updatedAdminWallet) {
+      console.log(`[BOOKING_ACCEPT] Moving ${adminCommission}€ to pending for admin ${adminUserId} (wallet ${adminWallet.id}) -> pending now ${updatedAdminWallet.pendingBalance}€`);
+    }
 
     // 5. Création des transactions pour traçabilité
     await this.createRevenueTransactions(
@@ -1190,7 +1205,7 @@ export class BookingsService {
       ownerRevenue, 
       adminCommission, 
       ownerWallet.id,
-      adminWallet.id,
+      adminWallet ? adminWallet.id : null,
       tool.ownerId,
       queryRunner
     );
