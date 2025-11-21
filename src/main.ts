@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware'
 import { Reflector } from '@nestjs/core'
+import * as bodyParser from 'body-parser'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
@@ -21,6 +22,9 @@ async function bootstrap() {
   
   // Set global prefix
   app.setGlobalPrefix('api')
+
+  app.use('/api/webhooks/stripe', bodyParser.raw({ type: 'application/json' }))
+  app.use('/api/webhooks/stripe/enhanced', bodyParser.raw({ type: 'application/json' }))
   
   // Global validation pipe
   app.useGlobalPipes(
@@ -57,6 +61,11 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document)
 
   const port = configService.get('PORT', 4000)
+  const stripeWebhookSecret = configService.get('STRIPE_WEBHOOK_SECRET')
+  if (!stripeWebhookSecret) {
+    // eslint-disable-next-line no-console
+    console.warn('[Startup] STRIPE_WEBHOOK_SECRET is not configured')
+  }
   await app.listen(port)
 }
 

@@ -37,10 +37,15 @@ export class PaymentController {
         type: 'booking_hold'
       };
 
-      const paymentIntent = await this.paymentService.createPaymentIntent({
+      // Create payment intent with 3D Secure support
+      const paymentIntent = await this.paymentService.createPaymentIntentWith3DS({
         amount,
         currency,
-        metadata
+        bookingId,
+        metadata,
+        userId: req.user.id,
+        // Optional billing details can be added here
+        // billingDetails: createPaymentIntentDto.billingDetails,
       });
 
       return {
@@ -48,6 +53,7 @@ export class PaymentController {
         data: {
           client_secret: paymentIntent.client_secret,
           payment_intent_id: paymentIntent.id,
+          requires_3ds: paymentIntent.requires_3ds || false,
           amount: paymentIntent.amount / 100,
           currency: paymentIntent.currency
         }

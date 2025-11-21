@@ -23,6 +23,7 @@ import { CommonModule } from './common/common.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { ContactModule } from './contact/contact.module';
+import { RefundsModule } from './refunds/refunds.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { ContactModule } from './contact/contact.module';
     NotificationsModule,
     AdminModule,
     ContactModule,
+    RefundsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

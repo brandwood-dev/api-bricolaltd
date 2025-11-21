@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
@@ -13,6 +13,7 @@ import { NotificationPriority, NotificationCategory, NotificationType } from '..
 
 @Injectable()
 export class WalletsService {
+  private readonly logger = new Logger(WalletsService.name);
   constructor(
     @InjectRepository(Wallet)
     private walletsRepository: Repository<Wallet>,
@@ -175,14 +176,16 @@ export class WalletsService {
   }
 
   async createWithdrawal(userId: string, amount: number, accountDetails?: any): Promise<Transaction> {
-    // Vérifier le seuil minimum (50€)
+    this.logger.log(`Start createWithdrawal`, { userId, amount, method: accountDetails?.method })
+    // Vérifier le seuil minimum (50 GBP)
     const minimumThreshold = 50;
     if (amount < minimumThreshold) {
-      throw new BadRequestException(`Le montant minimum de retrait est de ${minimumThreshold}€`);
+      throw new BadRequestException(`Le montant minimum de retrait est de £${minimumThreshold}`);
     }
 
     // Vérifier le solde disponible
     const { balance } = await this.calculateBalance(userId);
+    this.logger.log(`Calculated balance`, { userId, balance })
     if (balance < amount) {
       throw new BadRequestException('Solde insuffisant pour effectuer ce retrait');
     }
@@ -198,16 +201,17 @@ export class WalletsService {
       senderId: userId,
       recipientId: userId, // Pour les retraits, sender et recipient sont le même utilisateur
       walletId: wallet.id,
-      description: `Demande de retrait de ${amount} GBP`,
+      description: `Demande de retrait de £${Number(amount).toFixed(2)}`,
       externalReference: accountDetails ? JSON.stringify(accountDetails) : undefined,
     });
 
     const saved = await this.transactionsRepository.save(withdrawalTransaction);
+    this.logger.log(`Withdrawal transaction created`, { transactionId: saved.id, amount: saved.amount })
 
     try {
       await this.adminNotificationsService.createPaymentNotification(
         'Nouvelle demande de retrait',
-        `Demande de retrait de £${amount.toFixed(2)} (User ${userId})`,
+        `Demande de retrait de £${Number(amount).toFixed(2)} (User ${userId})`,
         userId,
         undefined,
         saved.id,
@@ -227,6 +231,7 @@ export class WalletsService {
         currency: 'GBP',
       };
       try {
+        this.logger.log(`Auto-processing withdrawal`, { transactionId: saved.id, method })
         await this.withdrawalProcessingService.processWithdrawal(
           saved.id,
           stripeAccountId,
@@ -234,7 +239,7 @@ export class WalletsService {
           method,
         );
       } catch (e) {
-        // Leave PENDING/FAILED according to processing service
+        this.logger.error(`Auto-processing withdrawal failed`, { transactionId: saved.id, error: e?.message })
       }
     }
 

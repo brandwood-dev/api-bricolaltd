@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.service';
+import { WiseService } from '../wallets/wise-enhanced.service';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -21,6 +22,7 @@ import { TransactionType } from '../transactions/enums/transaction-type.enum';
 export class AdminWithdrawalsController {
   constructor(
     private readonly withdrawalProcessingService: WithdrawalProcessingService,
+    private readonly wiseService: WiseService,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly walletsService: WalletsService,
@@ -270,5 +272,107 @@ export class AdminWithdrawalsController {
       );
     } catch {}
     return tx;
+  }
+
+  @Post('wise/test-connection')
+  @ApiOperation({ summary: 'Test Wise API connection' })
+  @ApiResponse({ status: 200, description: 'Connection test result' })
+  async testWiseConnection(): Promise<any> {
+    try {
+      const isConnected = await this.wiseService.testConnection();
+      return {
+        success: true,
+        connected: isConnected,
+        message: isConnected ? 'Wise API connection successful' : 'Wise API connection failed',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        connected: false,
+        message: `Wise API connection test failed: ${error.message}`,
+      };
+    }
+  }
+
+  @Post('wise/create-test-recipient')
+  @ApiOperation({ summary: 'Create test recipient with test bank details' })
+  @ApiResponse({ status: 201, description: 'Test recipient created successfully' })
+  async createTestRecipient(): Promise<any> {
+    try {
+      const recipient = await this.wiseService.createTestRecipient();
+      return {
+        success: true,
+        data: recipient,
+        message: 'Test recipient created successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to create test recipient: ${error.message}`,
+      };
+    }
+  }
+
+  @Post('wise/create-test-quote')
+  @ApiOperation({ summary: 'Create test quote for currency conversion' })
+  @ApiResponse({ status: 201, description: 'Test quote created successfully' })
+  async createTestQuote(): Promise<any> {
+    try {
+      const quote = await this.wiseService.createQuote({
+        sourceCurrency: 'GBP',
+        targetCurrency: 'EUR',
+        sourceAmount: 100,
+        profile: Number(this.wiseService['profileId'] || '0'),
+        payOut: 'BANK_TRANSFER',
+      });
+      return {
+        success: true,
+        data: quote,
+        message: 'Test quote created successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to create test quote: ${error.message}`,
+      };
+    }
+  }
+
+  @Get('wise/recipients')
+  @ApiOperation({ summary: 'List all Wise recipients' })
+  @ApiResponse({ status: 200, description: 'Recipients retrieved successfully' })
+  async listWiseRecipients(): Promise<any> {
+    try {
+      const recipients = await this.wiseService.listRecipientAccounts();
+      return {
+        success: true,
+        data: recipients,
+        message: 'Recipients retrieved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to list recipients: ${error.message}`,
+      };
+    }
+  }
+
+  @Get('wise/balance')
+  @ApiOperation({ summary: 'Get Wise account balance' })
+  @ApiResponse({ status: 200, description: 'Balance retrieved successfully' })
+  async getWiseBalance(): Promise<any> {
+    try {
+      const balance = await this.wiseService.getAccountBalance();
+      return {
+        success: true,
+        data: balance,
+        message: 'Balance retrieved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to get balance: ${error.message}`,
+      };
+    }
   }
 }

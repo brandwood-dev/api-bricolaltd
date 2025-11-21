@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Logger } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
@@ -9,6 +9,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 @ApiTags('wallets')
 @Controller('wallets')
 export class WalletsController {
+  private readonly logger = new Logger(WalletsController.name);
   constructor(private readonly walletsService: WalletsService) {}
 
   @Post()
@@ -137,6 +138,7 @@ export class WalletsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
   createWithdrawal(@Param('userId') userId: string, @Body() withdrawalData: { amount: number; accountDetails?: any }) {
+    this.logger.log(`Create withdrawal request`, { userId, amount: withdrawalData?.amount, method: withdrawalData?.accountDetails?.method })
     return this.walletsService.createWithdrawal(userId, withdrawalData.amount, withdrawalData.accountDetails);
   }
 }

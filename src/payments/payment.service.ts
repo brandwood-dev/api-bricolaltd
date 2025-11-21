@@ -7,6 +7,7 @@ import { Wallet } from '../wallets/entities/wallet.entity';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { PaymentMethod } from '../transactions/enums/payment-method.enum';
+import { ThreeDSecureService } from './three-d-secure/three-d-secure.service';
 
 @Injectable()
 export class PaymentService {
@@ -19,6 +20,7 @@ export class PaymentService {
     @InjectRepository(Wallet)
     private walletsRepository: Repository<Wallet>,
     private configService: ConfigService,
+    private threeDSecureService: ThreeDSecureService,
   ) {
     // Initialiser Stripe avec la clé secrète
     const Stripe = require('stripe');
@@ -26,7 +28,128 @@ export class PaymentService {
   }
 
   /**
-   * Crée un Payment Intent pour bloquer les fonds
+   * Crée un Payment Intent avec support 3D Secure
+   */
+  async createPaymentIntentWith3DS(options: {
+    amount: number;
+    currency?: string;
+    bookingId?: string;
+    metadata?: any;
+    userId?: string;
+    billingDetails?: {
+      name: string;
+      email: string;
+      phone?: string;
+      address?: {
+        line1: string;
+        line2?: string;
+        city: string;
+        state?: string;
+        postalCode: string;
+        country: string;
+      };
+    };
+    deviceInfo?: {
+      screenResolution?: string;
+      timezone?: string;
+      language?: string;
+      colorDepth?: number;
+      javaEnabled?: boolean;
+      javascriptEnabled?: boolean;
+      acceptHeaders?: string;
+      userAgent?: string;
+    };
+  }): Promise<any> {
+    try {
+      const { 
+        amount, 
+        currency = 'gbp', 
+        bookingId, 
+        metadata = {}, 
+        userId,
+        billingDetails,
+        deviceInfo
+      } = options;
+
+      // Validate amount and currency
+      this.validatePaymentAmount(amount);
+      this.validateCurrency(currency);
+
+      // Check if 3D Secure is required
+      const requires3DS = await this.threeDSecureService.is3DSecureRequired(
+        amount,
+        currency,
+        billingDetails?.address?.country,
+        billingDetails?.address?.country
+      );
+
+      this.logger.log(`Creating payment intent with 3DS support`, {
+        amount,
+        currency,
+        requires3DS,
+        userId,
+        bookingId,
+      });
+
+      // Prepare payment intent data
+      const paymentIntentData: any = {
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        capture_method: 'automatic',
+        metadata: {
+          ...metadata,
+          user_id: userId,
+          booking_id: bookingId,
+          created_at: new Date().toISOString(),
+          frontend_amount: amount,
+          requires_3ds: requires3DS,
+        },
+      };
+
+      // Add 3D Secure configuration if required
+      if (requires3DS) {
+        paymentIntentData.payment_method_options = {
+          card: {
+            request_three_d_secure: 'any',
+          },
+        };
+      }
+
+      // Add billing details if provided
+      if (billingDetails) {
+        paymentIntentData.receipt_email = billingDetails.email;
+      }
+
+      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentData);
+
+      this.logger.log(`Payment intent created with 3DS support`, {
+        paymentIntentId: paymentIntent.id,
+        amount: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        status: paymentIntent.status,
+        requires3DS,
+      });
+
+      // Initialize 3D Secure if required
+      if (requires3DS && userId) {
+        // Store that this payment intent may require 3DS
+        // The actual 3DS flow will be triggered during confirmation
+        this.logger.log(`3D Secure may be required for payment intent: ${paymentIntent.id}`);
+      }
+
+      return {
+        ...paymentIntent,
+        requires_3ds: requires3DS,
+      };
+
+    } catch (error) {
+      this.logger.error('Error creating payment intent with 3DS:', error);
+      throw new BadRequestException(`Failed to create payment intent: ${error.message}`);
+    }
+  }
+
+  /**
+   * Crée un Payment Intent pour bloquer les fonds (Legacy method)
    */
   async createPaymentIntent(options: {
     amount: number;
@@ -344,6 +467,34 @@ export class PaymentService {
     } catch (error) {
       this.logger.error(`Erreur lors de la libération des fonds pour ${paymentIntentId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Validate payment amount
+   */
+  private validatePaymentAmount(amount: number): void {
+    if (isNaN(amount) || amount <= 0) {
+      throw new BadRequestException('Invalid payment amount');
+    }
+    
+    if (amount > 10000) { // Maximum £10,000
+      throw new BadRequestException('Payment amount exceeds maximum limit of £10,000');
+    }
+    
+    if (amount < 0.50) { // Minimum £0.50
+      throw new BadRequestException('Payment amount below minimum threshold of £0.50');
+    }
+  }
+
+  /**
+   * Validate currency
+   */
+  private validateCurrency(currency: string): void {
+    const supportedCurrencies = ['gbp', 'eur', 'usd'];
+    
+    if (!supportedCurrencies.includes(currency.toLowerCase())) {
+      throw new BadRequestException(`Currency ${currency} is not supported`);
     }
   }
 }

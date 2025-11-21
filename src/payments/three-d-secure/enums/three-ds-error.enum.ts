@@ -1,0 +1,15 @@
+export enum ThreeDSError {
+  INITIALIZATION_FAILED = 'initialization_failed',
+  CHALLENGE_FAILED = 'challenge_failed',
+  TIMEOUT = 'timeout',
+  CANCELLED = 'cancelled',
+  PAYMENT_METHOD_REQUIRED = 'payment_method_required',
+  AUTHENTICATION_FAILED = 'authentication_failed',
+  NETWORK_ERROR = 'network_error',
+  INVALID_SESSION = 'invalid_session',
+  EXPIRED_SESSION = 'expired_session',
+  UNSUPPORTED_CARD = 'unsupported_card',
+  ISSUER_UNAVAILABLE = 'issuer_unavailable',
+  TECHNICAL_ERROR = 'technical_error',
+  USER_CANCELLED = 'user_cancelled',
+}
