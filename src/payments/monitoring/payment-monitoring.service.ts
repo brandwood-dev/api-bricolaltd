@@ -134,7 +134,7 @@ export class PaymentMonitoringService {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (stripeSecretKey) {
       this.stripe = new Stripe(stripeSecretKey, {
-        apiVersion: '2025-02-24.acacia',
+        apiVersion: '2025-09-30.clover',
       });
     }
   }
