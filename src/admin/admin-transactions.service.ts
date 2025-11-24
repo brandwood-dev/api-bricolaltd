@@ -81,11 +81,18 @@ export class AdminTransactionsService {
     };
   }
 
-  async getTransactionStats(startDate?: string, endDate?: string, type?: string) {
-    const queryBuilder = this.transactionRepository.createQueryBuilder('transaction');
+  async getTransactionStats(
+    startDate?: string,
+    endDate?: string,
+    type?: string,
+  ) {
+    const queryBuilder =
+      this.transactionRepository.createQueryBuilder('transaction');
 
     if (startDate) {
-      queryBuilder.andWhere('transaction.createdAt >= :startDate', { startDate });
+      queryBuilder.andWhere('transaction.createdAt >= :startDate', {
+        startDate,
+      });
     }
 
     if (endDate) {
@@ -93,7 +100,9 @@ export class AdminTransactionsService {
     }
 
     if (type) {
-      queryBuilder.andWhere('transaction.type = :filterType', { filterType: type });
+      queryBuilder.andWhere('transaction.type = :filterType', {
+        filterType: type,
+      });
     }
 
     // Get total transactions count
@@ -102,32 +111,42 @@ export class AdminTransactionsService {
     // Get successful transactions
     const successfulTransactions = await queryBuilder
       .clone()
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.COMPLETED,
+      })
       .getCount();
 
     // Get failed transactions
     const failedTransactions = await queryBuilder
       .clone()
-      .andWhere('transaction.status = :status', { status: TransactionStatus.FAILED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.FAILED,
+      })
       .getCount();
 
     // Get pending transactions
     const pendingTransactions = await queryBuilder
       .clone()
-      .andWhere('transaction.status = :status', { status: TransactionStatus.PENDING })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.PENDING,
+      })
       .getCount();
 
     // Get disputed transactions (using cancelled as proxy for disputed)
     const disputedTransactions = await queryBuilder
       .clone()
-      .andWhere('transaction.status = :status', { status: TransactionStatus.CANCELLED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.CANCELLED,
+      })
       .getCount();
 
     // Calculate total revenue from completed transactions
     const revenueResult = await queryBuilder
       .clone()
       .select('SUM(transaction.amount)', 'totalRevenue')
-      .andWhere('transaction.status IN (:...statuses)', { statuses: [TransactionStatus.COMPLETED] })
+      .andWhere('transaction.status IN (:...statuses)', {
+        statuses: [TransactionStatus.COMPLETED],
+      })
       .andWhere('transaction.type IN (:...types)', {
         types: [TransactionType.PAYMENT, TransactionType.DEPOSIT],
       })
@@ -136,31 +155,49 @@ export class AdminTransactionsService {
     const totalRevenue = parseFloat(revenueResult?.totalRevenue || '0');
 
     // Calculate average transaction value
-    const averageTransactionValue = successfulTransactions > 0 ? totalRevenue / successfulTransactions : 0;
+    const averageTransactionValue =
+      successfulTransactions > 0 ? totalRevenue / successfulTransactions : 0;
 
     // Calculate revenue growth (simplified - comparing with previous period)
     const previousPeriodStart = startDate
-      ? new Date(new Date(startDate).getTime() - (new Date(endDate || new Date()).getTime() - new Date(startDate).getTime()))
+      ? new Date(
+          new Date(startDate).getTime() -
+            (new Date(endDate || new Date()).getTime() -
+              new Date(startDate).getTime()),
+        )
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-    
-    const previousPeriodEnd = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const previousPeriodEnd = startDate
+      ? new Date(startDate)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const previousRevenueQB = this.transactionRepository
       .createQueryBuilder('transaction')
       .select('SUM(transaction.amount)', 'previousRevenue')
-      .andWhere('transaction.status IN (:...statuses)', { statuses: [TransactionStatus.COMPLETED] })
+      .andWhere('transaction.status IN (:...statuses)', {
+        statuses: [TransactionStatus.COMPLETED],
+      })
       .andWhere('transaction.type IN (:...types)', {
         types: [TransactionType.PAYMENT, TransactionType.DEPOSIT],
       })
-      .andWhere('transaction.createdAt >= :start', { start: previousPeriodStart })
-      .andWhere('transaction.createdAt <= :end', { end: previousPeriodEnd })
+      .andWhere('transaction.createdAt >= :start', {
+        start: previousPeriodStart,
+      })
+      .andWhere('transaction.createdAt <= :end', { end: previousPeriodEnd });
     if (type) {
-      previousRevenueQB.andWhere('transaction.type = :filterType', { filterType: type });
+      previousRevenueQB.andWhere('transaction.type = :filterType', {
+        filterType: type,
+      });
     }
     const previousRevenueResult = await previousRevenueQB.getRawOne();
 
-    const previousRevenue = parseFloat(previousRevenueResult?.previousRevenue || '0');
-    const revenueGrowth = previousRevenue > 0 ? ((totalRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+    const previousRevenue = parseFloat(
+      previousRevenueResult?.previousRevenue || '0',
+    );
+    const revenueGrowth =
+      previousRevenue > 0
+        ? ((totalRevenue - previousRevenue) / previousRevenue) * 100
+        : 0;
 
     return {
       totalRevenue,
@@ -183,7 +220,7 @@ export class AdminTransactionsService {
       .groupBy('transaction.type')
       .getRawMany();
 
-    return result.map(item => ({
+    return result.map((item) => ({
       type: item.type,
       count: parseInt(item.count),
       amount: parseFloat(item.amount || '0'),
@@ -199,7 +236,7 @@ export class AdminTransactionsService {
       .groupBy('transaction.status')
       .getRawMany();
 
-    return result.map(item => ({
+    return result.map((item) => ({
       status: item.status,
       count: parseInt(item.count),
       amount: parseFloat(item.amount || '0'),
@@ -232,9 +269,13 @@ export class AdminTransactionsService {
     return transaction;
   }
 
-  async updateTransactionStatus(id: string, status: TransactionStatus, reason?: string) {
+  async updateTransactionStatus(
+    id: string,
+    status: TransactionStatus,
+    reason?: string,
+  ) {
     const transaction = await this.getTransactionById(id);
-    
+
     transaction.status = status;
     if (reason) {
       // Add reason to transaction metadata or description if available
@@ -244,13 +285,17 @@ export class AdminTransactionsService {
 
     if (status === TransactionStatus.CANCELLED) {
       const userId = transaction.senderId || transaction.recipientId;
-      const userEmail = (transaction as any)?.sender?.email || (transaction as any)?.recipient?.email;
+      const userEmail =
+        (transaction as any)?.sender?.email ||
+        (transaction as any)?.recipient?.email;
       const amount = Number(transaction.amount || 0).toFixed(2);
       const title = 'Votre demande de retrait a été annulée';
       const message = reason
         ? `Votre demande de retrait de £${amount} a été annulée. Motif: ${reason}.`
         : `Votre demande de retrait de £${amount} a été annulée.`;
-      this.logger.log(`Cancel withdrawal: tx=${transaction.id} userId=${userId} email=${userEmail} amount=£${amount} reason=${reason || ''}`);
+      this.logger.log(
+        `Cancel withdrawal: tx=${transaction.id} userId=${userId} email=${userEmail} amount=£${amount} reason=${reason || ''}`,
+      );
       try {
         if (userId) {
           await this.notificationsService.createSystemNotification(
@@ -260,7 +305,7 @@ export class AdminTransactionsService {
             message,
             transaction.id,
             'transaction',
-            `/profile?tab=wallet`
+            `/profile?tab=wallet`,
           );
           this.logger.log(`User notification created for userId=${userId}`);
         }
@@ -282,19 +327,29 @@ export class AdminTransactionsService {
           });
           this.logger.log(`Cancellation email sent=${sent} to=${userEmail}`);
         } else {
-          this.logger.warn(`Cancellation email skipped: no email found for tx=${transaction.id}`);
+          this.logger.warn(
+            `Cancellation email skipped: no email found for tx=${transaction.id}`,
+          );
         }
       } catch (e) {
-        this.logger.error(`Failed to send cancellation email for tx=${transaction.id}`, e as any);
+        this.logger.error(
+          `Failed to send cancellation email for tx=${transaction.id}`,
+          e,
+        );
       }
     }
 
     return saved;
   }
 
-  async processRefund(refundData: { transactionId: string; amount: number; reason: string; notifyUser?: boolean }) {
+  async processRefund(refundData: {
+    transactionId: string;
+    amount: number;
+    reason: string;
+    notifyUser?: boolean;
+  }) {
     const transaction = await this.getTransactionById(refundData.transactionId);
-    
+
     // Create a refund transaction
     const refundTransaction = this.transactionRepository.create({
       type: TransactionType.REFUND,
@@ -307,7 +362,11 @@ export class AdminTransactionsService {
     return this.transactionRepository.save(refundTransaction);
   }
 
-  async performBulkAction(bulkData: { transactionIds: string[]; action: string; reason?: string }) {
+  async performBulkAction(bulkData: {
+    transactionIds: string[];
+    action: string;
+    reason?: string;
+  }) {
     const transactions = await this.transactionRepository
       .createQueryBuilder('transaction')
       .where('transaction.id IN (:...ids)', { ids: bulkData.transactionIds })
@@ -320,23 +379,23 @@ export class AdminTransactionsService {
     // Perform bulk action based on action type
     switch (bulkData.action) {
       case 'approve':
-        transactions.forEach(t => t.status = TransactionStatus.COMPLETED);
+        transactions.forEach((t) => (t.status = TransactionStatus.COMPLETED));
         break;
       case 'reject':
-        transactions.forEach(t => t.status = TransactionStatus.FAILED);
+        transactions.forEach((t) => (t.status = TransactionStatus.FAILED));
         break;
       case 'cancel':
-        transactions.forEach(t => t.status = TransactionStatus.CANCELLED);
+        transactions.forEach((t) => (t.status = TransactionStatus.CANCELLED));
         break;
       case 'refund':
-        transactions.forEach(t => t.status = TransactionStatus.REFUNDED);
+        transactions.forEach((t) => (t.status = TransactionStatus.REFUNDED));
         break;
       default:
         throw new Error('Invalid bulk action');
     }
 
     if (bulkData.reason) {
-      transactions.forEach(t => t.description = bulkData.reason);
+      transactions.forEach((t) => (t.description = bulkData.reason));
     }
 
     return this.transactionRepository.save(transactions);
@@ -344,7 +403,7 @@ export class AdminTransactionsService {
 
   async retryFailedTransaction(id: string) {
     const transaction = await this.getTransactionById(id);
-    
+
     if (transaction.status !== TransactionStatus.FAILED) {
       throw new Error('Only failed transactions can be retried');
     }

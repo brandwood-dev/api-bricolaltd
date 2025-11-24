@@ -18,6 +18,11 @@ export class NewsFileUploadMiddleware implements NestMiddleware {
       storage: multer.memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
       fileFilter: (req, file, cb) => {
+        console.log('[NewsFileUploadMiddleware] File filter check:', {
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          fieldname: file.fieldname,
+        });
         if (
           file.mimetype.startsWith('image/') ||
           file.mimetype.startsWith('video/')
@@ -26,7 +31,7 @@ export class NewsFileUploadMiddleware implements NestMiddleware {
         } else {
           cb(
             new Error(
-              'Only image and video files are allowed!',
+              `Only image and video files are allowed! Received: ${file.mimetype} for file: ${file.originalname}`,
             ) as unknown as null,
             false,
           );
@@ -41,6 +46,7 @@ export class NewsFileUploadMiddleware implements NestMiddleware {
       { name: 'mainImage', maxCount: 1 },
       { name: 'additionalImages', maxCount: 10 },
       { name: 'files', maxCount: 10 }, // Backward compatibility
+      { name: 'image', maxCount: 1 }, // For section image uploads
     ]);
 
     uploadHandler(req, res, (err: any) => {
@@ -64,7 +70,10 @@ export class NewsFileUploadMiddleware implements NestMiddleware {
             ? (f as any)[k].map((ff: any) => ff?.originalname).filter(Boolean)
             : [],
         }));
-        console.log('[NewsFileUploadMiddleware] files fields received', summary);
+        console.log(
+          '[NewsFileUploadMiddleware] files fields received',
+          summary,
+        );
       } else {
         console.log('[NewsFileUploadMiddleware] no files received');
       }

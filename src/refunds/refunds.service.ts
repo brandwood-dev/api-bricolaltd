@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
 import Stripe from 'stripe';
@@ -12,7 +18,11 @@ import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 
-import { CreateRefundDto, ProcessRefundDto, UpdateRefundStatusDto } from './dto/refund.dto';
+import {
+  CreateRefundDto,
+  ProcessRefundDto,
+  UpdateRefundStatusDto,
+} from './dto/refund.dto';
 import { WalletsService } from '../wallets/wallets.service';
 import { WiseService } from '../wallets/wise-enhanced.service';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
@@ -57,7 +67,7 @@ export class RefundsService {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2025-02-24.acacia',
     });
   }
 
@@ -68,32 +78,41 @@ export class RefundsService {
     createRefundDto: CreateRefundDto,
     userId: string,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<RefundResult> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      this.logger.log(`Creating refund request for transaction ${createRefundDto.transactionId}`, {
-        userId,
-        amount: createRefundDto.amount,
-        reason: createRefundDto.reason,
-        ipAddress,
-      });
+      this.logger.log(
+        `Creating refund request for transaction ${createRefundDto.transactionId}`,
+        {
+          userId,
+          amount: createRefundDto.amount,
+          reason: createRefundDto.reason,
+          ipAddress,
+        },
+      );
 
       // Get the original transaction
-      const originalTransaction = await queryRunner.manager.findOne(Transaction, {
-        where: { id: createRefundDto.transactionId },
-        relations: ['booking', 'wallet'],
-      });
+      const originalTransaction = await queryRunner.manager.findOne(
+        Transaction,
+        {
+          where: { id: createRefundDto.transactionId },
+          relations: ['booking', 'wallet'],
+        },
+      );
 
       if (!originalTransaction) {
         throw new NotFoundException('Original transaction not found');
       }
 
       // Validate transaction can be refunded
-      this.validateTransactionForRefund(originalTransaction, createRefundDto.amount);
+      this.validateTransactionForRefund(
+        originalTransaction,
+        createRefundDto.amount,
+      );
 
       // Determine refund amount
       const refundAmount = createRefundDto.amount || originalTransaction.amount;
@@ -107,7 +126,9 @@ export class RefundsService {
       });
 
       if (existingPendingRefund) {
-        throw new BadRequestException('A refund is already pending for this transaction');
+        throw new BadRequestException(
+          'A refund is already pending for this transaction',
+        );
       }
 
       // Create refund record
@@ -150,15 +171,20 @@ export class RefundsService {
         refundId: savedRefund.id,
         amountRefunded: refundAmount,
       };
-
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Failed to create refund request for transaction ${createRefundDto.transactionId}:`, error);
-      
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      this.logger.error(
+        `Failed to create refund request for transaction ${createRefundDto.transactionId}:`,
+        error,
+      );
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      
+
       throw new InternalServerErrorException('Failed to create refund request');
     } finally {
       await queryRunner.release();
@@ -176,10 +202,13 @@ export class RefundsService {
       iban: string;
       bic: string;
       accountHolderName: string;
-    }
+    },
   ): Promise<any> {
     try {
-      this.logger.log(`Processing refund via Wise: ${refundId}`, { adminUserId, targetCurrency });
+      this.logger.log(`Processing refund via Wise: ${refundId}`, {
+        adminUserId,
+        targetCurrency,
+      });
 
       // Get refund record
       const refund = await this.refundRepository.findOne({
@@ -192,13 +221,17 @@ export class RefundsService {
       }
 
       if (refund.status !== RefundStatus.PENDING) {
-        throw new BadRequestException(`Refund is already ${refund.status.toLowerCase()}`);
+        throw new BadRequestException(
+          `Refund is already ${refund.status.toLowerCase()}`,
+        );
       }
 
       // Get original transaction
       const originalTransaction = refund.transaction;
       if (!originalTransaction) {
-        throw new BadRequestException('Original transaction not found for refund');
+        throw new BadRequestException(
+          'Original transaction not found for refund',
+        );
       }
 
       // Create quote for currency conversion
@@ -206,7 +239,9 @@ export class RefundsService {
         sourceCurrency: 'GBP',
         targetCurrency: targetCurrency,
         sourceAmount: refund.refundAmount,
-        profile: parseInt(this.configService.get<string>('WISE_PROFILE_ID') || '0'),
+        profile: parseInt(
+          this.configService.get<string>('WISE_PROFILE_ID') || '0',
+        ),
         payOut: 'BANK_TRANSFER',
       });
 
@@ -216,7 +251,9 @@ export class RefundsService {
         recipientAccount = await this.wiseService.createRecipientAccount({
           currency: targetCurrency,
           type: 'iban',
-          profile: parseInt(this.configService.get<string>('WISE_PROFILE_ID') || '0'),
+          profile: parseInt(
+            this.configService.get<string>('WISE_PROFILE_ID') || '0',
+          ),
           accountHolderName: bankDetails.accountHolderName,
           details: {
             iban: bankDetails.iban,
@@ -236,7 +273,9 @@ export class RefundsService {
       });
 
       // Fund the transfer
-      const payment = await this.wiseService.fundTransfer(transfer.id, { type: 'BALANCE' });
+      const payment = await this.wiseService.fundTransfer(transfer.id, {
+        type: 'BALANCE',
+      });
 
       // Update refund with Wise transfer information
       refund.stripeRefundData = transfer.id; // Store Wise transfer ID
@@ -272,8 +311,13 @@ export class RefundsService {
         recipient: recipientAccount,
       };
     } catch (error) {
-      this.logger.error(`Failed to process refund via Wise: ${refundId}`, error);
-      throw new InternalServerErrorException(`Wise refund processing failed: ${error.message}`);
+      this.logger.error(
+        `Failed to process refund via Wise: ${refundId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        `Wise refund processing failed: ${error.message}`,
+      );
     }
   }
 
@@ -284,7 +328,7 @@ export class RefundsService {
     refundId: string,
     adminUserId: string,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<RefundResult> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -302,21 +346,28 @@ export class RefundsService {
       }
 
       if (refund.status !== RefundStatus.PENDING) {
-        throw new BadRequestException(`Refund is already ${refund.status.toLowerCase()}`);
+        throw new BadRequestException(
+          `Refund is already ${refund.status.toLowerCase()}`,
+        );
       }
 
       // Get original transaction
-      const originalTransaction = await queryRunner.manager.findOne(Transaction, {
-        where: { id: refund.transactionId },
-        relations: ['booking', 'wallet'],
-      });
+      const originalTransaction = await queryRunner.manager.findOne(
+        Transaction,
+        {
+          where: { id: refund.transactionId },
+          relations: ['booking', 'wallet'],
+        },
+      );
 
       if (!originalTransaction) {
         throw new NotFoundException('Original transaction not found');
       }
 
       if (!originalTransaction.externalReference) {
-        throw new BadRequestException('Original transaction has no external reference (Stripe Payment Intent ID)');
+        throw new BadRequestException(
+          'Original transaction has no external reference (Stripe Payment Intent ID)',
+        );
       }
 
       // Update refund status to processing
@@ -345,11 +396,15 @@ export class RefundsService {
           },
         });
 
-        this.logger.log(`Stripe refund created successfully: ${stripeRefund.id}`);
-
+        this.logger.log(
+          `Stripe refund created successfully: ${stripeRefund.id}`,
+        );
       } catch (stripeError) {
-        this.logger.error(`Stripe refund failed for refund ${refundId}:`, stripeError);
-        
+        this.logger.error(
+          `Stripe refund failed for refund ${refundId}:`,
+          stripeError,
+        );
+
         // Update refund status to failed
         refund.status = RefundStatus.FAILED;
         refund.failureReason = stripeError.message;
@@ -395,7 +450,10 @@ export class RefundsService {
 
       // Update wallet balance
       if (originalTransaction.walletId) {
-        await this.walletsService.deductFunds(originalTransaction.walletId, refund.refundAmount);
+        await this.walletsService.deductFunds(
+          originalTransaction.walletId,
+          refund.refundAmount,
+        );
         refund.walletBalanceUpdated = true;
         await queryRunner.manager.save(Refund, refund);
       }
@@ -437,11 +495,14 @@ export class RefundsService {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to process refund ${refundId}:`, error);
-      
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      
+
       throw new InternalServerErrorException('Failed to process refund');
     } finally {
       await queryRunner.release();
@@ -489,7 +550,11 @@ export class RefundsService {
   /**
    * Get refunds by user ID (through transaction)
    */
-  async getRefundsByUserId(userId: string, page: number = 1, limit: number = 20): Promise<{
+  async getRefundsByUserId(
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<{
     refunds: Refund[];
     total: number;
     page: number;
@@ -499,14 +564,11 @@ export class RefundsService {
 
     // Get transactions for this user
     const transactions = await this.transactionRepository.find({
-      where: [
-        { senderId: userId },
-        { recipientId: userId },
-      ],
+      where: [{ senderId: userId }, { recipientId: userId }],
       select: ['id'],
     });
 
-    const transactionIds = transactions.map(t => t.id);
+    const transactionIds = transactions.map((t) => t.id);
 
     if (transactionIds.length === 0) {
       return {
@@ -546,7 +608,7 @@ export class RefundsService {
       bookingId?: string;
       startDate?: Date;
       endDate?: Date;
-    }
+    },
   ): Promise<{
     refunds: Refund[];
     total: number;
@@ -605,7 +667,7 @@ export class RefundsService {
   async updateRefundStatus(
     refundId: string,
     updateDto: UpdateRefundStatusDto,
-    adminUserId: string
+    adminUserId: string,
   ): Promise<Refund> {
     const refund = await this.getRefundById(refundId);
 
@@ -615,7 +677,9 @@ export class RefundsService {
 
     await this.refundRepository.save(refund);
 
-    this.logger.log(`Refund ${refundId} status updated from ${oldStatus} to ${updateDto.status} by admin ${adminUserId}`);
+    this.logger.log(
+      `Refund ${refundId} status updated from ${oldStatus} to ${updateDto.status} by admin ${adminUserId}`,
+    );
 
     // Create admin notification
     await this.adminNotificationsService.createAdminNotification({
@@ -683,16 +747,17 @@ export class RefundsService {
     ]);
 
     const refundsByStatusMap: Record<string, number> = {};
-    refundsByStatus.forEach(item => {
+    refundsByStatus.forEach((item) => {
       refundsByStatusMap[item.status] = parseInt(item.count);
     });
 
     const refundsByReasonMap: Record<string, number> = {};
-    refundsByReason.forEach(item => {
+    refundsByReason.forEach((item) => {
       refundsByReasonMap[item.reason] = parseInt(item.count);
     });
 
-    const avgRefundAmount = totalRefunds > 0 ? (totalRefundAmount?.total || 0) / totalRefunds : 0;
+    const avgRefundAmount =
+      totalRefunds > 0 ? (totalRefundAmount?.total || 0) / totalRefunds : 0;
 
     return {
       totalRefunds,
@@ -708,16 +773,27 @@ export class RefundsService {
   /**
    * Validate transaction for refund
    */
-  private validateTransactionForRefund(transaction: Transaction, requestedAmount?: number): void {
+  private validateTransactionForRefund(
+    transaction: Transaction,
+    requestedAmount?: number,
+  ): void {
     // Check if transaction is completed
     if (transaction.status !== TransactionStatus.COMPLETED) {
-      throw new BadRequestException('Only completed transactions can be refunded');
+      throw new BadRequestException(
+        'Only completed transactions can be refunded',
+      );
     }
 
     // Check if transaction type supports refunds
-    const refundableTypes = [TransactionType.PAYMENT, TransactionType.DEPOSIT, TransactionType.WITHDRAWAL];
-    if (!refundableTypes.includes(transaction.type as TransactionType)) {
-      throw new BadRequestException(`Transaction type ${transaction.type} is not refundable`);
+    const refundableTypes = [
+      TransactionType.PAYMENT,
+      TransactionType.DEPOSIT,
+      TransactionType.WITHDRAWAL,
+    ];
+    if (!refundableTypes.includes(transaction.type)) {
+      throw new BadRequestException(
+        `Transaction type ${transaction.type} is not refundable`,
+      );
     }
 
     // Validate requested amount
@@ -727,19 +803,25 @@ export class RefundsService {
       }
 
       if (requestedAmount > transaction.amount) {
-        throw new BadRequestException('Refund amount cannot exceed original transaction amount');
+        throw new BadRequestException(
+          'Refund amount cannot exceed original transaction amount',
+        );
       }
 
       // Convert to pounds for comparison
       const maxRefundable = transaction.amount;
       if (requestedAmount > maxRefundable) {
-        throw new BadRequestException(`Maximum refundable amount is £${maxRefundable.toFixed(2)}`);
+        throw new BadRequestException(
+          `Maximum refundable amount is £${maxRefundable.toFixed(2)}`,
+        );
       }
     }
 
     // Check if external reference exists (Stripe Payment Intent ID)
     if (!transaction.externalReference) {
-      throw new BadRequestException('Transaction has no external payment reference');
+      throw new BadRequestException(
+        'Transaction has no external payment reference',
+      );
     }
   }
 }

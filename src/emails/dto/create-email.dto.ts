@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsString, IsOptional, IsBoolean, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+} from 'class-validator';
 
 export enum EmailType {
   NOTIFICATION = 'NOTIFICATION',
@@ -29,7 +36,8 @@ export class CreateEmailDto {
 
   @ApiProperty({
     description: 'The content of the email',
-    example: 'Dear user, your booking #12345 has been confirmed. Thank you for using our service.',
+    example:
+      'Dear user, your booking #12345 has been confirmed. Thank you for using our service.',
   })
   @IsNotEmpty()
   @IsString()
@@ -54,7 +62,8 @@ export class CreateEmailDto {
   isRead: boolean = false;
 
   @ApiProperty({
-    description: 'Reference ID related to this email (e.g., booking ID, payment ID)',
+    description:
+      'Reference ID related to this email (e.g., booking ID, payment ID)',
     example: '123e4567-e89b-12d3-a456-426614174001',
     required: false,
   })

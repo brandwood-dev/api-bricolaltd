@@ -1,4 +1,11 @@
-import { Controller, Post, Body, Headers, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Headers,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -24,12 +31,13 @@ export class WiseWebhookController {
   ) {
     try {
       this.logger.log(`Received Wise webhook: ${payload?.event_type}`);
-      
+
       const result = await this.wiseWebhookService.processWebhook(payload);
-      
-      this.logger.log(`Wise webhook processed: ${result.status} - ${result.message}`);
+
+      this.logger.log(
+        `Wise webhook processed: ${result.status} - ${result.message}`,
+      );
       return result;
-      
     } catch (error) {
       this.logger.error(`Failed to process Wise webhook:`, error);
       throw new BadRequestException('Webhook processing failed');

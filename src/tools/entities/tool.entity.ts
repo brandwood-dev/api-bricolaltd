@@ -22,8 +22,7 @@ import { ToolStatus } from '../enums/tool-status.enum';
 import { AvailabilityStatus } from '../enums/availability-status.enum';
 import { ModerationStatus } from '../enums/moderation-status.enum';
 
-
-@Entity('tools')  // Changed from 'tool' to 'tools'
+@Entity('tools') // Changed from 'tool' to 'tools'
 export class Tool {
   @PrimaryGeneratedColumn('uuid')
   @ApiProperty({ description: 'The unique identifier of the tool' })
@@ -119,7 +118,13 @@ export class Tool {
   })
   baseCurrency?: Currency;
 
-  @Column({ name: 'base_currency_code', type: 'char', length: 3, nullable: true, default: 'GBP' })
+  @Column({
+    name: 'base_currency_code',
+    type: 'char',
+    length: 3,
+    nullable: true,
+    default: 'GBP',
+  })
   baseCurrencyCode?: string;
 
   @Column({ nullable: true })
@@ -214,7 +219,12 @@ export class Tool {
   })
   moderationStatus: ModerationStatus;
 
-  @Column({ name: 'rejection_reason', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'rejection_reason',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   @ApiProperty({
     description: 'The reason for rejection if the tool was rejected',
     example: 'Contenu inapproprié',
@@ -260,7 +270,7 @@ export class Tool {
     if (!this.photos || this.photos.length === 0) {
       return null;
     }
-    const primaryPhoto = this.photos.find(photo => photo.isPrimary);
-    return primaryPhoto ? primaryPhoto.url : (this.photos[0]?.url || null);
+    const primaryPhoto = this.photos.find((photo) => photo.isPrimary);
+    return primaryPhoto ? primaryPhoto.url : this.photos[0]?.url || null;
   }
 }

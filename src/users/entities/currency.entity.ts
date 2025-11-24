@@ -12,66 +12,66 @@ import { ExchangeRate } from './exchange-rate.entity';
 @Entity('currencies')
 export class Currency {
   @PrimaryColumn({ type: 'char', length: 3 })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'The ISO 4217 currency code',
     example: 'GBP',
-    maxLength: 3
+    maxLength: 3,
   })
   code: string;
 
   @Column({ type: 'varchar', length: 100 })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'The full name of the currency',
-    example: 'British Pound Sterling'
+    example: 'British Pound Sterling',
   })
   name: string;
 
   @Column({ type: 'varchar', length: 10 })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'The currency symbol',
-    example: '£'
+    example: '£',
   })
   symbol: string;
 
   @Column({ type: 'boolean', default: false })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Whether this is the default currency',
-    default: false
+    default: false,
   })
   isDefault: boolean;
 
   @Column({ type: 'boolean', default: true })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Whether this currency is active',
-    default: true
+    default: true,
   })
   isActive: boolean;
 
   @OneToMany(() => ExchangeRate, (exchangeRate) => exchangeRate.fromCurrency)
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Exchange rates from this currency',
-    type: () => [ExchangeRate]
+    type: () => [ExchangeRate],
   })
   exchangeRatesFrom: ExchangeRate[];
 
   @OneToMany(() => ExchangeRate, (exchangeRate) => exchangeRate.toCurrency)
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Exchange rates to this currency',
-    type: () => [ExchangeRate]
+    type: () => [ExchangeRate],
   })
   exchangeRatesTo: ExchangeRate[];
 
   // @OneToMany(() => User, (user) => user.defaultCurrency)
-  // @ApiProperty({ 
+  // @ApiProperty({
   //   description: 'Users who have this as their default currency',
   //   type: () => [User]
   // })
   // users: User[];
 
   @OneToMany('Tool', 'baseCurrency')
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Tools that use this as their base currency',
-    type: () => 'Tool'
+    type: () => 'Tool',
   })
   tools: any[];
 

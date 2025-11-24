@@ -2,10 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PaymentMonitoringService } from './payment-monitoring.service';
 import { AdminNotificationsService } from '../../admin/admin-notifications.service';
-import { 
+import {
   NotificationType as AdminNotificationType,
   NotificationPriority as AdminNotificationPriority,
-  NotificationCategory as AdminNotificationCategory
+  NotificationCategory as AdminNotificationCategory,
 } from '../../admin/dto/admin-notifications.dto';
 
 export interface AlertRule {
@@ -40,7 +40,8 @@ export class PaymentAlertingService {
     {
       id: 'low_success_rate',
       name: 'Low Payment Success Rate',
-      description: 'Payment success rate has dropped below acceptable threshold',
+      description:
+        'Payment success rate has dropped below acceptable threshold',
       metric: 'successRate',
       threshold: 85,
       comparison: '<',
@@ -174,11 +175,11 @@ export class PaymentAlertingService {
     try {
       // Get current metrics
       const currentMetrics = await this.getCurrentMetrics();
-      
+
       // Check each alert rule
       for (const rule of this.alertRules) {
         if (!rule.enabled) continue;
-        
+
         // Check cooldown
         if (rule.lastTriggered && this.isInCooldown(rule)) {
           continue;
@@ -186,7 +187,6 @@ export class PaymentAlertingService {
 
         await this.checkAlertRule(rule, currentMetrics);
       }
-
     } catch (error) {
       this.logger.error('Error during alert check:', error);
     }
@@ -195,16 +195,23 @@ export class PaymentAlertingService {
   /**
    * Check individual alert rule
    */
-  private async checkAlertRule(rule: AlertRule, metrics: Record<string, number>): Promise<void> {
+  private async checkAlertRule(
+    rule: AlertRule,
+    metrics: Record<string, number>,
+  ): Promise<void> {
     try {
       const currentValue = metrics[rule.metric];
-      
+
       if (currentValue === undefined) {
         this.logger.warn(`Metric ${rule.metric} not found in current metrics`);
         return;
       }
 
-      const shouldTrigger = this.evaluateThreshold(currentValue, rule.threshold, rule.comparison);
+      const shouldTrigger = this.evaluateThreshold(
+        currentValue,
+        rule.threshold,
+        rule.comparison,
+      );
 
       if (shouldTrigger) {
         await this.triggerAlert(rule, {
@@ -224,7 +231,6 @@ export class PaymentAlertingService {
         // Update last triggered time
         rule.lastTriggered = new Date();
       }
-
     } catch (error) {
       this.logger.error(`Error checking alert rule ${rule.id}:`, error);
     }
@@ -236,18 +242,23 @@ export class PaymentAlertingService {
   private async getCurrentMetrics(): Promise<Record<string, number>> {
     try {
       // Get payment metrics
-      const paymentMetrics = await this.paymentMonitoringService.getPaymentMetrics();
-      
+      const paymentMetrics =
+        await this.paymentMonitoringService.getPaymentMetrics();
+
       // Get real-time metrics
-      const realTimeMetrics = await this.paymentMonitoringService.getRealTimeMetrics();
-      
+      const realTimeMetrics =
+        await this.paymentMonitoringService.getRealTimeMetrics();
+
       // Get system health
-      const systemHealth = await this.paymentMonitoringService.getSystemHealth();
+      const systemHealth =
+        await this.paymentMonitoringService.getSystemHealth();
 
       return {
         successRate: paymentMetrics.successRate,
         refundRate: paymentMetrics.refundRate || 0,
-        pendingWithdrawals: realTimeMetrics.recentTransactions.filter(t => t.status === 'pending').length,
+        pendingWithdrawals: realTimeMetrics.recentTransactions.filter(
+          (t) => t.status === 'pending',
+        ).length,
         averageProcessingTime: 0, // Mock for now since property doesn't exist
         transactionVolume: realTimeMetrics.currentTransactions,
         threeDSSuccessRate: 94.2, // Mock for now
@@ -256,7 +267,6 @@ export class PaymentAlertingService {
         fraudScore: 25, // Mock for now
         currencyVolatility: 2.1, // Mock for now
       };
-
     } catch (error) {
       this.logger.error('Error getting current metrics:', error);
       return {};
@@ -266,7 +276,11 @@ export class PaymentAlertingService {
   /**
    * Evaluate threshold condition
    */
-  private evaluateThreshold(currentValue: number, threshold: number, comparison: string): boolean {
+  private evaluateThreshold(
+    currentValue: number,
+    threshold: number,
+    comparison: string,
+  ): boolean {
     switch (comparison) {
       case '>':
         return currentValue > threshold;
@@ -289,17 +303,22 @@ export class PaymentAlertingService {
    */
   private isInCooldown(rule: AlertRule): boolean {
     if (!rule.lastTriggered) return false;
-    
+
     const now = new Date();
-    const cooldownEnd = new Date(rule.lastTriggered.getTime() + rule.cooldown * 60 * 1000);
-    
+    const cooldownEnd = new Date(
+      rule.lastTriggered.getTime() + rule.cooldown * 60 * 1000,
+    );
+
     return now < cooldownEnd;
   }
 
   /**
    * Trigger alert
    */
-  private async triggerAlert(rule: AlertRule, context: AlertContext): Promise<void> {
+  private async triggerAlert(
+    rule: AlertRule,
+    context: AlertContext,
+  ): Promise<void> {
     try {
       this.logger.warn(`Alert triggered: ${rule.name}`, context);
 
@@ -315,7 +334,6 @@ export class PaymentAlertingService {
       } else if (rule.severity === 'warning') {
         await this.handleWarningAlert(rule, context);
       }
-
     } catch (error) {
       this.logger.error('Error triggering alert:', error);
     }
@@ -324,10 +342,13 @@ export class PaymentAlertingService {
   /**
    * Create admin notification for alert
    */
-  private async createAdminNotification(rule: AlertRule, context: AlertContext): Promise<void> {
+  private async createAdminNotification(
+    rule: AlertRule,
+    context: AlertContext,
+  ): Promise<void> {
     const title = `Payment Alert: ${rule.name}`;
     const message = this.formatAlertMessage(rule, context);
-    
+
     const notificationType = this.getNotificationType(rule.severity);
     const notificationPriority = this.getNotificationPriority(rule.severity);
 
@@ -345,7 +366,7 @@ export class PaymentAlertingService {
    */
   private formatAlertMessage(rule: AlertRule, context: AlertContext): string {
     const { currentValue, threshold, comparison } = context;
-    
+
     let comparisonText = '';
     switch (comparison) {
       case '>':
@@ -402,7 +423,10 @@ export class PaymentAlertingService {
   /**
    * Log alert for audit trail
    */
-  private async logAlert(rule: AlertRule, context: AlertContext): Promise<void> {
+  private async logAlert(
+    rule: AlertRule,
+    context: AlertContext,
+  ): Promise<void> {
     // This would typically log to a database or external logging service
     this.logger.log(`Alert logged: ${rule.id}`, {
       ruleId: rule.id,
@@ -416,10 +440,13 @@ export class PaymentAlertingService {
   /**
    * Handle critical alert
    */
-  private async handleCriticalAlert(rule: AlertRule, context: AlertContext): Promise<void> {
+  private async handleCriticalAlert(
+    rule: AlertRule,
+    context: AlertContext,
+  ): Promise<void> {
     // Additional critical alert actions
     this.logger.error(`CRITICAL ALERT: ${rule.name}`, context);
-    
+
     // Could send SMS, email, Slack notification, etc.
     // Could trigger incident response procedures
     // Could automatically scale resources
@@ -429,10 +456,13 @@ export class PaymentAlertingService {
   /**
    * Handle warning alert
    */
-  private async handleWarningAlert(rule: AlertRule, context: AlertContext): Promise<void> {
+  private async handleWarningAlert(
+    rule: AlertRule,
+    context: AlertContext,
+  ): Promise<void> {
     // Additional warning alert actions
     this.logger.warn(`WARNING ALERT: ${rule.name}`, context);
-    
+
     // Could send email notifications
     // Could increase monitoring frequency
     // Could prepare for potential issues
@@ -442,7 +472,7 @@ export class PaymentAlertingService {
    * Get current alert rules
    */
   getAlertRules(): AlertRule[] {
-    return this.alertRules.map(rule => ({
+    return this.alertRules.map((rule) => ({
       ...rule,
       // Don't expose lastTriggered in API responses
       lastTriggered: undefined,
@@ -452,9 +482,12 @@ export class PaymentAlertingService {
   /**
    * Update alert rule
    */
-  async updateAlertRule(ruleId: string, updates: Partial<AlertRule>): Promise<AlertRule | null> {
-    const ruleIndex = this.alertRules.findIndex(r => r.id === ruleId);
-    
+  async updateAlertRule(
+    ruleId: string,
+    updates: Partial<AlertRule>,
+  ): Promise<AlertRule | null> {
+    const ruleIndex = this.alertRules.findIndex((r) => r.id === ruleId);
+
     if (ruleIndex === -1) {
       return null;
     }
@@ -471,8 +504,8 @@ export class PaymentAlertingService {
    * Enable/disable alert rule
    */
   async toggleAlertRule(ruleId: string, enabled: boolean): Promise<boolean> {
-    const rule = this.alertRules.find(r => r.id === ruleId);
-    
+    const rule = this.alertRules.find((r) => r.id === ruleId);
+
     if (!rule) {
       return false;
     }
@@ -522,8 +555,8 @@ export class PaymentAlertingService {
    * Test alert rule
    */
   async testAlertRule(ruleId: string): Promise<boolean> {
-    const rule = this.alertRules.find(r => r.id === ruleId);
-    
+    const rule = this.alertRules.find((r) => r.id === ruleId);
+
     if (!rule) {
       return false;
     }
@@ -570,10 +603,12 @@ export class PaymentAlertingService {
         activeAlerts: activeAlerts.length,
         alertRules: {
           total: this.alertRules.length,
-          enabled: this.alertRules.filter(r => r.enabled).length,
-          critical: this.alertRules.filter(r => r.severity === 'critical').length,
-          warning: this.alertRules.filter(r => r.severity === 'warning').length,
-          info: this.alertRules.filter(r => r.severity === 'info').length,
+          enabled: this.alertRules.filter((r) => r.enabled).length,
+          critical: this.alertRules.filter((r) => r.severity === 'critical')
+            .length,
+          warning: this.alertRules.filter((r) => r.severity === 'warning')
+            .length,
+          info: this.alertRules.filter((r) => r.severity === 'info').length,
         },
       };
     } catch (error) {
@@ -589,9 +624,16 @@ export class PaymentAlertingService {
   /**
    * Calculate overall system status
    */
-  private calculateOverallStatus(metrics: Record<string, number>, activeAlerts: any[]): string {
-    const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical').length;
-    const warningAlerts = activeAlerts.filter(a => a.severity === 'warning').length;
+  private calculateOverallStatus(
+    metrics: Record<string, number>,
+    activeAlerts: any[],
+  ): string {
+    const criticalAlerts = activeAlerts.filter(
+      (a) => a.severity === 'critical',
+    ).length;
+    const warningAlerts = activeAlerts.filter(
+      (a) => a.severity === 'warning',
+    ).length;
 
     if (criticalAlerts > 0) {
       return 'critical';

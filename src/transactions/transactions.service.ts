@@ -36,7 +36,6 @@ export class TransactionsService {
 
     // Process transaction based on type
     switch (createTransactionDto.type) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       case TransactionType.DEPOSIT:
         await this.walletsService.addFunds(
           createTransactionDto.walletId,

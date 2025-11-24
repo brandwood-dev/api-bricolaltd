@@ -35,7 +35,7 @@ export class AdminDashboardService {
   private getDateRange(period: string) {
     const now = new Date();
     const start = new Date();
-    
+
     switch (period) {
       case '7d':
         start.setDate(now.getDate() - 7);
@@ -52,14 +52,21 @@ export class AdminDashboardService {
       default:
         start.setDate(now.getDate() - 30);
     }
-    
+
     return { start, end: now };
   }
 
   async getDashboardOverview(period: string) {
     const { start, end } = this.getDateRange(period);
-    
-    const [totalUsers, activeUsers, totalTools, totalBookings, totalRevenue, pendingDisputes] = await Promise.all([
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalTools,
+      totalBookings,
+      totalRevenue,
+      pendingDisputes,
+    ] = await Promise.all([
       this.userRepository.count(),
       this.userRepository.count({
         where: {
@@ -78,7 +85,9 @@ export class AdminDashboardService {
         .where('pt.status = :status', { status: 'completed' })
         .andWhere('pt.createdAt BETWEEN :start AND :end', { start, end })
         .getRawOne(),
-      this.disputeRepository.count({ where: { status: DisputeStatus.PENDING } }),
+      this.disputeRepository.count({
+        where: { status: DisputeStatus.PENDING },
+      }),
     ]);
 
     return {
@@ -94,16 +103,17 @@ export class AdminDashboardService {
 
   async getKPIs(period: string) {
     const { start, end } = this.getDateRange(period);
-    
-    const [userGrowth, revenueGrowth, bookingGrowth, averageRating] = await Promise.all([
-      this.calculateGrowthRate('user', start, end),
-      this.calculateRevenueGrowth(start, end),
-      this.calculateGrowthRate('booking', start, end),
-      this.reviewRepository
-        .createQueryBuilder('review')
-        .select('AVG(review.rating)', 'average')
-        .getRawOne(),
-    ]);
+
+    const [userGrowth, revenueGrowth, bookingGrowth, averageRating] =
+      await Promise.all([
+        this.calculateGrowthRate('user', start, end),
+        this.calculateRevenueGrowth(start, end),
+        this.calculateGrowthRate('booking', start, end),
+        this.reviewRepository
+          .createQueryBuilder('review')
+          .select('AVG(review.rating)', 'average')
+          .getRawOne(),
+      ]);
 
     return {
       userGrowth,
@@ -114,24 +124,29 @@ export class AdminDashboardService {
     };
   }
 
-  private async calculateGrowthRate(entity: 'user' | 'booking', start: Date, end: Date) {
-    const repository = entity === 'user' ? this.userRepository : this.bookingRepository;
-    
+  private async calculateGrowthRate(
+    entity: 'user' | 'booking',
+    start: Date,
+    end: Date,
+  ) {
+    const repository =
+      entity === 'user' ? this.userRepository : this.bookingRepository;
+
     const currentPeriod = await repository.count({
       where: { createdAt: Between(start, end) },
     });
-    
+
     const previousStart = new Date(start);
     const previousEnd = new Date(start);
     const periodDiff = end.getTime() - start.getTime();
     previousStart.setTime(start.getTime() - periodDiff);
-    
+
     const previousPeriod = await repository.count({
       where: { createdAt: Between(previousStart, previousEnd) },
     });
-    
+
     if (previousPeriod === 0) return currentPeriod > 0 ? 100 : 0;
-    
+
     return ((currentPeriod - previousPeriod) / previousPeriod) * 100;
   }
 
@@ -142,23 +157,26 @@ export class AdminDashboardService {
       .where('pt.status = :status', { status: 'completed' })
       .andWhere('pt.createdAt BETWEEN :start AND :end', { start, end })
       .getRawOne();
-    
+
     const periodDiff = end.getTime() - start.getTime();
     const previousStart = new Date(start.getTime() - periodDiff);
     const previousEnd = new Date(start);
-    
+
     const previousRevenue = await this.paymentTransactionRepository
       .createQueryBuilder('pt')
       .select('SUM(pt.amount)', 'total')
       .where('pt.status = :status', { status: 'completed' })
-      .andWhere('pt.createdAt BETWEEN :start AND :end', { start: previousStart, end: previousEnd })
+      .andWhere('pt.createdAt BETWEEN :start AND :end', {
+        start: previousStart,
+        end: previousEnd,
+      })
       .getRawOne();
-    
+
     const current = parseFloat(currentRevenue?.total || '0');
     const previous = parseFloat(previousRevenue?.total || '0');
-    
+
     if (previous === 0) return current > 0 ? 100 : 0;
-    
+
     return ((current - previous) / previous) * 100;
   }
 
@@ -172,7 +190,7 @@ export class AdminDashboardService {
 
   async getRevenueChart(period: string) {
     const { start, end } = this.getDateRange(period);
-    
+
     const revenueData = await this.paymentTransactionRepository
       .createQueryBuilder('pt')
       .select('DATE(pt.createdAt)', 'date')
@@ -182,8 +200,8 @@ export class AdminDashboardService {
       .groupBy('DATE(pt.createdAt)')
       .orderBy('date', 'ASC')
       .getRawMany();
-    
-    return revenueData.map(item => ({
+
+    return revenueData.map((item) => ({
       date: item.date,
       revenue: parseFloat(item.revenue || '0'),
     }));
@@ -191,7 +209,7 @@ export class AdminDashboardService {
 
   async getUserGrowth(period: string) {
     const { start, end } = this.getDateRange(period);
-    
+
     const userData = await this.userRepository
       .createQueryBuilder('user')
       .select('DATE(user.createdAt)', 'date')
@@ -200,8 +218,8 @@ export class AdminDashboardService {
       .groupBy('DATE(user.createdAt)')
       .orderBy('date', 'ASC')
       .getRawMany();
-    
-    return userData.map(item => ({
+
+    return userData.map((item) => ({
       date: item.date,
       users: parseInt(item.users || '0'),
     }));
@@ -209,7 +227,7 @@ export class AdminDashboardService {
 
   async getBookingStats(period: string) {
     const { start, end } = this.getDateRange(period);
-    
+
     const bookingStats = await this.bookingRepository
       .createQueryBuilder('booking')
       .select('booking.status', 'status')
@@ -217,8 +235,8 @@ export class AdminDashboardService {
       .where('booking.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy('booking.status')
       .getRawMany();
-    
-    return bookingStats.map(item => ({
+
+    return bookingStats.map((item) => ({
       status: item.status,
       count: parseInt(item.count || '0'),
     }));
@@ -245,27 +263,31 @@ export class AdminDashboardService {
       .addSelect('COUNT(*)', 'count')
       .groupBy('dispute.status')
       .getRawMany();
-    
+
     // Get total disputes count
     const totalDisputes = await this.disputeRepository.count();
-    
+
     // Get average resolution time for resolved disputes
     const resolvedDisputes = await this.disputeRepository
       .createQueryBuilder('dispute')
       .where('dispute.status = :status', { status: DisputeStatus.RESOLVED })
       .andWhere('dispute.resolvedAt IS NOT NULL')
       .getMany();
-    
+
     let averageResolutionTime = 0;
-     if (resolvedDisputes.length > 0) {
-       const totalResolutionTime = resolvedDisputes.reduce((sum, dispute) => {
-         const createdAt = new Date(dispute.createdAt);
-         const resolvedAt = dispute.resolvedAt ? new Date(dispute.resolvedAt) : new Date();
-         return sum + (resolvedAt.getTime() - createdAt.getTime());
-       }, 0);
-       averageResolutionTime = Math.round(totalResolutionTime / resolvedDisputes.length / (1000 * 60 * 60 * 24)); // in days
-     }
-    
+    if (resolvedDisputes.length > 0) {
+      const totalResolutionTime = resolvedDisputes.reduce((sum, dispute) => {
+        const createdAt = new Date(dispute.createdAt);
+        const resolvedAt = dispute.resolvedAt
+          ? new Date(dispute.resolvedAt)
+          : new Date();
+        return sum + (resolvedAt.getTime() - createdAt.getTime());
+      }, 0);
+      averageResolutionTime = Math.round(
+        totalResolutionTime / resolvedDisputes.length / (1000 * 60 * 60 * 24),
+      ); // in days
+    }
+
     // Get monthly disputes for the last 12 months
     const monthlyDisputes = await this.disputeRepository
       .createQueryBuilder('dispute')
@@ -275,13 +297,13 @@ export class AdminDashboardService {
       .groupBy('month')
       .orderBy('month', 'ASC')
       .getRawMany();
-    
+
     // Transform status counts into the expected format
     const statusCounts = disputeStats.reduce((acc, item) => {
       acc[item.status.toLowerCase()] = parseInt(item.count || '0');
       return acc;
     }, {});
-    
+
     return {
       totalDisputes,
       openDisputes: statusCounts.pending || 0,
@@ -289,12 +311,12 @@ export class AdminDashboardService {
       resolvedDisputes: statusCounts.resolved || 0,
       closedDisputes: statusCounts.closed || 0,
       averageResolutionTime,
-      disputesByStatus: disputeStats.map(item => ({
+      disputesByStatus: disputeStats.map((item) => ({
         status: item.status,
         count: parseInt(item.count || '0'),
       })),
       disputesByCategory: [], // Would need category field in disputes
-      monthlyDisputes: monthlyDisputes.map(item => ({
+      monthlyDisputes: monthlyDisputes.map((item) => ({
         month: item.month,
         count: parseInt(item.count || '0'),
       })),
@@ -304,12 +326,12 @@ export class AdminDashboardService {
   async getDashboardData(startDate?: string, endDate?: string) {
     // Déterminer la période basée sur les dates ou utiliser 30d par défaut
     const period = startDate && endDate ? '30d' : '30d';
-    
+
     const [overview, kpis, chartData, recentActivities] = await Promise.all([
       this.getDashboardOverview(period),
       this.getKPIs(period),
       this.getRevenueChart(period),
-      this.getRecentActivities(10)
+      this.getRecentActivities(10),
     ]);
 
     // Transformer les données pour correspondre à l'interface DashboardData du frontend
@@ -320,34 +342,36 @@ export class AdminDashboardService {
         active_reservations: overview.totalBookings,
         pending_disputes: overview.pendingDisputes,
         monthly_revenue: overview.totalRevenue,
-        growth_percentage: kpis.userGrowth
+        growth_percentage: kpis.userGrowth,
       },
-      chart_data: chartData.map(item => ({
+      chart_data: chartData.map((item) => ({
         month: item.date, // Utiliser 'date' au lieu de 'month'
         reservations: 0, // Pas de données de réservations dans getRevenueChart
         revenue: item.revenue,
         users: 0, // Pas de données d'utilisateurs dans getRevenueChart
-        listings: 0 // Pas de données d'annonces dans getRevenueChart
+        listings: 0, // Pas de données d'annonces dans getRevenueChart
       })),
       country_data: [
         { country: 'France', users: 45, percentage: 45 },
         { country: 'Belgique', users: 25, percentage: 25 },
         { country: 'Suisse', users: 15, percentage: 15 },
         { country: 'Canada', users: 10, percentage: 10 },
-        { country: 'Autres', users: 5, percentage: 5 }
+        { country: 'Autres', users: 5, percentage: 5 },
       ],
-      recent_activities: recentActivities.map(activity => ({
+      recent_activities: recentActivities.map((activity) => ({
         id: activity.id,
         type: activity.activityType as any, // Utiliser 'activityType' au lieu de 'type'
         description: activity.description || '',
-        user: activity.user ? {
-          id: activity.user.id,
-          name: `${activity.user.firstName} ${activity.user.lastName}`, // Combiner firstName et lastName
-          avatar: activity.user.profilePicture // Utiliser 'profilePicture' au lieu de 'avatar'
-        } : undefined,
+        user: activity.user
+          ? {
+              id: activity.user.id,
+              name: `${activity.user.firstName} ${activity.user.lastName}`, // Combiner firstName et lastName
+              avatar: activity.user.profilePicture, // Utiliser 'profilePicture' au lieu de 'avatar'
+            }
+          : undefined,
         timestamp: activity.createdAt.toISOString(), // Utiliser 'createdAt' au lieu de 'timestamp'
-        metadata: activity.metadata
-      }))
+        metadata: activity.metadata,
+      })),
     };
   }
 }

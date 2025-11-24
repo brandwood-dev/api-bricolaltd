@@ -48,16 +48,18 @@ export class DisputesController {
 
   @Post('with-images')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FilesInterceptor('images', 5, {
-    limits: { fileSize: 1024 * 1024 }, // 1MB limit
-    fileFilter: (req, file, cb) => {
-      if (file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-        cb(null, true);
-      } else {
-        cb(new Error('Only image files are allowed!'), false);
-      }
-    },
-  }))
+  @UseInterceptors(
+    FilesInterceptor('images', 5, {
+      limits: { fileSize: 1024 * 1024 }, // 1MB limit
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Only image files are allowed!'), false);
+        }
+      },
+    }),
+  )
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new dispute with images' })
   @ApiResponse({
@@ -92,7 +94,7 @@ export class DisputesController {
   ) {
     const pageNum = parseInt(page, 10) || 1;
     const limitNum = parseInt(limit, 10) || 10;
-    
+
     const filters: any = {};
     if (search) filters.search = search;
     if (status) filters.status = status;
@@ -102,7 +104,7 @@ export class DisputesController {
         endDate: new Date(endDate),
       };
     }
-    
+
     return this.disputesService.findAll(pageNum, limitNum, filters);
   }
 

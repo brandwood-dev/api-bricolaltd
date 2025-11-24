@@ -45,31 +45,32 @@ export class PaymentAnalyticsController {
    * Get comprehensive payment metrics
    */
   @Get('metrics')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get comprehensive payment metrics',
-    description: 'Get payment metrics including revenue, success rates, and growth trends'
+    description:
+      'Get payment metrics including revenue, success rates, and growth trends',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'currency', 
-    required: false, 
+  @ApiQuery({
+    name: 'currency',
+    required: false,
     type: String,
-    description: 'Filter by currency (gbp, eur, usd)'
+    description: 'Filter by currency (gbp, eur, usd)',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Payment metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Payment metrics retrieved successfully',
   })
   async getPaymentMetrics(
     @Query('startDate') startDate?: string,
@@ -92,23 +93,32 @@ export class PaymentAnalyticsController {
         throw new BadRequestException('Start date must be before end date');
       }
 
-      const metrics = await this.paymentMonitoringService.getPaymentMetrics(start, end, currency);
+      const metrics = await this.paymentMonitoringService.getPaymentMetrics(
+        start,
+        end,
+        currency,
+      );
 
       return {
         success: true,
         data: metrics,
         timestamp: new Date().toISOString(),
-        query: { startDate: start?.toISOString(), endDate: end?.toISOString(), currency },
+        query: {
+          startDate: start?.toISOString(),
+          endDate: end?.toISOString(),
+          currency,
+        },
       };
-
     } catch (error) {
       this.logger.error('Failed to get payment metrics:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve payment metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve payment metrics',
+      );
     }
   }
 
@@ -116,32 +126,33 @@ export class PaymentAnalyticsController {
    * Get transaction analytics
    */
   @Get('transactions/analytics')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get transaction analytics',
-    description: 'Get detailed transaction analytics with distributions and trends'
+    description:
+      'Get detailed transaction analytics with distributions and trends',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'groupBy', 
-    required: false, 
+  @ApiQuery({
+    name: 'groupBy',
+    required: false,
     enum: ['hour', 'day', 'week', 'month'],
     description: 'Group data by time period',
-    default: 'day'
+    default: 'day',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Transaction analytics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction analytics retrieved successfully',
   })
   async getTransactionAnalytics(
     @Query('startDate') startDate?: string,
@@ -164,23 +175,33 @@ export class PaymentAnalyticsController {
         throw new BadRequestException('Start date must be before end date');
       }
 
-      const analytics = await this.paymentMonitoringService.getTransactionAnalytics(start, end, groupBy);
+      const analytics =
+        await this.paymentMonitoringService.getTransactionAnalytics(
+          start,
+          end,
+          groupBy,
+        );
 
       return {
         success: true,
         data: analytics,
         timestamp: new Date().toISOString(),
-        query: { startDate: start?.toISOString(), endDate: end?.toISOString(), groupBy },
+        query: {
+          startDate: start?.toISOString(),
+          endDate: end?.toISOString(),
+          groupBy,
+        },
       };
-
     } catch (error) {
       this.logger.error('Failed to get transaction analytics:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve transaction analytics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve transaction analytics',
+      );
     }
   }
 
@@ -188,25 +209,25 @@ export class PaymentAnalyticsController {
    * Get refund metrics
    */
   @Get('refunds/metrics')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get refund metrics',
-    description: 'Get comprehensive refund metrics and analytics'
+    description: 'Get comprehensive refund metrics and analytics',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Refund metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Refund metrics retrieved successfully',
   })
   async getRefundMetrics(
     @Query('startDate') startDate?: string,
@@ -228,7 +249,10 @@ export class PaymentAnalyticsController {
         throw new BadRequestException('Start date must be before end date');
       }
 
-      const metrics = await this.paymentMonitoringService.getRefundMetrics(start, end);
+      const metrics = await this.paymentMonitoringService.getRefundMetrics(
+        start,
+        end,
+      );
 
       return {
         success: true,
@@ -236,15 +260,16 @@ export class PaymentAnalyticsController {
         timestamp: new Date().toISOString(),
         query: { startDate: start?.toISOString(), endDate: end?.toISOString() },
       };
-
     } catch (error) {
       this.logger.error('Failed to get refund metrics:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve refund metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve refund metrics',
+      );
     }
   }
 
@@ -252,25 +277,26 @@ export class PaymentAnalyticsController {
    * Get withdrawal metrics
    */
   @Get('withdrawals/metrics')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get withdrawal metrics',
-    description: 'Get comprehensive withdrawal metrics and performance analytics'
+    description:
+      'Get comprehensive withdrawal metrics and performance analytics',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Withdrawal metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal metrics retrieved successfully',
   })
   async getWithdrawalMetrics(
     @Query('startDate') startDate?: string,
@@ -292,7 +318,10 @@ export class PaymentAnalyticsController {
         throw new BadRequestException('Start date must be before end date');
       }
 
-      const metrics = await this.paymentMonitoringService.getWithdrawalMetrics(start, end);
+      const metrics = await this.paymentMonitoringService.getWithdrawalMetrics(
+        start,
+        end,
+      );
 
       return {
         success: true,
@@ -300,15 +329,16 @@ export class PaymentAnalyticsController {
         timestamp: new Date().toISOString(),
         query: { startDate: start?.toISOString(), endDate: end?.toISOString() },
       };
-
     } catch (error) {
       this.logger.error('Failed to get withdrawal metrics:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve withdrawal metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve withdrawal metrics',
+      );
     }
   }
 
@@ -316,32 +346,33 @@ export class PaymentAnalyticsController {
    * Get 3D Secure metrics
    */
   @Get('3ds/metrics')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get 3D Secure metrics',
-    description: 'Get comprehensive 3D Secure authentication metrics and performance analytics'
+    description:
+      'Get comprehensive 3D Secure authentication metrics and performance analytics',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'timeRange', 
-    required: false, 
+  @ApiQuery({
+    name: 'timeRange',
+    required: false,
     enum: ['24h', '7d', '30d'],
     description: 'Time range for metrics',
-    default: '24h'
+    default: '24h',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: '3D Secure metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: '3D Secure metrics retrieved successfully',
   })
   async getThreeDSMetrics(
     @Query('startDate') startDate?: string,
@@ -350,7 +381,8 @@ export class PaymentAnalyticsController {
   ) {
     try {
       // Use the 3DS service we created earlier
-      const metrics = await this.threeDSecureService.get3DSecureStats(timeRange);
+      const metrics =
+        await this.threeDSecureService.get3DSecureStats(timeRange);
 
       return {
         success: true,
@@ -358,15 +390,16 @@ export class PaymentAnalyticsController {
         timestamp: new Date().toISOString(),
         query: { startDate, endDate, timeRange },
       };
-
     } catch (error) {
       this.logger.error('Failed to get 3D Secure metrics:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve 3D Secure metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve 3D Secure metrics',
+      );
     }
   }
 
@@ -374,13 +407,13 @@ export class PaymentAnalyticsController {
    * Get real-time payment metrics
    */
   @Get('real-time')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get real-time payment metrics',
-    description: 'Get current payment system status and real-time metrics'
+    description: 'Get current payment system status and real-time metrics',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Real-time metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Real-time metrics retrieved successfully',
   })
   async getRealTimeMetrics() {
     try {
@@ -391,10 +424,11 @@ export class PaymentAnalyticsController {
         data: metrics,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error('Failed to get real-time metrics:', error);
-      throw new InternalServerErrorException('Failed to retrieve real-time metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve real-time metrics',
+      );
     }
   }
 
@@ -402,39 +436,41 @@ export class PaymentAnalyticsController {
    * Export payment data
    */
   @Get('export/:format')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Export payment data',
-    description: 'Export payment analytics data in various formats (csv, json, xlsx)'
+    description:
+      'Export payment analytics data in various formats (csv, json, xlsx)',
   })
-  @ApiParam({ 
-    name: 'format', 
+  @ApiParam({
+    name: 'format',
     enum: ['csv', 'json', 'xlsx'],
-    description: 'Export format'
+    description: 'Export format',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'type', 
-    required: false, 
+  @ApiQuery({
+    name: 'type',
+    required: false,
     enum: ['metrics', 'transactions', 'refunds', 'withdrawals'],
     description: 'Type of data to export',
-    default: 'metrics'
+    default: 'metrics',
   })
   async exportData(
     @Param('format') format: 'csv' | 'json' | 'xlsx',
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('type') type: 'metrics' | 'transactions' | 'refunds' | 'withdrawals' = 'metrics',
+    @Query('type')
+    type: 'metrics' | 'transactions' | 'refunds' | 'withdrawals' = 'metrics',
     @Res() res?: Response,
   ) {
     try {
@@ -445,16 +481,28 @@ export class PaymentAnalyticsController {
 
       switch (type) {
         case 'metrics':
-          data = await this.paymentMonitoringService.getPaymentMetrics(start, end);
+          data = await this.paymentMonitoringService.getPaymentMetrics(
+            start,
+            end,
+          );
           break;
         case 'transactions':
-          data = await this.paymentMonitoringService.getTransactionAnalytics(start, end);
+          data = await this.paymentMonitoringService.getTransactionAnalytics(
+            start,
+            end,
+          );
           break;
         case 'refunds':
-          data = await this.paymentMonitoringService.getRefundMetrics(start, end);
+          data = await this.paymentMonitoringService.getRefundMetrics(
+            start,
+            end,
+          );
           break;
         case 'withdrawals':
-          data = await this.paymentMonitoringService.getWithdrawalMetrics(start, end);
+          data = await this.paymentMonitoringService.getWithdrawalMetrics(
+            start,
+            end,
+          );
           break;
         default:
           throw new BadRequestException('Invalid export type');
@@ -465,7 +513,10 @@ export class PaymentAnalyticsController {
       if (format === 'json') {
         if (res) {
           res.setHeader('Content-Type', 'application/json');
-          res.setHeader('Content-Disposition', `attachment; filename="${filename}.json"`);
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${filename}.json"`,
+          );
           res.json(data);
           return;
         }
@@ -476,7 +527,10 @@ export class PaymentAnalyticsController {
         const csvData = this.convertToCSV(data, type);
         if (res) {
           res.setHeader('Content-Type', 'text/csv');
-          res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${filename}.csv"`,
+          );
           res.send(csvData);
           return;
         }
@@ -495,10 +549,9 @@ export class PaymentAnalyticsController {
       }
 
       throw new BadRequestException('Invalid export format');
-
     } catch (error) {
       this.logger.error('Failed to export data:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -511,13 +564,14 @@ export class PaymentAnalyticsController {
    * Get payment system health
    */
   @Get('health')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get payment system health',
-    description: 'Get comprehensive health status of all payment systems and services'
+    description:
+      'Get comprehensive health status of all payment systems and services',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'System health retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'System health retrieved successfully',
   })
   async getSystemHealth() {
     try {
@@ -542,10 +596,11 @@ export class PaymentAnalyticsController {
         data: health,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error('Failed to get system health:', error);
-      throw new InternalServerErrorException('Failed to retrieve system health');
+      throw new InternalServerErrorException(
+        'Failed to retrieve system health',
+      );
     }
   }
 
@@ -560,10 +615,13 @@ export class PaymentAnalyticsController {
         ['Total Revenue', data.totalRevenue?.toString() || '0'],
         ['Total Transactions', data.totalTransactions?.toString() || '0'],
         ['Success Rate', `${data.successRate?.toFixed(2) || '0'}%`],
-        ['Average Transaction Value', data.averageTransactionValue?.toFixed(2) || '0'],
+        [
+          'Average Transaction Value',
+          data.averageTransactionValue?.toFixed(2) || '0',
+        ],
       ];
-      
-      return [headers, ...rows].map(row => row.join(',')).join('\n');
+
+      return [headers, ...rows].map((row) => row.join(',')).join('\n');
     }
 
     // Add more conversion logic for other types
@@ -578,7 +636,11 @@ export class PaymentAnalyticsController {
       // This would check Stripe API connectivity
       return { status: 'operational', lastCheck: new Date().toISOString() };
     } catch (error) {
-      return { status: 'down', error: error.message, lastCheck: new Date().toISOString() };
+      return {
+        status: 'down',
+        error: error.message,
+        lastCheck: new Date().toISOString(),
+      };
     }
   }
 
@@ -587,7 +649,11 @@ export class PaymentAnalyticsController {
       // This would check Wise API connectivity
       return { status: 'operational', lastCheck: new Date().toISOString() };
     } catch (error) {
-      return { status: 'unknown', error: 'Not implemented', lastCheck: new Date().toISOString() };
+      return {
+        status: 'unknown',
+        error: 'Not implemented',
+        lastCheck: new Date().toISOString(),
+      };
     }
   }
 
@@ -596,7 +662,11 @@ export class PaymentAnalyticsController {
       // This would check PayPal API connectivity
       return { status: 'operational', lastCheck: new Date().toISOString() };
     } catch (error) {
-      return { status: 'unknown', error: 'Not implemented', lastCheck: new Date().toISOString() };
+      return {
+        status: 'unknown',
+        error: 'Not implemented',
+        lastCheck: new Date().toISOString(),
+      };
     }
   }
 
@@ -605,7 +675,11 @@ export class PaymentAnalyticsController {
       // This would check database connectivity
       return { status: 'operational', lastCheck: new Date().toISOString() };
     } catch (error) {
-      return { status: 'down', error: error.message, lastCheck: new Date().toISOString() };
+      return {
+        status: 'down',
+        error: error.message,
+        lastCheck: new Date().toISOString(),
+      };
     }
   }
 

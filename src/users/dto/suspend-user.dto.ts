@@ -11,10 +11,10 @@ export class SuspendUserDto {
       'Non-Compliant or Dangerous Tool',
       'Multiple Accounts Prohibited',
       'Suspicion of Fraudulent Activity',
-      'User\'s Voluntary Request',
-      'Abusive Reviews or Comments'
+      "User's Voluntary Request",
+      'Abusive Reviews or Comments',
     ],
-    example: 'Violation of Terms of Use'
+    example: 'Violation of Terms of Use',
   })
   @IsString()
   @IsNotEmpty()
@@ -25,8 +25,8 @@ export class SuspendUserDto {
     'Non-Compliant or Dangerous Tool',
     'Multiple Accounts Prohibited',
     'Suspicion of Fraudulent Activity',
-    'User\'s Voluntary Request',
-    'Abusive Reviews or Comments'
+    "User's Voluntary Request",
+    'Abusive Reviews or Comments',
   ])
   reason: string;
 }

@@ -25,7 +25,9 @@ interface AuthenticatedSocket extends Socket {
   },
   namespace: '/admin-notifications',
 })
-export class AdminNotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class AdminNotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -43,7 +45,9 @@ export class AdminNotificationsGateway implements OnGatewayConnection, OnGateway
 
   async handleConnection(client: AuthenticatedSocket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
+      const token =
+        client.handshake.auth.token ||
+        client.handshake.headers.authorization?.split(' ')[1];
       if (!token) {
         client.disconnect();
         return;
@@ -74,10 +78,13 @@ export class AdminNotificationsGateway implements OnGatewayConnection, OnGateway
       client.join('admins');
 
       // Initial unread count for admin notifications (fallback to 0)
-      const unreadCount = (await this.adminNotificationsService?.getUnreadCount()) ?? 0;
+      const unreadCount =
+        (await this.adminNotificationsService?.getUnreadCount()) ?? 0;
       client.emit('unread_count', { count: unreadCount });
 
-      this.logger.log(`Admin ${client.userId} connected with socket ${client.id}`);
+      this.logger.log(
+        `Admin ${client.userId} connected with socket ${client.id}`,
+      );
     } catch (error) {
       this.logger.error('Admin connection error:', error);
       client.disconnect();
@@ -87,7 +94,9 @@ export class AdminNotificationsGateway implements OnGatewayConnection, OnGateway
   handleDisconnect(client: AuthenticatedSocket) {
     if (client.userId) {
       const adminSockets = this.connectedAdmins.get(client.userId) || [];
-      const updatedSockets = adminSockets.filter((socketId) => socketId !== client.id);
+      const updatedSockets = adminSockets.filter(
+        (socketId) => socketId !== client.id,
+      );
 
       if (updatedSockets.length === 0) {
         this.connectedAdmins.delete(client.userId);
@@ -95,22 +104,30 @@ export class AdminNotificationsGateway implements OnGatewayConnection, OnGateway
         this.connectedAdmins.set(client.userId, updatedSockets);
       }
 
-      this.logger.log(`Admin ${client.userId} disconnected socket ${client.id}`);
+      this.logger.log(
+        `Admin ${client.userId} disconnected socket ${client.id}`,
+      );
     }
   }
 
   // Admin pulls latest notifications with optional basic pagination (defaults inside service)
   @SubscribeMessage('get_notifications')
-  async handleGetAdminNotifications(@ConnectedSocket() client: AuthenticatedSocket) {
+  async handleGetAdminNotifications(
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
     if (!client.userId) return;
 
-    const { notifications, pagination } = await this.adminNotificationsService.getAdminNotifications({
-      page: 1,
-      limit: 10,
-    });
+    const { notifications, pagination } =
+      await this.adminNotificationsService.getAdminNotifications({
+        page: 1,
+        limit: 10,
+      });
     const unreadCount = await this.adminNotificationsService.getUnreadCount();
     // reuse same event names to ease client integration
-    client.emit('notifications', { notifications: { data: notifications }, unreadCount });
+    client.emit('notifications', {
+      notifications: { data: notifications },
+      unreadCount,
+    });
   }
 
   // Admin marks specific notification as read
@@ -125,14 +142,18 @@ export class AdminNotificationsGateway implements OnGatewayConnection, OnGateway
       return;
     }
 
-    await this.adminNotificationsService.markNotificationsAsRead([data.notificationId]);
+    await this.adminNotificationsService.markNotificationsAsRead([
+      data.notificationId,
+    ]);
     const unreadCount = await this.adminNotificationsService.getUnreadCount();
     client.emit('unread_count', { count: unreadCount });
   }
 
   // Admin marks all notifications as read (global)
   @SubscribeMessage('mark_all_as_read')
-  async handleAdminMarkAllAsRead(@ConnectedSocket() client: AuthenticatedSocket) {
+  async handleAdminMarkAllAsRead(
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
     if (!client.userId) return;
     if (!this.adminNotificationsService) {
       this.logger.warn('AdminNotificationsService not initialized');

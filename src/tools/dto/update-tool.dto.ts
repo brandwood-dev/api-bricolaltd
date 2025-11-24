@@ -1,10 +1,7 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateToolDto } from './create-tool.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsUUID,
-} from 'class-validator';
+import { IsOptional, IsUUID } from 'class-validator';
 
 export class UpdateToolDto extends PartialType(CreateToolDto) {
   // Override categoryId and subcategoryId to make them optional for updates

@@ -1,4 +1,10 @@
-import { IsEnum, IsOptional, IsString, IsObject, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsObject,
+  IsUUID,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ActivityType } from '../enums/activity-type.enum';
 
@@ -7,10 +13,10 @@ export class CreateUserActivityDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Type of activity performed',
     enum: ActivityType,
-    example: ActivityType.LOGIN
+    example: ActivityType.LOGIN,
   })
   @IsEnum(ActivityType)
   activityType: ActivityType;

@@ -26,7 +26,10 @@ export class UserPreferenceController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createUserPreferenceDto: CreateUserPreferenceDto, @Request() req) {
+  async create(
+    @Body() createUserPreferenceDto: CreateUserPreferenceDto,
+    @Request() req,
+  ) {
     // Ensure user can only create their own preferences
     createUserPreferenceDto.userId = req.user.id;
     return await this.userPreferenceService.create(createUserPreferenceDto);
@@ -46,7 +49,9 @@ export class UserPreferenceController {
 
   @Get('my-notifications')
   async getMyNotificationSettings(@Request() req) {
-    return await this.userPreferenceService.getNotificationSettings(req.user.id);
+    return await this.userPreferenceService.getNotificationSettings(
+      req.user.id,
+    );
   }
 
   @Get(':id')
@@ -64,24 +69,40 @@ export class UserPreferenceController {
   }
 
   @Patch('my-preferences')
-  async updateMyPreferences(@Body() updateUserPreferenceDto: UpdateUserPreferenceDto, @Request() req) {
-    return await this.userPreferenceService.updateByUserId(req.user.id, updateUserPreferenceDto);
+  async updateMyPreferences(
+    @Body() updateUserPreferenceDto: UpdateUserPreferenceDto,
+    @Request() req,
+  ) {
+    return await this.userPreferenceService.updateByUserId(
+      req.user.id,
+      updateUserPreferenceDto,
+    );
   }
 
   @Patch('my-notifications')
-  async updateMyNotificationSettings(@Body() settings: {
-    emailNotifications?: boolean;
-    pushNotifications?: boolean;
-    smsNotifications?: boolean;
-    marketingEmails?: boolean;
-  }, @Request() req) {
-    return await this.userPreferenceService.updateNotificationSettings(req.user.id, settings);
+  async updateMyNotificationSettings(
+    @Body()
+    settings: {
+      emailNotifications?: boolean;
+      pushNotifications?: boolean;
+      smsNotifications?: boolean;
+      marketingEmails?: boolean;
+    },
+    @Request() req,
+  ) {
+    return await this.userPreferenceService.updateNotificationSettings(
+      req.user.id,
+      settings,
+    );
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(Role.ADMIN)
-  async update(@Param('id') id: string, @Body() updateUserPreferenceDto: UpdateUserPreferenceDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateUserPreferenceDto: UpdateUserPreferenceDto,
+  ) {
     return await this.userPreferenceService.update(id, updateUserPreferenceDto);
   }
 

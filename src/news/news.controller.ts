@@ -13,26 +13,41 @@ import {
   Logger,
   Query,
   SetMetadata,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SectionsService } from './sections.service';
+import { S3Service } from '../common/services/s3.service';
 import type { Response, Request } from 'express';
-import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+} from '@nestjs/swagger';
 
 @Controller('news')
 export class NewsController {
   private readonly logger = new Logger(NewsController.name);
 
-  constructor(private readonly newsService: NewsService) {}
+  constructor(
+    private readonly newsService: NewsService,
+    private readonly sectionsService: SectionsService,
+    private readonly s3Service: S3Service,
+  ) {}
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post()
   async create(
     @Body() createNewsDto: CreateNewsDto,
-    @Req() req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
+    @Req()
+    req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
   ) {
     this.logger.debug('Début création article');
     console.log('[NewsController][Create] incoming', {
@@ -41,7 +56,10 @@ export class NewsController {
       contentType: req.headers['content-type'],
       hasAuth: Boolean(req.headers['authorization']),
     });
-    console.log('[NewsController][Create] body keys', Object.keys(req.body || {}));
+    console.log(
+      '[NewsController][Create] body keys',
+      Object.keys(req.body || {}),
+    );
     console.log('[NewsController][Create] dto snapshot', createNewsDto);
 
     // Consolidate files from middleware without depending on shape
@@ -53,17 +71,30 @@ export class NewsController {
       console.warn('[NewsController][Create] req.files is array (legacy)');
       allFiles.push(...incomingFiles);
     } else if (incomingFiles && typeof incomingFiles === 'object') {
-      filesObj = incomingFiles as { [fieldname: string]: Express.Multer.File[] };
+      filesObj = incomingFiles as {
+        [fieldname: string]: Express.Multer.File[];
+      };
       const mainImageFiles = filesObj?.mainImage || [];
       const genericFiles = filesObj?.files || [];
       allFiles.push(...mainImageFiles, ...genericFiles);
-      console.log('[NewsController][Create] files fields', Object.keys(filesObj));
-      console.log('[NewsController][Create] mainImage count', mainImageFiles.length, 'files count', genericFiles.length);
+      console.log(
+        '[NewsController][Create] files fields',
+        Object.keys(filesObj),
+      );
+      console.log(
+        '[NewsController][Create] mainImage count',
+        mainImageFiles.length,
+        'files count',
+        genericFiles.length,
+      );
     } else {
       console.log('[NewsController][Create] no files provided');
     }
 
-    this.logger.debug({ body: createNewsDto, filesConsolidated: allFiles.length });
+    this.logger.debug({
+      body: createNewsDto,
+      filesConsolidated: allFiles.length,
+    });
 
     // Validation dédiée via le service
     try {
@@ -89,7 +120,11 @@ export class NewsController {
 
     try {
       const user = (req as any).user;
-      const created = await this.newsService.create(createNewsDto, allFiles, user);
+      const created = await this.newsService.create(
+        createNewsDto,
+        allFiles,
+        user,
+      );
       this.logger.log(`Article créé avec succès: ${created.id}`);
       console.log('[NewsController][Create] created article id', created?.id);
       return created;
@@ -111,11 +146,14 @@ export class NewsController {
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
   ) {
-    const isPublic = typeof isPublicStr === 'string' ? isPublicStr === 'true' : undefined
-    const isFeatured = typeof isFeaturedStr === 'string' ? isFeaturedStr === 'true' : undefined
-    const page = pageStr ? parseInt(pageStr, 10) || 1 : 1
-    const limit = limitStr ? parseInt(limitStr, 10) || 10 : 10
-    const order = (sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc'
+    const isPublic =
+      typeof isPublicStr === 'string' ? isPublicStr === 'true' : undefined;
+    const isFeatured =
+      typeof isFeaturedStr === 'string' ? isFeaturedStr === 'true' : undefined;
+    const page = pageStr ? parseInt(pageStr, 10) || 1 : 1;
+    const limit = limitStr ? parseInt(limitStr, 10) || 10 : 10;
+    const order =
+      (sortOrder || 'desc').toLowerCase() === 'asc' ? 'asc' : 'desc';
 
     const filters = {
       search,
@@ -126,10 +164,10 @@ export class NewsController {
       limit,
       sortBy: sortBy || 'createdAt',
       sortOrder: order,
-    }
+    };
 
-    console.log('[NewsController][FindAll] filters:', filters)
-    return this.newsService.findAll(filters)
+    console.log('[NewsController][FindAll] filters:', filters);
+    return this.newsService.findAll(filters);
   }
 
   @Get('public')
@@ -157,7 +195,8 @@ export class NewsController {
   async update(
     @Param('id') id: string,
     @Body() updateNewsDto: UpdateNewsDto,
-    @Req() req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
+    @Req()
+    req: Request & { files?: { [fieldname: string]: Express.Multer.File[] } },
   ) {
     // Consolidate files from middleware without depending on shape
     const allFiles: Express.Multer.File[] = [];
@@ -168,12 +207,22 @@ export class NewsController {
       console.warn('[NewsController][Update] req.files is array (legacy)');
       allFiles.push(...incomingFiles);
     } else if (incomingFiles && typeof incomingFiles === 'object') {
-      filesObj = incomingFiles as { [fieldname: string]: Express.Multer.File[] };
+      filesObj = incomingFiles as {
+        [fieldname: string]: Express.Multer.File[];
+      };
       const mainImageFiles = filesObj?.mainImage || [];
       const genericFiles = filesObj?.files || [];
       allFiles.push(...mainImageFiles, ...genericFiles);
-      console.log('[NewsController][Update] files fields', Object.keys(filesObj));
-      console.log('[NewsController][Update] mainImage count', mainImageFiles.length, 'files count', genericFiles.length);
+      console.log(
+        '[NewsController][Update] files fields',
+        Object.keys(filesObj),
+      );
+      console.log(
+        '[NewsController][Update] mainImage count',
+        mainImageFiles.length,
+        'files count',
+        genericFiles.length,
+      );
     } else {
       console.log('[NewsController][Update] no files provided');
     }
@@ -188,33 +237,234 @@ export class NewsController {
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('upload-cover')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload a cover image for an article' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({
+    status: 201,
+    description: 'Cover image uploaded successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async uploadCoverImage(@UploadedFile() file: Express.Multer.File) {
+    console.log('[NewsController] Uploading cover image');
+
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    try {
+      const result = await this.s3Service.uploadFile(file, 'news/covers');
+      return {
+        message: 'Cover image uploaded successfully',
+        data: { url: result.url },
+      };
+    } catch (error) {
+      console.error('[NewsController] Cover image upload error:', error);
+      throw new BadRequestException('Failed to upload cover image');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch(':id/toggle-featured')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle featured status of a news article' })
-  @ApiResponse({ status: 200, description: 'News article featured status toggled successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'News article featured status toggled successfully.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   async toggleFeatured(@Param('id') id: string) {
-    console.log('[NewsController][ToggleFeatured] called for id', id)
-    return this.newsService.toggleFeatured(id)
+    console.log('[NewsController][ToggleFeatured] called for id', id);
+    return this.newsService.toggleFeatured(id);
   }
-  
+
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch(':id/toggle-public')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle public status of a news article' })
-  @ApiResponse({ status: 200, description: 'News article public status toggled successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'News article public status toggled successfully.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   async togglePublic(@Param('id') id: string) {
-    console.log('[NewsController][TogglePublic] called for id', id)
-    return this.newsService.togglePublic(id)
+    console.log('[NewsController][TogglePublic] called for id', id);
+    return this.newsService.togglePublic(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post(':id/sections')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new section for an article' })
+  @ApiResponse({ status: 201, description: 'Section created successfully.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async createSection(
+    @Param('id') articleId: string,
+    @Body() createSectionDto: { title: string; orderIndex: number },
+  ) {
+    console.log(
+      `[NewsController] Creating section for article ${articleId}`,
+      createSectionDto,
+    );
+
+    try {
+      const section = await this.newsService.createSection(
+        articleId,
+        createSectionDto,
+      );
+
+      console.log(`[NewsController] Section created successfully:`, {
+        id: section.id,
+        title: section.title,
+        orderIndex: section.orderIndex,
+      });
+
+      return {
+        message: 'Section created successfully',
+        data: section,
+      };
+    } catch (error) {
+      console.error('[NewsController] Section creation error:', error);
+      throw new BadRequestException('Failed to create section');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('sections/:sectionId/paragraphs')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new paragraph for a section' })
+  @ApiResponse({ status: 201, description: 'Paragraph created successfully.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async createSectionParagraph(
+    @Param('sectionId') sectionId: string,
+    @Body() createParagraphDto: { content: string; orderIndex: number },
+  ) {
+    console.log(`[NewsController] Creating paragraph for section ${sectionId}`);
+
+    try {
+      const paragraph = await this.newsService.createSectionParagraph(
+        sectionId,
+        createParagraphDto,
+      );
+
+      return {
+        message: 'Paragraph created successfully',
+        data: paragraph,
+      };
+    } catch (error) {
+      console.error('[NewsController] Paragraph creation error:', error);
+      throw new BadRequestException('Failed to create paragraph');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('sections/:sectionId/images')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload and save a section image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({
+    status: 201,
+    description: 'Section image uploaded and saved successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async uploadSectionImage(
+    @Param('sectionId') sectionId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('alt') alt?: string,
+    @Body('orderIndex') orderIndex?: string,
+  ) {
+    console.log(
+      `[NewsController] Uploading section image for section ${sectionId}`,
+      {
+        hasFile: !!file,
+        alt,
+        orderIndex,
+      },
+    );
+
+    if (!file) {
+      throw new BadRequestException('No image file provided');
+    }
+
+    try {
+      const sectionImage = await this.sectionsService.uploadSectionImage(
+        sectionId,
+        file,
+        alt,
+        orderIndex ? parseInt(orderIndex) : undefined,
+      );
+
+      return {
+        message: 'Section image uploaded and saved successfully',
+        data: sectionImage,
+      };
+    } catch (error) {
+      console.error('[NewsController] Section image upload error:', error);
+      throw new BadRequestException('Failed to upload section image');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('sections/:sectionId/images/url')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save a section image with URL (no file upload)' })
+  @ApiResponse({
+    status: 201,
+    description: 'Section image saved successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  async saveSectionImageWithUrl(
+    @Param('sectionId') sectionId: string,
+    @Body() imageData: { url: string; alt?: string; orderIndex?: number },
+  ) {
+    console.log(
+      `[NewsController] Saving section image with URL for section ${sectionId}`,
+      imageData,
+    );
+
+    if (!imageData.url) {
+      throw new BadRequestException('Image URL is required');
+    }
+
+    try {
+      const sectionImage = await this.newsService.createSectionImageWithUrl(
+        sectionId,
+        imageData,
+      );
+
+      return {
+        message: 'Section image saved successfully',
+        data: sectionImage,
+      };
+    } catch (error) {
+      console.error('[NewsController] Section image save error:', error);
+      throw new BadRequestException('Failed to save section image');
+    }
   }
 
   // Public HTML endpoint for social media crawlers to read OG/Twitter meta tags
   @Get(':id/share')
   @SetMetadata('isPublic', true)
-  async shareHtml(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+  async shareHtml(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const news = await this.newsService.findOne(id);
 
@@ -226,11 +476,12 @@ export class NewsController {
         try {
           return new URL(url, siteBase).href;
         } catch {
-          return url as string;
+          return url;
         }
       };
 
-      const imageUrl = ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
+      const imageUrl =
+        ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
       const title = news.title || 'Article Bricola';
       const description = news.summary || title;
 
@@ -273,7 +524,7 @@ export class NewsController {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
     } catch (err) {
-      this.logger.error('Error generating share HTML', err as any);
+      this.logger.error('Error generating share HTML', err);
       res.status(404).send('<html><body>Article non trouvé</body></html>');
     }
   }

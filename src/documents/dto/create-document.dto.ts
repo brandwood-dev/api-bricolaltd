@@ -7,12 +7,19 @@ export class CreateDocumentDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ description: 'The type of document', example: 'ID_CARD', required: false })
+  @ApiProperty({
+    description: 'The type of document',
+    example: 'ID_CARD',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   type?: string;
 
-  @ApiProperty({ description: 'A description of the document', required: false })
+  @ApiProperty({
+    description: 'A description of the document',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;

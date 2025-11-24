@@ -4,8 +4,8 @@ import { ApiProperty } from '@nestjs/swagger';
 export class CreatePaymentIntentDto {
   @ApiProperty({
     description: 'Montant à bloquer (en unité principale de la devise)',
-    example: 50.00,
-    minimum: 0.01
+    example: 50.0,
+    minimum: 0.01,
   })
   @IsNumber()
   @Min(0.01)
@@ -14,7 +14,7 @@ export class CreatePaymentIntentDto {
   @ApiProperty({
     description: 'Code de devise (ISO 4217)',
     example: 'gbp',
-    default: 'gbp'
+    default: 'gbp',
   })
   @IsString()
   @IsOptional()
@@ -22,14 +22,14 @@ export class CreatePaymentIntentDto {
 
   @ApiProperty({
     description: 'ID de la réservation associée',
-    example: 'booking_123456789'
+    example: 'booking_123456789',
   })
   @IsString()
   bookingId: string;
 
   @ApiProperty({
     description: 'Métadonnées supplémentaires',
-    required: false
+    required: false,
   })
   @IsOptional()
   metadata?: Record<string, any>;

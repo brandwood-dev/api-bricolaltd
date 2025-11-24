@@ -38,7 +38,9 @@ export class AdminSettingsController {
   @ApiOperation({ summary: 'Get settings by category' })
   @ApiResponse({ status: 200, description: 'Settings by category' })
   async getSettingsByCategory(@Param('category') category: string) {
-    return this.adminSettingsService.getSettingsByCategory(category as SettingCategory);
+    return this.adminSettingsService.getSettingsByCategory(
+      category as SettingCategory,
+    );
   }
 
   @Get(':key')
@@ -97,6 +99,8 @@ export class AdminSettingsController {
   @ApiOperation({ summary: 'Reset settings category to defaults' })
   @ApiResponse({ status: 200, description: 'Settings reset successfully' })
   async resetCategoryToDefaults(@Param('category') category: string) {
-    return this.adminSettingsService.resetCategoryToDefaults(category as SettingCategory);
+    return this.adminSettingsService.resetCategoryToDefaults(
+      category as SettingCategory,
+    );
   }
 }

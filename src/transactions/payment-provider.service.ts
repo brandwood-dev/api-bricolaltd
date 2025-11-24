@@ -17,17 +17,23 @@ export class PaymentProviderService {
     private paymentProviderRepository: Repository<PaymentProvider>,
   ) {}
 
-  async create(createPaymentProviderDto: CreatePaymentProviderDto): Promise<PaymentProvider> {
+  async create(
+    createPaymentProviderDto: CreatePaymentProviderDto,
+  ): Promise<PaymentProvider> {
     // Check if provider with same name already exists
     const existingProvider = await this.paymentProviderRepository.findOne({
       where: { name: createPaymentProviderDto.name },
     });
 
     if (existingProvider) {
-      throw new ConflictException(`Payment provider with name '${createPaymentProviderDto.name}' already exists`);
+      throw new ConflictException(
+        `Payment provider with name '${createPaymentProviderDto.name}' already exists`,
+      );
     }
 
-    const paymentProvider = this.paymentProviderRepository.create(createPaymentProviderDto);
+    const paymentProvider = this.paymentProviderRepository.create(
+      createPaymentProviderDto,
+    );
     return this.paymentProviderRepository.save(paymentProvider);
   }
 
@@ -62,23 +68,33 @@ export class PaymentProviderService {
     });
 
     if (!paymentProvider) {
-      throw new NotFoundException(`Payment provider with name '${name}' not found`);
+      throw new NotFoundException(
+        `Payment provider with name '${name}' not found`,
+      );
     }
 
     return paymentProvider;
   }
 
-  async update(id: number, updatePaymentProviderDto: UpdatePaymentProviderDto): Promise<PaymentProvider> {
+  async update(
+    id: number,
+    updatePaymentProviderDto: UpdatePaymentProviderDto,
+  ): Promise<PaymentProvider> {
     const paymentProvider = await this.findOne(id);
 
     // Check if name is being updated and if it conflicts with existing provider
-    if (updatePaymentProviderDto.name && updatePaymentProviderDto.name !== paymentProvider.name) {
+    if (
+      updatePaymentProviderDto.name &&
+      updatePaymentProviderDto.name !== paymentProvider.name
+    ) {
       const existingProvider = await this.paymentProviderRepository.findOne({
         where: { name: updatePaymentProviderDto.name },
       });
 
       if (existingProvider) {
-        throw new ConflictException(`Payment provider with name '${updatePaymentProviderDto.name}' already exists`);
+        throw new ConflictException(
+          `Payment provider with name '${updatePaymentProviderDto.name}' already exists`,
+        );
       }
     }
 

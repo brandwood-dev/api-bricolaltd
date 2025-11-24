@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 
@@ -13,7 +19,7 @@ export class StripeWebhookGuard implements CanActivate {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2025-02-24.acacia',
     });
   }
 
@@ -34,15 +40,17 @@ export class StripeWebhookGuard implements CanActivate {
 
     try {
       // Verify the webhook signature
-      const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+      const webhookSecret = this.configService.get<string>(
+        'STRIPE_WEBHOOK_SECRET',
+      );
       if (!webhookSecret) {
         throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
       }
-      
+
       const event = this.stripe.webhooks.constructEvent(
         rawBody,
         signature,
-        webhookSecret
+        webhookSecret,
       );
 
       // Validate the event structure
@@ -51,16 +59,17 @@ export class StripeWebhookGuard implements CanActivate {
       // Add the verified event to the request for later use
       request.stripeEvent = event;
 
-      this.logger.log(`Webhook signature verified for event: ${event.type} - ${event.id}`);
+      this.logger.log(
+        `Webhook signature verified for event: ${event.type} - ${event.id}`,
+      );
       return true;
-
     } catch (error) {
       this.logger.error('Webhook signature verification failed:', {
         signature: signature?.substring(0, 10) + '...',
         bodyLength: rawBody?.length,
-        error: error.message
+        error: error.message,
       });
-      
+
       throw new BadRequestException('Invalid webhook signature');
     }
   }
@@ -107,7 +116,7 @@ export class StripeWebhookGuard implements CanActivate {
       'payout.updated',
       'account.updated',
       'account.application.authorized',
-      'account.application.deauthorized'
+      'account.application.deauthorized',
     ];
 
     if (!validEventTypes.includes(event.type)) {
@@ -116,7 +125,10 @@ export class StripeWebhookGuard implements CanActivate {
     }
 
     // Validate timestamp
-    if (event.created && (typeof event.created !== 'number' || event.created < 0)) {
+    if (
+      event.created &&
+      (typeof event.created !== 'number' || event.created < 0)
+    ) {
       throw new BadRequestException('Invalid event timestamp');
     }
 

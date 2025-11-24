@@ -25,36 +25,36 @@ export class AdminNotification {
   @Column({ type: 'longtext' })
   message: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Type of notification',
-    enum: ['info', 'success', 'warning', 'error', 'system']
-  })
-  @Column({ 
-    type: 'enum', 
     enum: ['info', 'success', 'warning', 'error', 'system'],
-    default: 'info'
+  })
+  @Column({
+    type: 'enum',
+    enum: ['info', 'success', 'warning', 'error', 'system'],
+    default: 'info',
   })
   type: 'info' | 'success' | 'warning' | 'error' | 'system';
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Priority level of the notification',
-    enum: ['low', 'medium', 'high', 'urgent']
-  })
-  @Column({ 
-    type: 'enum', 
     enum: ['low', 'medium', 'high', 'urgent'],
-    default: 'medium'
+  })
+  @Column({
+    type: 'enum',
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium',
   })
   priority: 'low' | 'medium' | 'high' | 'urgent';
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Category of the notification',
-    enum: ['booking', 'user', 'system', 'payment', 'dispute', 'security']
-  })
-  @Column({ 
-    type: 'enum', 
     enum: ['booking', 'user', 'system', 'payment', 'dispute', 'security'],
-    default: 'system'
+  })
+  @Column({
+    type: 'enum',
+    enum: ['booking', 'user', 'system', 'payment', 'dispute', 'security'],
+    default: 'system',
   })
   category: 'booking' | 'user' | 'system' | 'payment' | 'dispute' | 'security';
 
@@ -97,7 +97,7 @@ export class AdminNotification {
     const diffInDays = Math.floor(diffInHours / 24);
 
     if (diffInMinutes < 1) {
-      return 'À l\'instant';
+      return "À l'instant";
     } else if (diffInMinutes < 60) {
       return `Il y a ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''}`;
     } else if (diffInHours < 24) {
@@ -131,10 +131,13 @@ export class AdminNotification {
     return weights[this.priority] || 1;
   }
 
-  @ApiProperty({ description: 'Whether notification is recent (less than 24h)' })
+  @ApiProperty({
+    description: 'Whether notification is recent (less than 24h)',
+  })
   get isRecent(): boolean {
     const now = new Date();
-    const diffInHours = (now.getTime() - this.createdAt.getTime()) / (1000 * 60 * 60);
+    const diffInHours =
+      (now.getTime() - this.createdAt.getTime()) / (1000 * 60 * 60);
     return diffInHours < 24;
   }
 

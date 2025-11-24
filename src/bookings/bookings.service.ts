@@ -59,7 +59,7 @@ import { TransactionStatus } from '../transactions/enums/transaction-status.enum
 import { QueryRunner } from 'typeorm';
 import { Dispute } from '../disputes/entities/dispute.entity';
 import { DisputeStatus } from '../disputes/enums/dispute-status.enum';
-import { ADMIN_USER_ID } from '../config/constants';
+import { ADMIN_USER_ID, ADMIN_EMAIL } from '../config/constants';
 
 @Injectable()
 export class BookingsService {
@@ -77,10 +77,10 @@ export class BookingsService {
     private walletsService: WalletsService,
     private transactionsService: TransactionsService,
   ) {}
- 
+
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     console.log('🔍 [BookingService] create called with:', createBookingDto);
-    
+
     const {
       renterId,
       toolId,
@@ -115,7 +115,15 @@ export class BookingsService {
     if (pickupHour) {
       const [hours, minutes] = pickupHour.split(':').map(Number);
       // Use local timezone for pickup time calculation
-      const localStartDate = new Date(start.getFullYear(), start.getMonth(), start.getDate(), hours, minutes || 0, 0, 0);
+      const localStartDate = new Date(
+        start.getFullYear(),
+        start.getMonth(),
+        start.getDate(),
+        hours,
+        minutes || 0,
+        0,
+        0,
+      );
       startWithPickupTime.setTime(localStartDate.getTime());
     } else {
       // Default to start of day if no pickup hour specified
@@ -140,12 +148,14 @@ export class BookingsService {
       endTime: end.getTime(),
       comparison: start > end,
       timeDifference: end.getTime() - start.getTime(),
-      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     });
 
     // La date de fin ne peut JAMAIS être la même que la date de début
     if (start >= end) {
-      console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+      console.log(
+        '❌ [BookingService] Date validation failed: End date must be after start date',
+      );
       console.log('❌ [BookingService] Detailed comparison:', {
         startDate: startDate,
         endDate: endDate,
@@ -153,7 +163,7 @@ export class BookingsService {
         endParsed: end.toISOString(),
         startWithPickupTime: startWithPickupTime.toISOString(),
         endOfDay: endOfDay.toISOString(),
-        isStartGreaterOrEqual: start >= end
+        isStartGreaterOrEqual: start >= end,
       });
       throw new BadRequestException('End date must be after start date');
     }
@@ -161,31 +171,37 @@ export class BookingsService {
     // Minimum 48 hours advance booking requirement
     // This allows time for: owner confirmation, deposit jobs (24h before), and notifications
     const minimumAdvanceHours = 48;
-    const minimumStartTime = new Date(now.getTime() + (minimumAdvanceHours * 60 * 60 * 1000));
-    
+    const minimumStartTime = new Date(
+      now.getTime() + minimumAdvanceHours * 60 * 60 * 1000,
+    );
+
     console.log('🔍 [BookingService] 48-hour advance booking validation:', {
       now: now.toISOString(),
       startWithPickupTime: startWithPickupTime.toISOString(),
       minimumStartTime: minimumStartTime.toISOString(),
       minimumAdvanceHours: minimumAdvanceHours,
-      hoursUntilPickup: (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
-      pickupHour: pickupHour
+      hoursUntilPickup:
+        (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
+      pickupHour: pickupHour,
     });
 
     if (startWithPickupTime < minimumStartTime) {
-      const hoursUntilPickup = (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      console.log('❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance');
+      const hoursUntilPickup =
+        (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      console.log(
+        '❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance',
+      );
       console.log('❌ [BookingService] 48-hour validation details:', {
         startWithPickupTime: startWithPickupTime.toISOString(),
         now: now.toISOString(),
         minimumStartTime: minimumStartTime.toISOString(),
         hoursUntilPickup: hoursUntilPickup,
-        minimumRequired: minimumAdvanceHours
+        minimumRequired: minimumAdvanceHours,
       });
       throw new BadRequestException(
         `Les réservations doivent être faites au moins ${minimumAdvanceHours} heures à l'avance. ` +
-        `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
-        `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`
+          `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
+          `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`,
       );
     }
 
@@ -205,7 +221,10 @@ export class BookingsService {
     });
 
     if (tool.availabilityStatus !== AvailabilityStatus.AVAILABLE) {
-      console.log('❌ [BookingService] Tool not available:', tool.availabilityStatus);
+      console.log(
+        '❌ [BookingService] Tool not available:',
+        tool.availabilityStatus,
+      );
       throw new BadRequestException('Tool is not available for booking');
     }
 
@@ -236,10 +255,15 @@ export class BookingsService {
       ],
     });
 
-    console.log('🔍 [BookingService] Conflicting bookings found:', conflictingBookings.length);
+    console.log(
+      '🔍 [BookingService] Conflicting bookings found:',
+      conflictingBookings.length,
+    );
 
     if (conflictingBookings.length > 0) {
-      console.log('❌ [BookingService] Tool already booked for requested dates');
+      console.log(
+        '❌ [BookingService] Tool already booked for requested dates',
+      );
       throw new BadRequestException(
         'Tool is already booked for the requested dates',
       );
@@ -269,33 +293,55 @@ export class BookingsService {
       const pickupDate = new Date();
       pickupDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
       bookingData.pickupHour = pickupDate;
-      console.log('🔍 [BookingService] Converted pickup hour:', pickupDate.toISOString());
+      console.log(
+        '🔍 [BookingService] Converted pickup hour:',
+        pickupDate.toISOString(),
+      );
     }
 
     try {
       const booking = this.bookingsRepository.create(bookingData);
       console.log('🔍 [BookingService] Booking entity created:', booking);
-      
+
       const savedBookings = await this.bookingsRepository.save(booking);
-      const savedBooking = Array.isArray(savedBookings) ? savedBookings[0] : savedBookings;
-      console.log('🔍 [BookingService] Booking saved successfully:', savedBooking);
+      const savedBooking = Array.isArray(savedBookings)
+        ? savedBookings[0]
+        : savedBookings;
+      console.log(
+        '🔍 [BookingService] Booking saved successfully:',
+        savedBooking,
+      );
 
       // Send notification
       try {
         console.log('🔍 [BookingService] Sending booking notification...');
-        await this.bookingNotificationService.notifyBookingCreated(savedBooking);
-        console.log('🔍 [BookingService] Booking notification sent successfully');
+        await this.bookingNotificationService.notifyBookingCreated(
+          savedBooking,
+        );
+        console.log(
+          '🔍 [BookingService] Booking notification sent successfully',
+        );
       } catch (error) {
-        console.error('❌ [BookingService] Failed to send booking notification:', error);
+        console.error(
+          '❌ [BookingService] Failed to send booking notification:',
+          error,
+        );
       }
 
       // Schedule deposit reminder for testing (1 minute delay)
       try {
         console.log('🔍 [BookingService] Scheduling deposit reminder...');
-        await this.bookingSchedulerService.scheduleDepositReminder(savedBooking.id);
-        console.log('🔍 [BookingService] Deposit reminder scheduled successfully');
+        await this.bookingSchedulerService.scheduleDepositReminder(
+          savedBooking.id,
+        );
+        console.log(
+          '🔍 [BookingService] Deposit reminder scheduled successfully',
+        );
       } catch (error) {
-        console.error('❌ [BookingService] Failed to schedule deposit reminder:', error);
+        console.error(
+          '❌ [BookingService] Failed to schedule deposit reminder:',
+          error,
+        );
       }
 
       return savedBooking;
@@ -321,7 +367,9 @@ export class BookingsService {
     });
   }
 
-  async findAllAdmin(queryDto: AdminBookingQueryDto): Promise<AdminBookingResponseDto> {
+  async findAllAdmin(
+    queryDto: AdminBookingQueryDto,
+  ): Promise<AdminBookingResponseDto> {
     const {
       page = 1,
       limit = 10,
@@ -420,7 +468,7 @@ export class BookingsService {
     const bookings = await queryBuilder.getMany();
 
     // Transform bookings to add primary image to tool
-    const transformedBookings = bookings.map(booking => {
+    const transformedBookings = bookings.map((booking) => {
       // The image property is now available as a getter on the Tool entity
       return booking;
     });
@@ -557,60 +605,106 @@ export class BookingsService {
     cancelBookingDto: CancelBookingDto,
   ): Promise<Booking> {
     console.log(`[BOOKING_CANCEL] Starting cancellation for booking ${id}`);
-    console.log(`[BOOKING_CANCEL] Cancellation reason: ${cancelBookingDto.reason}`);
-    console.log(`[BOOKING_CANCEL] Cancellation message: ${cancelBookingDto.cancellationMessage}`);
-    
+    console.log(
+      `[BOOKING_CANCEL] Cancellation reason: ${cancelBookingDto.reason}`,
+    );
+    console.log(
+      `[BOOKING_CANCEL] Cancellation message: ${cancelBookingDto.cancellationMessage}`,
+    );
+
     const booking = await this.findOne(id);
     if (!booking) {
       console.log(`[BOOKING_CANCEL] ❌ Rejected - Booking ${id} not found`);
       throw new NotFoundException('Booking not found');
     }
-    console.log(`[BOOKING_CANCEL] Found booking ${id} - Status: ${booking.status}`);
+    console.log(
+      `[BOOKING_CANCEL] Found booking ${id} - Status: ${booking.status}`,
+    );
 
     if (booking.status === BookingStatus.CANCELLED) {
-      console.log(`[BOOKING_CANCEL] ❌ Rejected - Booking ${id} is already cancelled`);
+      console.log(
+        `[BOOKING_CANCEL] ❌ Rejected - Booking ${id} is already cancelled`,
+      );
       throw new BadRequestException('Booking is already cancelled');
     }
 
     if (booking.status === BookingStatus.COMPLETED) {
-      console.log(`[BOOKING_CANCEL] ❌ Rejected - Cannot cancel completed booking ${id}`);
+      console.log(
+        `[BOOKING_CANCEL] ❌ Rejected - Cannot cancel completed booking ${id}`,
+      );
       throw new BadRequestException('Cannot cancel a completed booking');
     }
 
-    console.log(`[BOOKING_CANCEL] ✅ Authorization passed - Proceeding with cancellation`);
+    console.log(
+      `[BOOKING_CANCEL] ✅ Authorization passed - Proceeding with cancellation`,
+    );
 
     booking.status = BookingStatus.CANCELLED;
     booking.cancellationReason = cancelBookingDto.reason;
     booking.cancellationMessage = cancelBookingDto.cancellationMessage;
     console.log(`[BOOKING_CANCEL] Updating booking status to CANCELLED`);
-    
+
     const savedBooking = await this.bookingsRepository.save(booking);
     console.log(`[BOOKING_CANCEL] Booking status updated and saved`);
 
     // Withdraw pending funds when booking is cancelled
     try {
-      console.log(`[BOOKING_CANCEL] Withdrawing pending funds for cancelled booking ${savedBooking.id}`);
-      
+      console.log(
+        `[BOOKING_CANCEL] Withdrawing pending funds for cancelled booking ${savedBooking.id}`,
+      );
+
       // Get tool owner for wallet
       const tool = await this.toolsService.findOne(savedBooking.toolId);
       const ownerWallet = await this.walletsService.findByUserId(tool.ownerId);
-      console.log(`[BOOKING_CANCEL] Found owner wallet ${ownerWallet.id} for user ${tool.ownerId}`);
-      
+      console.log(
+        `[BOOKING_CANCEL] Found owner wallet ${ownerWallet.id} for user ${tool.ownerId}`,
+      );
+
       // Get admin wallet
-      const adminUserId = ADMIN_USER_ID;
-      const adminWallet = await this.walletsService.findByUserId(adminUserId);
-      console.log(`[BOOKING_CANCEL] Found admin wallet ${adminWallet.id}`);
-      
+      const adminUserId = await this.resolveAdminUserId();
+      let adminWallet: any = null;
+      if (adminUserId) {
+        try {
+          adminWallet = await this.walletsService.findByUserId(adminUserId);
+          console.log(`[BOOKING_CANCEL] Found admin wallet ${adminWallet.id}`);
+        } catch (e) {
+          console.warn(
+            `[BOOKING_CANCEL] Admin wallet not found for user ${adminUserId}; skipping`,
+          );
+        }
+      } else {
+        console.warn(
+          `[BOOKING_CANCEL] No admin user configured; skipping admin pending withdrawal`,
+        );
+      }
+
       // Withdraw pending funds for both owner and admin
-      console.log(`[BOOKING_CANCEL] Withdrawing pending funds from owner wallet ${ownerWallet.id}`);
-      await this.walletsService.withdrawPendingFunds(ownerWallet.id, savedBooking.id);
-      
-      console.log(`[BOOKING_CANCEL] Withdrawing pending funds from admin wallet ${adminWallet.id}`);
-      await this.walletsService.withdrawPendingFunds(adminWallet.id, savedBooking.id);
-      
-      console.log(`[BOOKING_CANCEL] ✅ Successfully withdrew pending funds for cancelled booking ${savedBooking.id}`);
+      console.log(
+        `[BOOKING_CANCEL] Withdrawing pending funds from owner wallet ${ownerWallet.id}`,
+      );
+      await this.walletsService.withdrawPendingFunds(
+        ownerWallet.id,
+        savedBooking.id,
+      );
+
+      if (adminWallet) {
+        console.log(
+          `[BOOKING_CANCEL] Withdrawing pending funds from admin wallet ${adminWallet.id}`,
+        );
+        await this.walletsService.withdrawPendingFunds(
+          adminWallet.id,
+          savedBooking.id,
+        );
+      }
+
+      console.log(
+        `[BOOKING_CANCEL] ✅ Successfully withdrew pending funds for cancelled booking ${savedBooking.id}`,
+      );
     } catch (error) {
-      console.error(`[BOOKING_CANCEL] ❌ Failed to withdraw pending funds:`, error);
+      console.error(
+        `[BOOKING_CANCEL] ❌ Failed to withdraw pending funds:`,
+        error,
+      );
       // Don't fail the cancellation, but log the error
     }
 
@@ -622,9 +716,14 @@ export class BookingsService {
         'renter',
         cancelBookingDto.reason,
       );
-      console.log(`[BOOKING_CANCEL] Booking cancelled notification sent successfully`);
+      console.log(
+        `[BOOKING_CANCEL] Booking cancelled notification sent successfully`,
+      );
     } catch (error) {
-      console.error(`[BOOKING_CANCEL] Failed to send booking cancelled notification:`, error);
+      console.error(
+        `[BOOKING_CANCEL] Failed to send booking cancelled notification:`,
+        error,
+      );
     }
 
     console.log(`[BOOKING_CANCEL] ✅ Booking ${id} cancelled successfully`);
@@ -723,14 +822,18 @@ export class BookingsService {
     } catch (error) {
       // If payment creation fails, remove the booking
       await this.bookingsRepository.remove(booking);
-      throw new BadRequestException(`Failed to create payment: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create payment: ${error.message}`,
+      );
     }
   }
 
   /**
    * Create a booking with automatic deposit setup
    */
-  async createBookingWithDepositSetup(createBookingDto: CreateBookingWithDepositDto): Promise<{
+  async createBookingWithDepositSetup(
+    createBookingDto: CreateBookingWithDepositDto,
+  ): Promise<{
     booking: Booking;
     setupIntent: any;
     paymentIntent: any;
@@ -738,7 +841,8 @@ export class BookingsService {
     // Convert paymentMethod to match CreateBookingDto type
     const convertedDto: CreateBookingDto = {
       ...createBookingDto,
-      paymentMethod: createBookingDto.paymentMethod === 'card' ? 'CARD' : 'PAYPAL'
+      paymentMethod:
+        createBookingDto.paymentMethod === 'card' ? 'CARD' : 'PAYPAL',
     };
 
     // First create the booking
@@ -749,7 +853,7 @@ export class BookingsService {
       const user = await this.usersService.findOne(booking.renterId);
       const customerId = await this.stripeDepositService.createOrGetCustomer(
         user.email,
-        user.firstName + ' ' + user.lastName
+        user.firstName + ' ' + user.lastName,
       );
 
       // Calculate rental amount (without deposit) for immediate capture
@@ -763,7 +867,7 @@ export class BookingsService {
         subtotal,
         fees,
         rentalAmount,
-        depositAmount: tool.depositAmount
+        depositAmount: tool.depositAmount,
       });
 
       // Create PaymentIntent for immediate capture of rental amount (without deposit)
@@ -781,15 +885,20 @@ export class BookingsService {
       });
 
       // Create SetupIntent for deposit (managed separately)
-      const setupData = await this.stripeDepositService.createSetupIntent(customerId, booking.id);
+      const setupData = await this.stripeDepositService.createSetupIntent(
+        customerId,
+        booking.id,
+      );
 
       // Update booking with both payment and deposit setup data
       booking.paymentIntentId = paymentIntent.id;
       booking.paymentStatus = 'pending';
       booking.setupIntentId = setupData.setupIntentId;
-      booking.depositCaptureScheduledAt = new Date(booking.startDate.getTime() - 24 * 60 * 60 * 1000); // 24h before
+      booking.depositCaptureScheduledAt = new Date(
+        booking.startDate.getTime() - 24 * 60 * 60 * 1000,
+      ); // 24h before
       booking.depositCaptureStatus = DepositCaptureStatus.PENDING;
-      
+
       await this.bookingsRepository.save(booking);
 
       return {
@@ -800,14 +909,19 @@ export class BookingsService {
     } catch (error) {
       // If setup creation fails, remove the booking
       await this.bookingsRepository.remove(booking);
-      throw new BadRequestException(`Failed to create payment and deposit setup: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create payment and deposit setup: ${error.message}`,
+      );
     }
   }
 
   /**
    * Confirm deposit setup after user completes the SetupIntent
    */
-  async confirmDepositSetup(bookingId: string, confirmData: ConfirmDepositSetupDto): Promise<Booking> {
+  async confirmDepositSetup(
+    bookingId: string,
+    confirmData: ConfirmDepositSetupDto,
+  ): Promise<Booking> {
     const booking = await this.findOne(bookingId);
 
     if (!booking.setupIntentId) {
@@ -817,17 +931,19 @@ export class BookingsService {
     try {
       // Confirm the SetupIntent with Stripe
       const confirmResult = await this.stripeDepositService.confirmSetupIntent(
-        booking.setupIntentId
+        booking.setupIntentId,
       );
 
       if (!confirmResult.success) {
-        throw new BadRequestException(`Failed to confirm deposit setup: ${confirmResult.error}`);
+        throw new BadRequestException(
+          `Failed to confirm deposit setup: ${confirmResult.error}`,
+        );
       }
 
       // Update booking with confirmed deposit data
       booking.depositPaymentMethodId = confirmResult.paymentMethodId;
       booking.depositCaptureStatus = DepositCaptureStatus.SUCCESS;
-      
+
       const savedBooking = await this.bookingsRepository.save(booking);
 
       // Schedule deposit capture and notification jobs
@@ -838,14 +954,20 @@ export class BookingsService {
       booking.depositCaptureStatus = DepositCaptureStatus.FAILED;
       booking.depositFailureReason = error.message;
       await this.bookingsRepository.save(booking);
-      throw new BadRequestException(`Failed to confirm deposit setup: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to confirm deposit setup: ${error.message}`,
+      );
     }
   }
 
   /**
    * Refund deposit for a booking (admin only)
    */
-  async refundDeposit(bookingId: string, amount?: number, reason?: string): Promise<{
+  async refundDeposit(
+    bookingId: string,
+    amount?: number,
+    reason?: string,
+  ): Promise<{
     success: boolean;
     refundId?: string;
     message: string;
@@ -853,7 +975,9 @@ export class BookingsService {
     const booking = await this.findOne(bookingId);
 
     if (!booking.depositPaymentMethodId) {
-      throw new BadRequestException('No deposit payment method found for this booking');
+      throw new BadRequestException(
+        'No deposit payment method found for this booking',
+      );
     }
 
     if (booking.depositCaptureStatus !== DepositCaptureStatus.SUCCESS) {
@@ -869,7 +993,7 @@ export class BookingsService {
       const refundResult = await this.stripeDepositService.refundDeposit(
         booking.depositPaymentMethodId,
         Math.round(refundAmount * 100), // Convert to cents
-        reason || 'Deposit refund'
+        reason || 'Deposit refund',
       );
 
       if (refundResult.success) {
@@ -880,21 +1004,26 @@ export class BookingsService {
         return {
           success: true,
           refundId: refundResult.refundId,
-          message: 'Deposit refunded successfully'
+          message: 'Deposit refunded successfully',
         };
       } else {
         throw new BadRequestException('Failed to process refund');
       }
     } catch (error) {
-      throw new BadRequestException(`Failed to refund deposit: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to refund deposit: ${error.message}`,
+      );
     }
   }
 
   async acceptBooking(id: string): Promise<Booking> {
     console.log(`[BOOKING_ACCEPT] Starting acceptance for booking ${id}`);
-    
+
     const booking = await this.findOne(id);
-    const __days = this.calculateDays(new Date(booking.startDate), new Date(booking.endDate));
+    const __days = this.calculateDays(
+      new Date(booking.startDate),
+      new Date(booking.endDate),
+    );
     console.log(`[BOOKING_ACCEPT] Found booking context`, {
       bookingId: booking.id,
       status: booking.status,
@@ -909,7 +1038,9 @@ export class BookingsService {
     });
 
     if (booking.status !== BookingStatus.PENDING) {
-      console.log(`[BOOKING_ACCEPT] ❌ Rejected - Booking status is ${booking.status}, expected PENDING`);
+      console.log(
+        `[BOOKING_ACCEPT] ❌ Rejected - Booking status is ${booking.status}, expected PENDING`,
+      );
       throw new BadRequestException(
         `Booking cannot be accepted because it is ${booking.status}`,
       );
@@ -918,7 +1049,9 @@ export class BookingsService {
     const totalAmountRaw = Number(booking.totalPrice);
     let totalAmount = isNaN(totalAmountRaw) ? 0 : totalAmountRaw;
     if (!(totalAmount > 0)) {
-      console.log(`[BOOKING_ACCEPT] ⚠️ Invalid totalPrice detected (${booking.totalPrice}). Recomputing from tool and dates...`);
+      console.log(
+        `[BOOKING_ACCEPT] ⚠️ Invalid totalPrice detected (${booking.totalPrice}). Recomputing from tool and dates...`,
+      );
       const tool = await this.toolsService.findOne(booking.toolId);
       const startDate = new Date(booking.startDate);
       const endDate = new Date(booking.endDate);
@@ -927,7 +1060,9 @@ export class BookingsService {
       const fees = Math.round(subtotal * 0.06 * 100) / 100;
       totalAmount = Math.round((subtotal + fees) * 100) / 100;
       booking.totalPrice = totalAmount;
-      console.log(`[BOOKING_ACCEPT] ✅ totalPrice recomputed: days=${totalDays}, subtotal=${subtotal}€, fees=${fees}€, total=${totalAmount}€`);
+      console.log(
+        `[BOOKING_ACCEPT] ✅ totalPrice recomputed: days=${totalDays}, subtotal=${subtotal}€, fees=${fees}€, total=${totalAmount}€`,
+      );
     }
 
     // Check if payment is authorized or captured before accepting
@@ -938,24 +1073,34 @@ export class BookingsService {
     //   );
     // }
 
-    console.log(`[BOOKING_ACCEPT] ✅ Validation passed - Proceeding with acceptance`);
-    console.log(`[BOOKING_ACCEPT] Runtime context`, { adminUserId: ADMIN_USER_ID });
+    console.log(
+      `[BOOKING_ACCEPT] ✅ Validation passed - Proceeding with acceptance`,
+    );
+    const __adminId = await this.resolveAdminUserId();
+    console.log(`[BOOKING_ACCEPT] Runtime context`, { adminUserId: __adminId });
 
     // Démarrer une transaction de base de données
-    const queryRunner = this.bookingsRepository.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.bookingsRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     console.log(`[BOOKING_ACCEPT] Database transaction started`);
 
     try {
       // Calcul et distribution des revenus
-      console.log(`[BOOKING_ACCEPT] Starting revenue distribution for booking ${id}`);
+      console.log(
+        `[BOOKING_ACCEPT] Starting revenue distribution for booking ${id}`,
+      );
       await this.distributeBookingRevenue(booking, queryRunner);
-      console.log(`[BOOKING_ACCEPT] Revenue distribution completed for booking ${id}`);
+      console.log(
+        `[BOOKING_ACCEPT] Revenue distribution completed for booking ${id}`,
+      );
 
       // Generate 6-character alphanumeric validation code
       const validationCode = this.generateValidationCode();
-      console.log(`[BOOKING_ACCEPT] Generated validation code`, { validationCode });
+      console.log(`[BOOKING_ACCEPT] Generated validation code`, {
+        validationCode,
+      });
 
       // Mise à jour complète du statut
       booking.status = BookingStatus.ACCEPTED;
@@ -983,64 +1128,96 @@ export class BookingsService {
 
       // Commit de la transaction
       await queryRunner.commitTransaction();
-      console.log(`[BOOKING_ACCEPT] Database transaction committed successfully`, { bookingId: savedBooking.id });
+      console.log(
+        `[BOOKING_ACCEPT] Database transaction committed successfully`,
+        { bookingId: savedBooking.id },
+      );
 
-      console.log(`[BOOKING_ACCEPT] ✅ Booking accepted successfully`, { bookingId: savedBooking.id, validationCode });
+      console.log(`[BOOKING_ACCEPT] ✅ Booking accepted successfully`, {
+        bookingId: savedBooking.id,
+        validationCode,
+      });
 
       // Send notification with validation code
       try {
-        console.log(`[BOOKING_ACCEPT] Sending acceptance notification...`, { bookingId: savedBooking.id });
+        console.log(`[BOOKING_ACCEPT] Sending acceptance notification...`, {
+          bookingId: savedBooking.id,
+        });
         await this.bookingNotificationService.notifyBookingAccepted(
           savedBooking,
         );
-        console.log(`[BOOKING_ACCEPT] Acceptance notification sent successfully`);
+        console.log(
+          `[BOOKING_ACCEPT] Acceptance notification sent successfully`,
+        );
       } catch (error) {
-        console.error('[BOOKING_ACCEPT] Failed to send booking acceptance notification:', { bookingId: savedBooking.id, error: error?.message });
+        console.error(
+          '[BOOKING_ACCEPT] Failed to send booking acceptance notification:',
+          { bookingId: savedBooking.id, error: error?.message },
+        );
       }
 
       return savedBooking;
-
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      console.error(`[BOOKING_ACCEPT] ❌ Booking acceptance failed`, { bookingId: id, error: error?.message, stack: error?.stack });
-      throw new BadRequestException(`Failed to accept booking: ${error?.message || 'unknown error'}`);
+      console.error(`[BOOKING_ACCEPT] ❌ Booking acceptance failed`, {
+        bookingId: id,
+        error: error?.message,
+        stack: error?.stack,
+      });
+      throw new BadRequestException(
+        `Failed to accept booking: ${error?.message || 'unknown error'}`,
+      );
     } finally {
       await queryRunner.release();
       console.log(`[BOOKING_ACCEPT] Database transaction released`);
     }
   }
 
-  async validateBookingCode(id: string, validationCode: string): Promise<{ message: string; data: Booking }> {
-    console.log(`[BOOKING_VALIDATE] Starting validation for booking ${id} with code ${validationCode}`);
-    
+  async validateBookingCode(
+    id: string,
+    validationCode: string,
+  ): Promise<{ message: string; data: Booking }> {
+    console.log(
+      `[BOOKING_VALIDATE] Starting validation for booking ${id} with code ${validationCode}`,
+    );
+
     const booking = await this.findOne(id);
-    console.log(`[BOOKING_VALIDATE] Found booking ${id} - Status: ${booking.status}, ValidationCode: ${booking.validationCode}`);
+    console.log(
+      `[BOOKING_VALIDATE] Found booking ${id} - Status: ${booking.status}, ValidationCode: ${booking.validationCode}`,
+    );
 
     if (booking.status !== BookingStatus.ACCEPTED) {
-      console.log(`[BOOKING_VALIDATE] ❌ Rejected - Booking status is ${booking.status}, expected ACCEPTED`);
+      console.log(
+        `[BOOKING_VALIDATE] ❌ Rejected - Booking status is ${booking.status}, expected ACCEPTED`,
+      );
       throw new BadRequestException(
         `Booking cannot be validated because it is ${booking.status}. Only ACCEPTED bookings can be validated.`,
       );
     }
 
     if (!booking.validationCode) {
-      console.log(`[BOOKING_VALIDATE] ❌ Rejected - No validation code found for booking ${id}`);
+      console.log(
+        `[BOOKING_VALIDATE] ❌ Rejected - No validation code found for booking ${id}`,
+      );
       throw new BadRequestException(
         'No validation code found for this booking',
       );
     }
 
     if (booking.validationCode !== validationCode) {
-      console.log(`[BOOKING_VALIDATE] ❌ Rejected - Invalid validation code provided: ${validationCode}, expected: ${booking.validationCode}`);
-      throw new BadRequestException(
-        'Invalid validation code provided',
+      console.log(
+        `[BOOKING_VALIDATE] ❌ Rejected - Invalid validation code provided: ${validationCode}, expected: ${booking.validationCode}`,
       );
+      throw new BadRequestException('Invalid validation code provided');
     }
 
-    console.log(`[BOOKING_VALIDATE] ✅ Validation passed - Proceeding with code validation`);
+    console.log(
+      `[BOOKING_VALIDATE] ✅ Validation passed - Proceeding with code validation`,
+    );
 
     // Start transaction to ensure data consistency
-    const queryRunner = this.bookingsRepository.manager.connection.createQueryRunner();
+    const queryRunner =
+      this.bookingsRepository.manager.connection.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     console.log(`[BOOKING_VALIDATE] Database transaction started`);
@@ -1049,36 +1226,48 @@ export class BookingsService {
       // Update booking status to ONGOING
       booking.status = BookingStatus.ONGOING;
       console.log(`[BOOKING_VALIDATE] Updating booking status to ONGOING`);
-      
+
       // If booking has active claim, close it and update related dispute
       if (booking.hasActiveClaim) {
-        console.log(`[BOOKING_VALIDATE] Closing active claim for booking ${id}`);
+        console.log(
+          `[BOOKING_VALIDATE] Closing active claim for booking ${id}`,
+        );
         booking.hasActiveClaim = false;
-        
+
         // Find and close the active dispute for this booking
         const dispute = await queryRunner.manager.findOne(Dispute, {
           where: { bookingId: id, status: DisputeStatus.PENDING },
         });
-        
+
         if (dispute) {
-          console.log(`[BOOKING_VALIDATE] Found dispute ${dispute.id}, closing it`);
-          await queryRunner.manager.update(Dispute, { bookingId: id, status: DisputeStatus.PENDING }, {
-            status: DisputeStatus.CLOSED,
-            updatedAt: new Date(),
-          });
+          console.log(
+            `[BOOKING_VALIDATE] Found dispute ${dispute.id}, closing it`,
+          );
+          await queryRunner.manager.update(
+            Dispute,
+            { bookingId: id, status: DisputeStatus.PENDING },
+            {
+              status: DisputeStatus.CLOSED,
+              updatedAt: new Date(),
+            },
+          );
           console.log(`[BOOKING_VALIDATE] Dispute closed successfully`);
         } else {
-          console.log(`[BOOKING_VALIDATE] No active dispute found for booking ${id}`);
+          console.log(
+            `[BOOKING_VALIDATE] No active dispute found for booking ${id}`,
+          );
         }
       }
-      
+
       const savedBooking = await queryRunner.manager.save(booking);
       console.log(`[BOOKING_VALIDATE] Booking status updated and saved`);
-      
+
       // Commit transaction
       await queryRunner.commitTransaction();
-      console.log(`[BOOKING_VALIDATE] Database transaction committed successfully`);
-      
+      console.log(
+        `[BOOKING_VALIDATE] Database transaction committed successfully`,
+      );
+
       // // Capture payment when booking starts
       // if (savedBooking.paymentIntentId && savedBooking.paymentStatus === 'authorized') {
       //   console.log(`[BOOKING_VALIDATE] Capturing payment for booking ${id}`);
@@ -1098,50 +1287,101 @@ export class BookingsService {
 
       // Transfer pending funds to available funds after validation
       try {
-        console.log(`[BOOKING_VALIDATE] Transferring pending funds to available for booking ${savedBooking.id}`);
-        
+        console.log(
+          `[BOOKING_VALIDATE] Transferring pending funds to available for booking ${savedBooking.id}`,
+        );
+
         // Get tool owner for wallet
         const tool = await this.toolsService.findOne(savedBooking.toolId);
-        const ownerWallet = await this.walletsService.findByUserId(tool.ownerId);
-        console.log(`[BOOKING_VALIDATE] Found owner wallet ${ownerWallet.id} for user ${tool.ownerId}`);
-        
+        const ownerWallet = await this.walletsService.findByUserId(
+          tool.ownerId,
+        );
+        console.log(
+          `[BOOKING_VALIDATE] Found owner wallet ${ownerWallet.id} for user ${tool.ownerId}`,
+        );
+
         // Get admin wallet
-        const adminUserId = ADMIN_USER_ID;
-        const adminWallet = await this.walletsService.findByUserId(adminUserId);
-        console.log(`[BOOKING_VALIDATE] Found admin wallet ${adminWallet.id}`);
-        
+        const adminUserId = await this.resolveAdminUserId();
+        let adminWallet: any = null;
+        if (adminUserId) {
+          try {
+            adminWallet = await this.walletsService.findByUserId(adminUserId);
+            console.log(
+              `[BOOKING_VALIDATE] Found admin wallet ${adminWallet.id}`,
+            );
+          } catch (e) {
+            console.warn(
+              `[BOOKING_VALIDATE] Admin wallet not found for user ${adminUserId}; skipping`,
+            );
+          }
+        } else {
+          console.warn(
+            `[BOOKING_VALIDATE] No admin user configured; skipping admin wallet transfer`,
+          );
+        }
+
         // Transfer pending funds to available for both owner and admin
-        console.log(`[BOOKING_VALIDATE] Transferring pending funds for owner wallet ${ownerWallet.id}`);
-        await this.walletsService.transferPendingToAvailable(ownerWallet.id, savedBooking.id);
-        
-        console.log(`[BOOKING_VALIDATE] Transferring pending funds for admin wallet ${adminWallet.id}`);
-        await this.walletsService.transferPendingToAvailable(adminWallet.id, savedBooking.id);
-        
-        console.log(`[BOOKING_VALIDATE] ✅ Successfully transferred pending funds to available for booking ${savedBooking.id}`);
+        console.log(
+          `[BOOKING_VALIDATE] Transferring pending funds for owner wallet ${ownerWallet.id}`,
+        );
+        await this.walletsService.transferPendingToAvailable(
+          ownerWallet.id,
+          savedBooking.id,
+        );
+
+        if (adminWallet) {
+          console.log(
+            `[BOOKING_VALIDATE] Transferring pending funds for admin wallet ${adminWallet.id}`,
+          );
+          await this.walletsService.transferPendingToAvailable(
+            adminWallet.id,
+            savedBooking.id,
+          );
+        }
+
+        console.log(
+          `[BOOKING_VALIDATE] ✅ Successfully transferred pending funds to available for booking ${savedBooking.id}`,
+        );
       } catch (error) {
-        console.error(`[BOOKING_VALIDATE] ❌ Failed to transfer pending funds to available:`, error);
+        console.error(
+          `[BOOKING_VALIDATE] ❌ Failed to transfer pending funds to available:`,
+          error,
+        );
         // Don't fail the validation, but log the error
       }
 
       // Send notifications to both parties
       try {
-        console.log(`[BOOKING_VALIDATE] Sending booking started notification...`);
-        await this.bookingNotificationService.notifyBookingStarted(savedBooking);
-        console.log(`[BOOKING_VALIDATE] Booking started notification sent successfully`);
+        console.log(
+          `[BOOKING_VALIDATE] Sending booking started notification...`,
+        );
+        await this.bookingNotificationService.notifyBookingStarted(
+          savedBooking,
+        );
+        console.log(
+          `[BOOKING_VALIDATE] Booking started notification sent successfully`,
+        );
       } catch (error) {
-        console.error(`[BOOKING_VALIDATE] Failed to send booking started notification:`, error);
+        console.error(
+          `[BOOKING_VALIDATE] Failed to send booking started notification:`,
+          error,
+        );
       }
 
       console.log(`[BOOKING_VALIDATE] ✅ Booking ${id} validated successfully`);
 
       return {
-        message: 'Validation code verified successfully. Booking status updated to ONGOING.',
+        message:
+          'Validation code verified successfully. Booking status updated to ONGOING.',
         data: savedBooking,
       };
     } catch (error) {
       // Rollback transaction on error
       await queryRunner.rollbackTransaction();
-      console.error(`[BOOKING_VALIDATE] ❌ Booking validation failed for ${id}:`, error);
+      console.error(
+        `[BOOKING_VALIDATE] ❌ Booking validation failed for ${id}:`,
+        error,
+      );
       throw error;
     } finally {
       // Release query runner
@@ -1154,88 +1394,144 @@ export class BookingsService {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
     for (let i = 0; i < 6; i++) {
-      result += characters.charAt(Math.floor(Math.random() * characters.length));
+      result += characters.charAt(
+        Math.floor(Math.random() * characters.length),
+      );
     }
     return result;
+  }
+
+  private async resolveAdminUserId(): Promise<string | null> {
+    try {
+      if (ADMIN_EMAIL) {
+        const user = await this.usersService.findByEmail(ADMIN_EMAIL);
+        if (user?.id) {
+          return user.id;
+        }
+      }
+      if (ADMIN_USER_ID) {
+        return ADMIN_USER_ID;
+      }
+      return null;
+    } catch {
+      return ADMIN_USER_ID ?? null;
+    }
   }
 
   /**
    * Distribue les revenus de la réservation entre le propriétaire et l'admin
    */
   private async distributeBookingRevenue(
-    booking: Booking, 
-    queryRunner: QueryRunner
+    booking: Booking,
+    queryRunner: QueryRunner,
   ): Promise<void> {
     console.log(`[REVENUE_DISTRIBUTION] Starting for booking ${booking.id}`);
-    
+
     // 1. Calcul des montants
     const totalAmount = Number(booking.totalPrice);
     const adminCommission = Math.round(totalAmount * 0.15 * 100) / 100; // 15%
-    const ownerRevenue = Math.round(totalAmount * 0.79 * 100) / 100;    // 79%
-    
-    console.log(`[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`);
+    const ownerRevenue = Math.round(totalAmount * 0.79 * 100) / 100; // 79%
+
+    console.log(
+      `[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`,
+    );
 
     // 2. Récupération des informations nécessaires
     const tool = await this.toolsService.findOne(booking.toolId);
-    console.log(`[REVENUE_DISTRIBUTION] Tool found: ${tool.id}, ownerId (tool): ${tool.ownerId}, ownerId (booking): ${booking.ownerId}`);
-    
+    console.log(
+      `[REVENUE_DISTRIBUTION] Tool found: ${tool.id}, ownerId (tool): ${tool.ownerId}, ownerId (booking): ${booking.ownerId}`,
+    );
+
     // 3. Récupération des wallets
     const ownerId = booking.ownerId;
-    console.log(`[REVENUE_DISTRIBUTION] Finding owner wallet for user ${ownerId}`);
+    console.log(
+      `[REVENUE_DISTRIBUTION] Finding owner wallet for user ${ownerId}`,
+    );
     let ownerWallet;
     try {
       ownerWallet = await this.walletsService.findByUserId(ownerId);
     } catch (error) {
       // Si le wallet du propriétaire n'existe pas, le créer
-      console.log(`[REVENUE_DISTRIBUTION] Creating owner wallet for user ${ownerId}`);
+      console.log(
+        `[REVENUE_DISTRIBUTION] Creating owner wallet for user ${ownerId}`,
+      );
       await this.usersService.findOne(ownerId);
-      ownerWallet = await this.walletsService.create({ userId: ownerId, balance: 0 });
+      ownerWallet = await this.walletsService.create({
+        userId: ownerId,
+        balance: 0,
+      });
     }
-    
-    // Utiliser l'ID admin depuis l'environnement, avec fallback
-    const adminUserId: string = ADMIN_USER_ID;
+
+    const adminUserId = await this.resolveAdminUserId();
     let adminWallet: any = null;
-    let adminUserExists = true;
-    try {
-      await this.usersService.findOne(adminUserId);
-    } catch (e) {
-      adminUserExists = false;
-      console.warn(`[REVENUE_DISTRIBUTION] Admin user ${adminUserId} not found. Skipping admin commission allocation.`);
+    let adminUserExists = false;
+    if (adminUserId) {
+      try {
+        await this.usersService.findOne(adminUserId);
+        adminUserExists = true;
+      } catch (e) {
+        adminUserExists = false;
+        console.warn(
+          `[REVENUE_DISTRIBUTION] Admin user ${adminUserId} not found. Skipping admin commission allocation.`,
+        );
+      }
+    } else {
+      console.warn(
+        `[REVENUE_DISTRIBUTION] No admin user configured. Skipping admin commission allocation.`,
+      );
     }
-    if (adminUserExists) {
+    if (adminUserExists && adminUserId) {
       try {
         adminWallet = await this.walletsService.findByUserId(adminUserId);
       } catch (error) {
-        console.log(`[REVENUE_DISTRIBUTION] Creating admin wallet for user ${adminUserId}`);
-        adminWallet = await this.walletsService.create({ userId: adminUserId, balance: 0 });
+        console.log(
+          `[REVENUE_DISTRIBUTION] Creating admin wallet for user ${adminUserId}`,
+        );
+        adminWallet = await this.walletsService.create({
+          userId: adminUserId,
+          balance: 0,
+        });
       }
     }
 
     // 4. Distribution des fonds
     // Pour le propriétaire : utiliser addPendingFunds pour mettre à jour pendingBalance
-    const updatedOwnerWallet = await this.walletsService.addPendingFunds(ownerWallet.id, ownerRevenue);
+    const updatedOwnerWallet = await this.walletsService.addPendingFunds(
+      ownerWallet.id,
+      ownerRevenue,
+    );
     // Pour l'admin : utiliser addPendingFunds pour mettre à jour pendingBalance
     let updatedAdminWallet: any = null;
     if (adminWallet) {
-      updatedAdminWallet = await this.walletsService.addPendingFunds(adminWallet.id, adminCommission);
+      updatedAdminWallet = await this.walletsService.addPendingFunds(
+        adminWallet.id,
+        adminCommission,
+      );
     } else {
-      console.warn(`[BOOKING_ACCEPT] Admin commission ${adminCommission}€ skipped due to missing admin user/wallet`);
+      console.warn(
+        `[BOOKING_ACCEPT] Admin commission ${adminCommission}€ skipped due to missing admin user/wallet`,
+      );
     }
 
-    console.log(`[BOOKING_ACCEPT] Moving ${ownerRevenue}€ to pending for owner ${ownerId} (wallet ${ownerWallet.id}) -> pending now ${updatedOwnerWallet.pendingBalance}€`);
+    console.log(
+      `[BOOKING_ACCEPT] Moving ${ownerRevenue}€ to pending for owner ${ownerId} (wallet ${ownerWallet.id}) -> pending now ${updatedOwnerWallet.pendingBalance}€`,
+    );
     if (updatedAdminWallet) {
-      console.log(`[BOOKING_ACCEPT] Moving ${adminCommission}€ to pending for admin ${adminUserId} (wallet ${adminWallet.id}) -> pending now ${updatedAdminWallet.pendingBalance}€`);
+      console.log(
+        `[BOOKING_ACCEPT] Moving ${adminCommission}€ to pending for admin ${adminUserId} (wallet ${adminWallet.id}) -> pending now ${updatedAdminWallet.pendingBalance}€`,
+      );
     }
 
     // 5. Création des transactions pour traçabilité
     await this.createRevenueTransactions(
-      booking, 
-      ownerRevenue, 
-      adminCommission, 
+      booking,
+      ownerRevenue,
+      adminCommission,
       ownerWallet.id,
       adminWallet ? adminWallet.id : null,
       ownerId,
-      queryRunner
+      adminUserId || null,
+      queryRunner,
     );
 
     console.log(`[REVENUE_DISTRIBUTION] Completed for booking ${booking.id}`);
@@ -1251,9 +1547,9 @@ export class BookingsService {
     ownerWalletId: string,
     adminWalletId: string | null,
     ownerId: string,
-    queryRunner: QueryRunner
+    adminUserId: string | null,
+    queryRunner: QueryRunner,
   ): Promise<void> {
-    
     // Transaction pour le propriétaire
     const ownerTransaction = queryRunner.manager.create(Transaction, {
       amount: ownerRevenue,
@@ -1270,30 +1566,41 @@ export class BookingsService {
 
     // Transaction pour l'administrateur
     let adminTransaction: Transaction | null = null;
-    if (adminWalletId) {
+    if (adminWalletId && adminUserId) {
       adminTransaction = queryRunner.manager.create(Transaction, {
         amount: adminCommission,
         type: TransactionType.RENTAL_INCOME,
         status: TransactionStatus.COMPLETED,
         description: `Commission plateforme - Réservation #${booking.id.substring(0, 8)}`,
         walletId: adminWalletId,
-        recipientId: ADMIN_USER_ID,
+        recipientId: adminUserId,
         senderId: booking.renterId,
         bookingId: booking.id,
         externalReference: `booking_commission_${booking.id}`,
         createdAt: new Date(),
       });
     } else {
-      console.warn(`[TRANSACTIONS] Admin transaction skipped for booking ${booking.id} (no admin wallet)`);
+      console.warn(
+        `[TRANSACTIONS] Admin transaction skipped for booking ${booking.id} (no admin wallet/user)`,
+      );
     }
 
     // Sauvegarder les transactions
-    const transactionsToSave = adminTransaction ? [ownerTransaction, adminTransaction] : [ownerTransaction];
-    const saved = await queryRunner.manager.save(Transaction, transactionsToSave);
+    const transactionsToSave = adminTransaction
+      ? [ownerTransaction, adminTransaction]
+      : [ownerTransaction];
+    const saved = await queryRunner.manager.save(
+      Transaction,
+      transactionsToSave,
+    );
     const ownerSaved = saved[0];
     const adminSaved = adminTransaction ? saved[1] : null;
-    console.log(`[TRANSACTIONS] Created revenue transactions for booking ${booking.id}: ownerTx=${ownerSaved?.id}, adminTx=${adminSaved?.id || 'skipped'}`);
-    console.log(`[TRANSACTIONS] Summary -> booking ${booking.id}: owner ${ownerRevenue}€ (wallet ${ownerWalletId}), admin ${adminCommission}€ (wallet ${adminWalletId || 'n/a'})`);
+    console.log(
+      `[TRANSACTIONS] Created revenue transactions for booking ${booking.id}: ownerTx=${ownerSaved?.id}, adminTx=${adminSaved?.id || 'skipped'}`,
+    );
+    console.log(
+      `[TRANSACTIONS] Summary -> booking ${booking.id}: owner ${ownerRevenue}€ (wallet ${ownerWalletId}), admin ${adminCommission}€ (wallet ${adminWalletId || 'n/a'})`,
+    );
   }
 
   async remove(id: string): Promise<void> {
@@ -1304,60 +1611,80 @@ export class BookingsService {
   async calculatePricing(
     calculatePricingDto: CalculatePricingDto,
   ): Promise<PricingResponseDto> {
-    console.log('🔍 [BookingService] calculatePricing called with:', calculatePricingDto);
-    
+    console.log(
+      '🔍 [BookingService] calculatePricing called with:',
+      calculatePricingDto,
+    );
+
     try {
       const tool = await this.toolsService.findOne(calculatePricingDto.toolId);
-      console.log('🔍 [BookingService] Tool found:', { id: tool.id, title: tool.title, basePrice: tool.basePrice });
-    
+      console.log('🔍 [BookingService] Tool found:', {
+        id: tool.id,
+        title: tool.title,
+        basePrice: tool.basePrice,
+      });
+
       // Parse dates from YYYY-MM-DD format
-    const startDate = new Date(calculatePricingDto.startDate + 'T00:00:00.000Z');
-    const endDate = new Date(calculatePricingDto.endDate + 'T00:00:00.000Z');
-      
+      const startDate = new Date(
+        calculatePricingDto.startDate + 'T00:00:00.000Z',
+      );
+      const endDate = new Date(calculatePricingDto.endDate + 'T00:00:00.000Z');
+
       console.log('🔍 [BookingService] Parsed dates:', {
         startDateInput: calculatePricingDto.startDate,
         endDateInput: calculatePricingDto.endDate,
         startDateParsed: startDate.toISOString(),
-        endDateParsed: endDate.toISOString()
+        endDateParsed: endDate.toISOString(),
       });
-    
+
       // Validate dates - la date de fin ne peut JAMAIS être la même que la date de début
       if (startDate >= endDate) {
-        console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+        console.log(
+          '❌ [BookingService] Date validation failed: End date must be after start date',
+        );
         throw new BadRequestException('End date must be after start date');
       }
-    
+
       // Temporarily disable past date validation for testing
-      console.log('🔍 [BookingService] Date validation (temporarily disabled):', {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
-      });
-      
+      console.log(
+        '🔍 [BookingService] Date validation (temporarily disabled):',
+        {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        },
+      );
+
       // if (startDate < new Date()) {
       //   throw new BadRequestException('Start date cannot be in the past');
       // }
-    
+
       const totalDays = this.calculateDays(startDate, endDate);
       console.log('🔍 [BookingService] Total days calculated:', totalDays);
-      
+
       const subtotal = tool.basePrice * totalDays;
       console.log('🔍 [BookingService] Subtotal calculated:', subtotal);
-    
+
       // Calculate fees (6% platform fee)
       const fees = Math.round(subtotal * 0.06 * 100) / 100;
       console.log('🔍 [BookingService] Fees calculated:', fees);
-    
+
       // Calculate deposit (20% of subtotal, minimum 50)
       // const deposit = Math.max(Math.round(subtotal * 0.2 * 100) / 100, 50);
       const deposit = tool.depositAmount;
       console.log('🔍 [BookingService] Deposit (managed separately):', deposit);
-    
+
       // Total amount to pay = subtotal + fees (WITHOUT deposit)
       // Deposit is managed separately by the automatic system
       const totalAmount = subtotal + fees;
-      console.log('🔍 [BookingService] Total amount to pay (without deposit):', totalAmount);
-      console.log('🔍 [BookingService] Deposit amount (handled separately):', deposit);
-    
+      console.log(
+        '🔍 [BookingService] Total amount to pay (without deposit):',
+        totalAmount,
+      );
+      console.log(
+        '🔍 [BookingService] Deposit amount (handled separately):',
+        deposit,
+      );
+
       const result = {
         basePrice: tool.basePrice,
         totalDays,
@@ -1366,7 +1693,7 @@ export class BookingsService {
         deposit,
         totalAmount,
       };
-      
+
       console.log('🔍 [BookingService] Final pricing result:', result);
       return result;
     } catch (error) {
@@ -1397,11 +1724,13 @@ export class BookingsService {
       endTime: end.getTime(),
       comparison: start > end,
       timeDifference: end.getTime() - start.getTime(),
-      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      daysDifference: (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
     });
 
     if (start >= end) {
-      console.log('❌ [BookingService] Date validation failed: End date must be after start date');
+      console.log(
+        '❌ [BookingService] Date validation failed: End date must be after start date',
+      );
       console.log('❌ [BookingService] Detailed comparison:', {
         startDate: startDate,
         endDate: endDate,
@@ -1409,15 +1738,19 @@ export class BookingsService {
         endParsed: end.toISOString(),
         startTime: start.getTime(),
         endTime: end.getTime(),
-        isStartGreaterOrEqual: start >= end
+        isStartGreaterOrEqual: start >= end,
       });
       throw new BadRequestException('End date must be after start date');
     }
 
     // Enhanced date validation logic (consistent with create method)
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startDay = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    
+    const startDay = new Date(
+      start.getFullYear(),
+      start.getMonth(),
+      start.getDate(),
+    );
+
     if (startDay < today) {
       throw new BadRequestException('Start date cannot be in the past');
     }
@@ -1816,7 +2149,9 @@ export class BookingsService {
 
     // Verify that the booking is in ONGOING status
     if (booking.status !== BookingStatus.ONGOING) {
-      throw new BadRequestException('Tool return can only be confirmed for ongoing bookings');
+      throw new BadRequestException(
+        'Tool return can only be confirmed for ongoing bookings',
+      );
     }
 
     // Verify that the tool hasn't already been returned
@@ -1851,11 +2186,15 @@ export class BookingsService {
 
     // Verify that the booking is in ONGOING status and tool has been returned
     if (booking.status !== BookingStatus.ONGOING) {
-      throw new BadRequestException('Tool pickup can only be confirmed for ongoing bookings');
+      throw new BadRequestException(
+        'Tool pickup can only be confirmed for ongoing bookings',
+      );
     }
 
     if (!booking.renterHasReturned) {
-      throw new BadRequestException('Tool must be returned by renter before pickup confirmation');
+      throw new BadRequestException(
+        'Tool must be returned by renter before pickup confirmation',
+      );
     }
 
     // Update the booking
@@ -1867,7 +2206,9 @@ export class BookingsService {
 
     // Send notification
     try {
-      await this.bookingNotificationService.notifyBookingCompleted(updatedBooking);
+      await this.bookingNotificationService.notifyBookingCompleted(
+        updatedBooking,
+      );
     } catch (error) {
       console.error('Failed to send pickup confirmation notification:', error);
     }
@@ -1875,7 +2216,11 @@ export class BookingsService {
     return updatedBooking;
   }
 
-  async reportToolPickup(id: string, reportData: any, userId: string): Promise<Booking> {
+  async reportToolPickup(
+    id: string,
+    reportData: any,
+    userId: string,
+  ): Promise<Booking> {
     const booking = await this.findOne(id);
 
     // Verify that the user is the owner
@@ -1885,11 +2230,15 @@ export class BookingsService {
 
     // Verify that the booking is in ONGOING status and tool has been returned
     if (booking.status !== BookingStatus.ONGOING) {
-      throw new BadRequestException('Pickup issues can only be reported for ongoing bookings');
+      throw new BadRequestException(
+        'Pickup issues can only be reported for ongoing bookings',
+      );
     }
 
     if (!booking.renterHasReturned) {
-      throw new BadRequestException('Tool must be returned by renter before reporting pickup issues');
+      throw new BadRequestException(
+        'Tool must be returned by renter before reporting pickup issues',
+      );
     }
 
     // Update the booking
@@ -1936,7 +2285,10 @@ export class BookingsService {
     }
 
     // Vérifier que la réservation peut être annulée
-    if (booking.status === BookingStatus.CANCELLED || booking.status === BookingStatus.COMPLETED) {
+    if (
+      booking.status === BookingStatus.CANCELLED ||
+      booking.status === BookingStatus.COMPLETED
+    ) {
       throw new BadRequestException('Cannot cancel this booking');
     }
 
@@ -1951,7 +2303,7 @@ export class BookingsService {
     try {
       await this.bookingNotificationService.sendBookingCancelledNotification(
         updatedBooking,
-        'Unpaid deposit'
+        'Unpaid deposit',
       );
     } catch (error) {
       console.error('Failed to send cancellation notification:', error);
@@ -1968,12 +2320,16 @@ export class BookingsService {
         if (!validStatuses.includes(status as any)) {
           throw new BadRequestException(`Invalid status: ${status}`);
         }
-        return await this.depositSchedulerService.getDepositJobsByStatus(status as any);
+        return await this.depositSchedulerService.getDepositJobsByStatus(
+          status as any,
+        );
       } else {
         return await this.depositSchedulerService.getAllDepositJobs();
       }
     } catch (error) {
-      throw new BadRequestException(`Failed to retrieve deposit jobs: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to retrieve deposit jobs: ${error.message}`,
+      );
     }
   }
 }

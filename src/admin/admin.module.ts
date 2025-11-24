@@ -1,4 +1,9 @@
-import { Module, NestModule, MiddlewareConsumer, forwardRef } from '@nestjs/common';
+import {
+  Module,
+  NestModule,
+  MiddlewareConsumer,
+  forwardRef,
+} from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -110,7 +115,7 @@ import { ToolRejectionEmailService } from '../tools/services/tool-rejection-emai
     AdminTransactionsService,
     AdminNotificationsService,
     AdminReviewsService,
-    
+
     EnhancedAdminGuard,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,

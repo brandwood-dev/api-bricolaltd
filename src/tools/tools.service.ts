@@ -77,7 +77,9 @@ export class ToolsService {
         'Outil créé',
         `Un nouvel outil "${finalTool.title}" a été créé.`,
         finalTool.owner?.id,
-        finalTool.owner ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}` : undefined,
+        finalTool.owner
+          ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}`
+          : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
@@ -422,7 +424,9 @@ export class ToolsService {
         'Outil modifié',
         `L'outil "${finalTool.title}" a été modifié.`,
         finalTool.owner?.id,
-        finalTool.owner ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}` : undefined,
+        finalTool.owner
+          ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}`
+          : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
@@ -463,7 +467,9 @@ export class ToolsService {
         'Outil supprimé',
         `L'outil "${tool.title}" a été supprimé par son propriétaire.`,
         tool.owner?.id,
-        tool.owner ? `${tool.owner.firstName} ${tool.owner.lastName}` : undefined,
+        tool.owner
+          ? `${tool.owner.firstName} ${tool.owner.lastName}`
+          : undefined,
         NotificationPriority.HIGH,
       );
     } catch {}

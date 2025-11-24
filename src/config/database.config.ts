@@ -8,6 +8,9 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { Dispute } from '../disputes/entities/dispute.entity';
 import { News } from '../news/entities/news.entity';
+import { Section } from '../news/entities/section.entity';
+import { SectionParagraph } from '../news/entities/section-paragraph.entity';
+import { SectionImage } from '../news/entities/section-image.entity';
 import { Email } from '../emails/entities/email.entity';
 import { Bookmark } from '../bookmarks/entities/bookmark.entity';
 import { Tool } from '../tools/entities/tool.entity';
@@ -33,7 +36,9 @@ import { Contact } from '../contact/entities/contact.entity';
 import { AdminNotification } from '../admin/entities/admin-notification.entity';
 import { DepositCaptureJob } from '../bookings/entities/deposit-capture-job.entity';
 
-export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptions => ({
+export const databaseConfig = (
+  configService: ConfigService,
+): TypeOrmModuleOptions => ({
   type: 'mysql',
   host: configService.get('DB_HOST'),
   port: parseInt(configService.get('DB_PORT') || '3306', 10),
@@ -64,6 +69,9 @@ export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptio
     ReviewApp,
     Dispute,
     News,
+    Section,
+    SectionParagraph,
+    SectionImage,
     Email,
     Bookmark,
     Tool,
@@ -76,6 +84,6 @@ export const databaseConfig = (configService: ConfigService): TypeOrmModuleOptio
     DepositCaptureJob,
   ],
   migrations: ['dist/migrations/*.js'],
-  synchronize: configService.get('DB_SYNCHRONIZE') === 'true',
+  synchronize: false, // Temporarily disable synchronization to avoid row size errors
   logging: configService.get('DB_LOGGING') === 'false',
 });

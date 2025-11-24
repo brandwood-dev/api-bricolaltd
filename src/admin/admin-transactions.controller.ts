@@ -9,7 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { AdminTransactionsService } from './admin-transactions.service';
@@ -22,7 +28,9 @@ import { TransactionStatus } from '../transactions/enums/transaction-status.enum
 @UseGuards(JwtAuthGuard, AdminGuard)
 @ApiBearerAuth()
 export class AdminTransactionsController {
-  constructor(private readonly adminTransactionsService: AdminTransactionsService) {}
+  constructor(
+    private readonly adminTransactionsService: AdminTransactionsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all transactions for admin' })
@@ -49,7 +57,11 @@ export class AdminTransactionsController {
     @Query('end_date') endDate?: string,
     @Query('type') type?: string,
   ) {
-    return this.adminTransactionsService.getTransactionStats(startDate, endDate, type);
+    return this.adminTransactionsService.getTransactionStats(
+      startDate,
+      endDate,
+      type,
+    );
   }
 
   @Get('by-type')
@@ -90,7 +102,10 @@ export class AdminTransactionsController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update transaction status' })
-  @ApiResponse({ status: 200, description: 'Transaction status updated successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Transaction status updated successfully.',
+  })
   @ApiResponse({ status: 404, description: 'Transaction not found.' })
   async updateTransactionStatus(
     @Param('id') id: string,
@@ -108,16 +123,30 @@ export class AdminTransactionsController {
   @ApiResponse({ status: 200, description: 'Refund processed successfully.' })
   @ApiResponse({ status: 404, description: 'Transaction not found.' })
   async processRefund(
-    @Body() refundData: { transactionId: string; amount: number; reason: string; notifyUser?: boolean },
+    @Body()
+    refundData: {
+      transactionId: string;
+      amount: number;
+      reason: string;
+      notifyUser?: boolean;
+    },
   ) {
     return this.adminTransactionsService.processRefund(refundData);
   }
 
   @Post('bulk-action')
   @ApiOperation({ summary: 'Perform bulk action on transactions' })
-  @ApiResponse({ status: 200, description: 'Bulk action completed successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bulk action completed successfully.',
+  })
   async performBulkAction(
-    @Body() bulkData: { transactionIds: string[]; action: string; reason?: string },
+    @Body()
+    bulkData: {
+      transactionIds: string[];
+      action: string;
+      reason?: string;
+    },
   ) {
     return this.adminTransactionsService.performBulkAction(bulkData);
   }

@@ -128,7 +128,9 @@ export class ReviewsService {
   }
 
   // Tool Review methods
-  async createToolReview(createReviewToolDto: CreateReviewToolDto): Promise<ReviewTool> {
+  async createToolReview(
+    createReviewToolDto: CreateReviewToolDto,
+  ): Promise<ReviewTool> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -156,11 +158,16 @@ export class ReviewsService {
       });
 
       if (existingReview) {
-        throw new BadRequestException('A tool review already exists for this booking');
+        throw new BadRequestException(
+          'A tool review already exists for this booking',
+        );
       }
 
       // Create and save the tool review within transaction
-      const review = queryRunner.manager.create(ReviewTool, createReviewToolDto);
+      const review = queryRunner.manager.create(
+        ReviewTool,
+        createReviewToolDto,
+      );
       const savedReview = await queryRunner.manager.save(ReviewTool, review);
 
       // Commit transaction
@@ -212,12 +219,19 @@ export class ReviewsService {
     });
   }
 
-  async updateToolReview(id: string, updateReviewToolDto: UpdateReviewToolDto): Promise<ReviewTool> {
+  async updateToolReview(
+    id: string,
+    updateReviewToolDto: UpdateReviewToolDto,
+  ): Promise<ReviewTool> {
     const review = await this.findOneToolReview(id);
 
     // Only allow updating rating and comment
-    if (updateReviewToolDto.reviewerId || updateReviewToolDto.revieweeId || 
-        updateReviewToolDto.toolId || updateReviewToolDto.bookingId) {
+    if (
+      updateReviewToolDto.reviewerId ||
+      updateReviewToolDto.revieweeId ||
+      updateReviewToolDto.toolId ||
+      updateReviewToolDto.bookingId
+    ) {
       throw new BadRequestException(
         'Cannot update user, tool, or booking for an existing review',
       );
@@ -235,7 +249,9 @@ export class ReviewsService {
   }
 
   // App Review methods
-  async createAppReview(createReviewAppDto: CreateReviewAppDto): Promise<ReviewApp> {
+  async createAppReview(
+    createReviewAppDto: CreateReviewAppDto,
+  ): Promise<ReviewApp> {
     // Validate user exists
     await this.usersService.findOne(createReviewAppDto.reviewerId);
 
@@ -280,7 +296,9 @@ export class ReviewsService {
     });
   }
 
-  async checkUserAppReview(reviewerId: string): Promise<{ hasReviewed: boolean; review?: ReviewApp }> {
+  async checkUserAppReview(
+    reviewerId: string,
+  ): Promise<{ hasReviewed: boolean; review?: ReviewApp }> {
     const review = await this.reviewAppRepository.findOne({
       where: { reviewerId },
       relations: ['reviewer'],
@@ -292,7 +310,10 @@ export class ReviewsService {
     };
   }
 
-  async updateAppReview(id: string, updateReviewAppDto: UpdateReviewAppDto): Promise<ReviewApp> {
+  async updateAppReview(
+    id: string,
+    updateReviewAppDto: UpdateReviewAppDto,
+  ): Promise<ReviewApp> {
     const review = await this.findOneAppReview(id);
 
     // Only allow updating rating and comment
@@ -314,7 +335,10 @@ export class ReviewsService {
   }
 
   // Public stats for tool reviews: total count and global average rating
-  async getToolReviewsStatsPublic(): Promise<{ total: number; averageRating: number }> {
+  async getToolReviewsStatsPublic(): Promise<{
+    total: number;
+    averageRating: number;
+  }> {
     const result = await this.reviewToolRepository
       .createQueryBuilder('review')
       .select('COUNT(*)', 'total')

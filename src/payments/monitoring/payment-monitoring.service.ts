@@ -8,10 +8,10 @@ import { TransactionStatus } from '../../transactions/enums/transaction-status.e
 import { TransactionType } from '../../transactions/enums/transaction-type.enum';
 import { PaymentMethod } from '../../transactions/enums/payment-method.enum';
 import { AdminNotificationsService } from '../../admin/admin-notifications.service';
-import { 
+import {
   NotificationType as AdminNotificationType,
   NotificationPriority as AdminNotificationPriority,
-  NotificationCategory as AdminNotificationCategory
+  NotificationCategory as AdminNotificationCategory,
 } from '../../admin/dto/admin-notifications.dto';
 
 export interface PaymentMetrics {
@@ -33,8 +33,17 @@ export interface TransactionAnalytics {
   dailyDistribution: Array<{ date: string; count: number; amount: number }>;
   weeklyDistribution: Array<{ week: string; count: number; amount: number }>;
   monthlyDistribution: Array<{ month: string; count: number; amount: number }>;
-  topCustomers: Array<{ userId: string; email: string; totalAmount: number; count: number }>;
-  geographicDistribution: Array<{ country: string; count: number; amount: number }>;
+  topCustomers: Array<{
+    userId: string;
+    email: string;
+    totalAmount: number;
+    count: number;
+  }>;
+  geographicDistribution: Array<{
+    country: string;
+    count: number;
+    amount: number;
+  }>;
   deviceAnalytics: Array<{ device: string; count: number; amount: number }>;
   browserAnalytics: Array<{ browser: string; count: number; amount: number }>;
 }
@@ -57,7 +66,10 @@ export interface WithdrawalMetrics {
   averageWithdrawalAmount: number;
   withdrawalsByStatus: Record<string, number>;
   withdrawalsByMethod: Record<string, number>;
-  withdrawalProcessingTime: Array<{ transactionId: string; processingTime: number }>;
+  withdrawalProcessingTime: Array<{
+    transactionId: string;
+    processingTime: number;
+  }>;
   pendingWithdrawals: number;
   approvedWithdrawals: number;
   rejectedWithdrawals: number;
@@ -134,7 +146,7 @@ export class PaymentMonitoringService {
     const stripeSecretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
     if (stripeSecretKey) {
       this.stripe = new Stripe(stripeSecretKey, {
-        apiVersion: '2025-09-30.clover',
+        apiVersion: '2025-02-24.acacia',
       });
     }
   }
@@ -148,9 +160,13 @@ export class PaymentMonitoringService {
     currency?: string,
   ): Promise<PaymentMetrics> {
     const dateRange = this.getDateRange(startDate, endDate);
-    
-    const query = this.transactionRepository.createQueryBuilder('transaction')
-      .where('transaction.createdAt BETWEEN :startDate AND :endDate', dateRange);
+
+    const query = this.transactionRepository
+      .createQueryBuilder('transaction')
+      .where(
+        'transaction.createdAt BETWEEN :startDate AND :endDate',
+        dateRange,
+      );
 
     if (currency) {
       query.andWhere('transaction.currency = :currency', { currency });
@@ -163,10 +179,10 @@ export class PaymentMonitoringService {
     ]);
 
     const metrics = this.calculateMetrics(transactions, totalRevenue, avgValue);
-    
+
     // Check for alerts
     await this.checkMetricsAlerts(metrics);
-    
+
     return metrics;
   }
 
@@ -179,7 +195,7 @@ export class PaymentMonitoringService {
     groupBy: 'hour' | 'day' | 'week' | 'month' = 'day',
   ): Promise<TransactionAnalytics> {
     const dateRange = this.getDateRange(startDate, endDate);
-    
+
     const transactions = await this.transactionRepository
       .createQueryBuilder('transaction')
       .leftJoinAndSelect('transaction.sender', 'sender')
@@ -206,24 +222,36 @@ export class PaymentMonitoringService {
     endDate?: Date,
   ): Promise<RefundMetrics> {
     const dateRange = this.getDateRange(startDate, endDate);
-    
+
     const refunds = await this.transactionRepository
       .createQueryBuilder('transaction')
       .where('transaction.type = :type', { type: TransactionType.REFUND })
-      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', dateRange)
+      .andWhere(
+        'transaction.createdAt BETWEEN :startDate AND :endDate',
+        dateRange,
+      )
       .getMany();
 
     const totalTransactions = await this.transactionRepository
       .createQueryBuilder('transaction')
       .where('transaction.createdAt BETWEEN :startDate AND :endDate', dateRange)
-      .andWhere('transaction.type != :refundType', { refundType: TransactionType.REFUND })
+      .andWhere('transaction.type != :refundType', {
+        refundType: TransactionType.REFUND,
+      })
       .getCount();
 
     return {
       totalRefunds: refunds.length,
-      refundRate: totalTransactions > 0 ? (refunds.length / totalTransactions) * 100 : 0,
-      totalRefundAmount: Math.abs(refunds.reduce((sum, r) => sum + r.amount, 0)),
-      averageRefundAmount: refunds.length > 0 ? Math.abs(refunds.reduce((sum, r) => sum + r.amount, 0)) / refunds.length : 0,
+      refundRate:
+        totalTransactions > 0 ? (refunds.length / totalTransactions) * 100 : 0,
+      totalRefundAmount: Math.abs(
+        refunds.reduce((sum, r) => sum + r.amount, 0),
+      ),
+      averageRefundAmount:
+        refunds.length > 0
+          ? Math.abs(refunds.reduce((sum, r) => sum + r.amount, 0)) /
+            refunds.length
+          : 0,
       refundsByReason: this.groupRefundsByReason(refunds),
       refundsByStatus: this.groupByStatus(refunds),
       refundTrends: this.getRefundTrends(refunds),
@@ -240,23 +268,36 @@ export class PaymentMonitoringService {
     endDate?: Date,
   ): Promise<WithdrawalMetrics> {
     const dateRange = this.getDateRange(startDate, endDate);
-    
+
     const withdrawals = await this.transactionRepository
       .createQueryBuilder('transaction')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
-      .andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', dateRange)
+      .andWhere(
+        'transaction.createdAt BETWEEN :startDate AND :endDate',
+        dateRange,
+      )
       .getMany();
 
     return {
       totalWithdrawals: withdrawals.length,
       totalWithdrawalAmount: withdrawals.reduce((sum, w) => sum + w.amount, 0),
-      averageWithdrawalAmount: withdrawals.length > 0 ? withdrawals.reduce((sum, w) => sum + w.amount, 0) / withdrawals.length : 0,
+      averageWithdrawalAmount:
+        withdrawals.length > 0
+          ? withdrawals.reduce((sum, w) => sum + w.amount, 0) /
+            withdrawals.length
+          : 0,
       withdrawalsByStatus: this.groupByStatus(withdrawals),
       withdrawalsByMethod: this.groupByMethod(withdrawals),
       withdrawalProcessingTime: this.getWithdrawalProcessingTime(withdrawals),
-      pendingWithdrawals: withdrawals.filter(w => w.status === TransactionStatus.PENDING).length,
-      approvedWithdrawals: withdrawals.filter(w => w.status === TransactionStatus.COMPLETED).length,
-      rejectedWithdrawals: withdrawals.filter(w => w.status === TransactionStatus.FAILED).length,
+      pendingWithdrawals: withdrawals.filter(
+        (w) => w.status === TransactionStatus.PENDING,
+      ).length,
+      approvedWithdrawals: withdrawals.filter(
+        (w) => w.status === TransactionStatus.COMPLETED,
+      ).length,
+      rejectedWithdrawals: withdrawals.filter(
+        (w) => w.status === TransactionStatus.FAILED,
+      ).length,
       withdrawalTrends: this.getWithdrawalTrends(withdrawals),
     };
   }
@@ -276,7 +317,11 @@ export class PaymentMonitoringService {
       challengeRate: 23.8,
       frictionlessRate: 76.2,
       averageProcessingTime: 2850,
-      attemptsByStatus: { completed: 1174, failed: 45, challenge_required: 297 },
+      attemptsByStatus: {
+        completed: 1174,
+        failed: 45,
+        challenge_required: 297,
+      },
       attemptsByCurrency: { gbp: 892, eur: 298, usd: 57 },
       attemptsByCardBrand: { visa: 743, mastercard: 389, amex: 98 },
       challengeCompletionRate: 89.5,
@@ -290,7 +335,7 @@ export class PaymentMonitoringService {
   async getRealTimeMetrics(): Promise<RealTimeMetrics> {
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-    
+
     const [recentTransactions, currentHourMetrics] = await Promise.all([
       this.transactionRepository
         .createQueryBuilder('transaction')
@@ -298,13 +343,15 @@ export class PaymentMonitoringService {
         .orderBy('transaction.createdAt', 'DESC')
         .limit(10)
         .getMany(),
-      
+
       this.transactionRepository
         .createQueryBuilder('transaction')
         .select('SUM(transaction.amount)', 'revenue')
         .addSelect('COUNT(*)', 'count')
         .where('transaction.createdAt >= :oneHourAgo', { oneHourAgo })
-        .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+        .andWhere('transaction.status = :status', {
+          status: TransactionStatus.COMPLETED,
+        })
         .getRawOne(),
     ]);
 
@@ -312,7 +359,7 @@ export class PaymentMonitoringService {
       currentRevenue: parseFloat(currentHourMetrics?.revenue || '0'),
       currentTransactions: parseInt(currentHourMetrics?.count || '0'),
       activePaymentMethods: await this.getActivePaymentMethods(),
-      recentTransactions: recentTransactions.map(t => ({
+      recentTransactions: recentTransactions.map((t) => ({
         id: t.id,
         amount: t.amount,
         currency: 'EUR', // Default currency
@@ -330,7 +377,11 @@ export class PaymentMonitoringService {
    * Check for metric alerts
    */
   private async checkMetricsAlerts(metrics: PaymentMetrics): Promise<void> {
-    const alerts: Array<{type: 'error' | 'warning', message: string, timestamp: Date}> = [];
+    const alerts: Array<{
+      type: 'error' | 'warning';
+      message: string;
+      timestamp: Date;
+    }> = [];
 
     if (metrics.successRate < this.alertThresholds.lowSuccessRate) {
       alerts.push({
@@ -340,7 +391,10 @@ export class PaymentMonitoringService {
       });
     }
 
-    if (metrics.refundRate && metrics.refundRate > this.alertThresholds.highRefundRate) {
+    if (
+      metrics.refundRate &&
+      metrics.refundRate > this.alertThresholds.highRefundRate
+    ) {
       alerts.push({
         type: 'warning' as const,
         message: `High refund rate: ${metrics.refundRate.toFixed(1)}%`,
@@ -368,7 +422,7 @@ export class PaymentMonitoringService {
     try {
       // Check Stripe connectivity
       const stripeStatus = await this.checkStripeHealth();
-      
+
       return {
         stripeStatus,
         wiseStatus: 'operational', // Mock for now
@@ -389,10 +443,12 @@ export class PaymentMonitoringService {
   /**
    * Check Stripe health
    */
-  private async checkStripeHealth(): Promise<'operational' | 'degraded' | 'down'> {
+  private async checkStripeHealth(): Promise<
+    'operational' | 'degraded' | 'down'
+  > {
     try {
       if (!this.stripe) return 'down';
-      
+
       const balance = await this.stripe.balance.retrieve();
       return balance ? 'operational' : 'down';
     } catch (error) {
@@ -404,21 +460,34 @@ export class PaymentMonitoringService {
   /**
    * Helper methods
    */
-  private getDateRange(startDate?: Date, endDate?: Date): { startDate: Date; endDate: Date } {
+  private getDateRange(
+    startDate?: Date,
+    endDate?: Date,
+  ): { startDate: Date; endDate: Date } {
     const end = endDate || new Date();
-    const start = startDate || new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    const start =
+      startDate || new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
     return { startDate: start, endDate: end };
   }
 
-  private calculateMetrics(transactions: Transaction[], totalRevenue: any, avgValue: any): PaymentMetrics {
-    const completedTransactions = transactions.filter(t => t.status === TransactionStatus.COMPLETED);
+  private calculateMetrics(
+    transactions: Transaction[],
+    totalRevenue: any,
+    avgValue: any,
+  ): PaymentMetrics {
+    const completedTransactions = transactions.filter(
+      (t) => t.status === TransactionStatus.COMPLETED,
+    );
     const totalAmount = parseFloat(totalRevenue?.total || '0');
     const avgAmount = parseFloat(avgValue?.avg || '0');
 
     return {
       totalRevenue: totalAmount,
       totalTransactions: transactions.length,
-      successRate: transactions.length > 0 ? (completedTransactions.length / transactions.length) * 100 : 0,
+      successRate:
+        transactions.length > 0
+          ? (completedTransactions.length / transactions.length) * 100
+          : 0,
       averageTransactionValue: avgAmount,
       revenueByCurrency: this.groupByCurrency(transactions),
       transactionsByStatus: this.groupByStatus(transactions),
@@ -431,7 +500,7 @@ export class PaymentMonitoringService {
 
   private groupByCurrency(transactions: Transaction[]): Record<string, number> {
     const groups: Record<string, number> = {};
-    transactions.forEach(t => {
+    transactions.forEach((t) => {
       const currency = 'EUR'; // Default currency since Transaction entity doesn't have currency
       groups[currency] = (groups[currency] || 0) + t.amount;
     });
@@ -440,7 +509,7 @@ export class PaymentMonitoringService {
 
   private groupByStatus(transactions: Transaction[]): Record<string, number> {
     const groups: Record<string, number> = {};
-    transactions.forEach(t => {
+    transactions.forEach((t) => {
       groups[t.status] = (groups[t.status] || 0) + 1;
     });
     return groups;
@@ -448,7 +517,7 @@ export class PaymentMonitoringService {
 
   private groupByMethod(transactions: Transaction[]): Record<string, number> {
     const groups: Record<string, number> = {};
-    transactions.forEach(t => {
+    transactions.forEach((t) => {
       if (t.paymentMethod) {
         groups[t.paymentMethod] = (groups[t.paymentMethod] || 0) + 1;
       }
@@ -458,17 +527,19 @@ export class PaymentMonitoringService {
 
   private groupRefundsByReason(refunds: Transaction[]): Record<string, number> {
     const groups: Record<string, number> = {};
-    refunds.forEach(r => {
+    refunds.forEach((r) => {
       const reason = r.providerMetadata?.refundReason || 'unknown';
       groups[reason] = (groups[reason] || 0) + 1;
     });
     return groups;
   }
 
-  private getTopRefundReasons(refunds: Transaction[]): Array<{ reason: string; count: number; amount: number }> {
+  private getTopRefundReasons(
+    refunds: Transaction[],
+  ): Array<{ reason: string; count: number; amount: number }> {
     const reasons: Record<string, { count: number; amount: number }> = {};
-    
-    refunds.forEach(r => {
+
+    refunds.forEach((r) => {
       const reason = r.providerMetadata?.refundReason || 'unknown';
       if (!reasons[reason]) {
         reasons[reason] = { count: 0, amount: 0 };
@@ -483,10 +554,12 @@ export class PaymentMonitoringService {
       .slice(0, 10);
   }
 
-  private getRefundTrends(refunds: Transaction[]): Array<{ date: string; count: number; amount: number }> {
+  private getRefundTrends(
+    refunds: Transaction[],
+  ): Array<{ date: string; count: number; amount: number }> {
     const trends: Record<string, { count: number; amount: number }> = {};
-    
-    refunds.forEach(r => {
+
+    refunds.forEach((r) => {
       const date = r.createdAt.toISOString().split('T')[0];
       if (!trends[date]) {
         trends[date] = { count: 0, amount: 0 };
@@ -500,20 +573,26 @@ export class PaymentMonitoringService {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  private getRefundProcessingTime(refunds: Transaction[]): Array<{ bookingId: string; processingTime: number }> {
+  private getRefundProcessingTime(
+    refunds: Transaction[],
+  ): Array<{ bookingId: string; processingTime: number }> {
     return refunds
-      .filter(r => r.providerMetadata?.originalTransactionId && r.bookingId)
-      .map(r => ({
+      .filter((r) => r.providerMetadata?.originalTransactionId && r.bookingId)
+      .map((r) => ({
         bookingId: r.bookingId!,
-        processingTime: r.createdAt.getTime() - new Date(r.providerMetadata?.processedAt || r.createdAt).getTime(),
+        processingTime:
+          r.createdAt.getTime() -
+          new Date(r.providerMetadata?.processedAt || r.createdAt).getTime(),
       }))
-      .filter(item => item.processingTime > 0);
+      .filter((item) => item.processingTime > 0);
   }
 
-  private getWithdrawalTrends(withdrawals: Transaction[]): Array<{ date: string; count: number; amount: number }> {
+  private getWithdrawalTrends(
+    withdrawals: Transaction[],
+  ): Array<{ date: string; count: number; amount: number }> {
     const trends: Record<string, { count: number; amount: number }> = {};
-    
-    withdrawals.forEach(w => {
+
+    withdrawals.forEach((w) => {
       const date = w.createdAt.toISOString().split('T')[0];
       if (!trends[date]) {
         trends[date] = { count: 0, amount: 0 };
@@ -527,39 +606,53 @@ export class PaymentMonitoringService {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  private getWithdrawalProcessingTime(withdrawals: Transaction[]): Array<{ transactionId: string; processingTime: number }> {
+  private getWithdrawalProcessingTime(
+    withdrawals: Transaction[],
+  ): Array<{ transactionId: string; processingTime: number }> {
     return withdrawals
-      .filter(w => w.processedAt)
-      .map(w => ({
+      .filter((w) => w.processedAt)
+      .map((w) => ({
         transactionId: w.id,
         processingTime: w.processedAt!.getTime() - w.createdAt.getTime(),
       }))
-      .filter(item => item.processingTime > 0);
+      .filter((item) => item.processingTime > 0);
   }
 
-  private calculateGrowth(transactions: Transaction[], period: 'day' | 'week' | 'month'): number {
+  private calculateGrowth(
+    transactions: Transaction[],
+    period: 'day' | 'week' | 'month',
+  ): number {
     // Simplified growth calculation
     const now = new Date();
     const currentPeriodStart = this.getPeriodStart(now, period);
     const previousPeriodStart = this.getPreviousPeriodStart(now, period);
-    
-    const currentPeriodTransactions = transactions.filter(t => 
-      t.createdAt >= currentPeriodStart && t.createdAt < now
-    );
-    
-    const previousPeriodTransactions = transactions.filter(t => 
-      t.createdAt >= previousPeriodStart && t.createdAt < currentPeriodStart
+
+    const currentPeriodTransactions = transactions.filter(
+      (t) => t.createdAt >= currentPeriodStart && t.createdAt < now,
     );
 
-    const currentRevenue = currentPeriodTransactions.reduce((sum, t) => sum + t.amount, 0);
-    const previousRevenue = previousPeriodTransactions.reduce((sum, t) => sum + t.amount, 0);
+    const previousPeriodTransactions = transactions.filter(
+      (t) =>
+        t.createdAt >= previousPeriodStart && t.createdAt < currentPeriodStart,
+    );
 
-    return previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+    const currentRevenue = currentPeriodTransactions.reduce(
+      (sum, t) => sum + t.amount,
+      0,
+    );
+    const previousRevenue = previousPeriodTransactions.reduce(
+      (sum, t) => sum + t.amount,
+      0,
+    );
+
+    return previousRevenue > 0
+      ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
+      : 0;
   }
 
   private getPeriodStart(date: Date, period: 'day' | 'week' | 'month'): Date {
     const start = new Date(date);
-    
+
     if (period === 'day') {
       start.setHours(0, 0, 0, 0);
     } else if (period === 'week') {
@@ -569,13 +662,16 @@ export class PaymentMonitoringService {
       start.setDate(1);
       start.setHours(0, 0, 0, 0);
     }
-    
+
     return start;
   }
 
-  private getPreviousPeriodStart(date: Date, period: 'day' | 'week' | 'month'): Date {
+  private getPreviousPeriodStart(
+    date: Date,
+    period: 'day' | 'week' | 'month',
+  ): Date {
     const start = this.getPeriodStart(date, period);
-    
+
     if (period === 'day') {
       start.setDate(start.getDate() - 1);
     } else if (period === 'week') {
@@ -583,18 +679,20 @@ export class PaymentMonitoringService {
     } else if (period === 'month') {
       start.setMonth(start.getMonth() - 1);
     }
-    
+
     return start;
   }
 
-  private groupByHour(transactions: Transaction[]): Array<{ hour: number; count: number; amount: number }> {
+  private groupByHour(
+    transactions: Transaction[],
+  ): Array<{ hour: number; count: number; amount: number }> {
     const hours: Record<number, { count: number; amount: number }> = {};
-    
+
     for (let i = 0; i < 24; i++) {
       hours[i] = { count: 0, amount: 0 };
     }
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const hour = t.createdAt.getHours();
       hours[hour].count += 1;
       hours[hour].amount += t.amount;
@@ -606,10 +704,12 @@ export class PaymentMonitoringService {
     }));
   }
 
-  private groupByDay(transactions: Transaction[]): Array<{ date: string; count: number; amount: number }> {
+  private groupByDay(
+    transactions: Transaction[],
+  ): Array<{ date: string; count: number; amount: number }> {
     const days: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const date = t.createdAt.toISOString().split('T')[0];
       if (!days[date]) {
         days[date] = { count: 0, amount: 0 };
@@ -623,10 +723,12 @@ export class PaymentMonitoringService {
       .sort((a, b) => a.date.localeCompare(b.date));
   }
 
-  private groupByWeek(transactions: Transaction[]): Array<{ week: string; count: number; amount: number }> {
+  private groupByWeek(
+    transactions: Transaction[],
+  ): Array<{ week: string; count: number; amount: number }> {
     const weeks: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const week = this.getWeekString(t.createdAt);
       if (!weeks[week]) {
         weeks[week] = { count: 0, amount: 0 };
@@ -640,10 +742,12 @@ export class PaymentMonitoringService {
       .sort((a, b) => a.week.localeCompare(b.week));
   }
 
-  private groupByMonth(transactions: Transaction[]): Array<{ month: string; count: number; amount: number }> {
+  private groupByMonth(
+    transactions: Transaction[],
+  ): Array<{ month: string; count: number; amount: number }> {
     const months: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const month = t.createdAt.toISOString().slice(0, 7); // YYYY-MM
       if (!months[month]) {
         months[month] = { count: 0, amount: 0 };
@@ -664,17 +768,27 @@ export class PaymentMonitoringService {
   }
 
   private getWeekNumber(date: Date): number {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const d = new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+    );
     const dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   }
 
-  private getTopCustomers(transactions: Transaction[]): Array<{ userId: string; email: string; totalAmount: number; count: number }> {
-    const customers: Record<string, { email: string; totalAmount: number; count: number }> = {};
-    
-    transactions.forEach(t => {
+  private getTopCustomers(transactions: Transaction[]): Array<{
+    userId: string;
+    email: string;
+    totalAmount: number;
+    count: number;
+  }> {
+    const customers: Record<
+      string,
+      { email: string; totalAmount: number; count: number }
+    > = {};
+
+    transactions.forEach((t) => {
       if (t.senderId && t.sender) {
         const userId = t.senderId;
         if (!customers[userId]) {
@@ -695,10 +809,12 @@ export class PaymentMonitoringService {
       .slice(0, 10);
   }
 
-  private getGeographicDistribution(transactions: Transaction[]): Array<{ country: string; count: number; amount: number }> {
+  private getGeographicDistribution(
+    transactions: Transaction[],
+  ): Array<{ country: string; count: number; amount: number }> {
     const countries: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const country = t.providerMetadata?.country || 'Unknown';
       if (!countries[country]) {
         countries[country] = { count: 0, amount: 0 };
@@ -712,10 +828,12 @@ export class PaymentMonitoringService {
       .sort((a, b) => b.amount - a.amount);
   }
 
-  private getDeviceAnalytics(transactions: Transaction[]): Array<{ device: string; count: number; amount: number }> {
+  private getDeviceAnalytics(
+    transactions: Transaction[],
+  ): Array<{ device: string; count: number; amount: number }> {
     const devices: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const device = t.providerMetadata?.device || 'Unknown';
       if (!devices[device]) {
         devices[device] = { count: 0, amount: 0 };
@@ -729,10 +847,12 @@ export class PaymentMonitoringService {
       .sort((a, b) => b.amount - a.amount);
   }
 
-  private getBrowserAnalytics(transactions: Transaction[]): Array<{ browser: string; count: number; amount: number }> {
+  private getBrowserAnalytics(
+    transactions: Transaction[],
+  ): Array<{ browser: string; count: number; amount: number }> {
     const browsers: Record<string, { count: number; amount: number }> = {};
-    
-    transactions.forEach(t => {
+
+    transactions.forEach((t) => {
       const browser = t.providerMetadata?.browser || 'Unknown';
       if (!browsers[browser]) {
         browsers[browser] = { count: 0, amount: 0 };

@@ -56,7 +56,11 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Return current user profile.', type: User })
+  @ApiResponse({
+    status: 200,
+    description: 'Return current user profile.',
+    type: User,
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getMyProfile(@Request() req) {
     return this.usersService.findOne(req.user.id);
@@ -70,7 +74,10 @@ export class UsersController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'type', required: false, type: String })
   @ApiQuery({ name: 'status', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return current user transactions.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return current user transactions.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getMyTransactions(
     @Request() req,
@@ -79,15 +86,18 @@ export class UsersController {
     @Query('type') type?: string,
     @Query('status') status?: string,
   ) {
-    return this.usersService.getUserTransactions(req.user.id, page, limit, { type, status });
+    return this.usersService.getUserTransactions(req.user.id, page, limit, {
+      type,
+      status,
+    });
   }
 
   @Get('me/stats')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user statistics' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Return current user statistics.',
     schema: {
       type: 'object',
@@ -95,15 +105,27 @@ export class UsersController {
         data: {
           type: 'object',
           properties: {
-            totalEarnings: { type: 'number', description: 'Total earnings from completed rentals' },
-            activeAds: { type: 'number', description: 'Number of active tool listings' },
-            completedRentals: { type: 'number', description: 'Number of completed rentals' },
-            averageRating: { type: 'number', description: 'Average rating from reviews' }
-          }
+            totalEarnings: {
+              type: 'number',
+              description: 'Total earnings from completed rentals',
+            },
+            activeAds: {
+              type: 'number',
+              description: 'Number of active tool listings',
+            },
+            completedRentals: {
+              type: 'number',
+              description: 'Number of completed rentals',
+            },
+            averageRating: {
+              type: 'number',
+              description: 'Average rating from reviews',
+            },
+          },
         },
-        message: { type: 'string' }
-      }
-    }
+        message: { type: 'string' },
+      },
+    },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getMyStats(@Request() req) {
@@ -122,7 +144,10 @@ export class UsersController {
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 409, description: 'Email already exists.' })
-  async updateMyProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
+  async updateMyProfile(
+    @Request() req,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
     return this.usersService.updateProfile(req.user.id, updateProfileDto);
   }
 
@@ -182,7 +207,10 @@ export class UsersController {
   @ApiQuery({ name: 'sortBy', required: false, type: String })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['ASC', 'DESC'] })
   @ApiQuery({ name: 'country', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Return paginated users with filters.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated users with filters.',
+  })
   async findAll(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
@@ -200,7 +228,12 @@ export class UsersController {
       search,
       verified: verifiedEmail,
       isAdmin,
-      status: isActive === true ? 'active' as const : isActive === false ? 'inactive' as const : undefined,
+      status:
+        isActive === true
+          ? ('active' as const)
+          : isActive === false
+            ? ('inactive' as const)
+            : undefined,
       dateFrom: startDate ? new Date(startDate) : undefined,
       dateTo: endDate ? new Date(endDate) : undefined,
       country,
@@ -224,7 +257,11 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export users data to CSV' })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'suspended'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['active', 'inactive', 'suspended'],
+  })
   @ApiQuery({ name: 'verified', required: false, type: Boolean })
   @ApiQuery({ name: 'isAdmin', required: false, type: Boolean })
   @ApiQuery({ name: 'dateFrom', required: false, type: String })
@@ -281,7 +318,12 @@ export class UsersController {
   ) {
     const filters = {
       search,
-      status: isActive === true ? 'active' as const : isActive === false ? 'inactive' as const : undefined,
+      status:
+        isActive === true
+          ? ('active' as const)
+          : isActive === false
+            ? ('inactive' as const)
+            : undefined,
       verified: verifiedEmail,
       isAdmin,
       dateFrom: startDate ? new Date(startDate) : undefined,
@@ -289,17 +331,17 @@ export class UsersController {
       city,
       country,
     };
-    
+
     const csvData = await this.usersService.exportUsersCSV(filters);
-    
+
     // Set headers for CSV download
     const timestamp = new Date().toISOString().split('T')[0];
     const filename = `users-export-${timestamp}.csv`;
-    
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-cache');
-    
+
     // Send the response without returning the Express response object
     res.send(csvData);
     return;
@@ -309,7 +351,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get detailed user information for admin' })
-  @ApiResponse({ status: 200, description: 'Return detailed user information.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return detailed user information.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async findOne(@Param('id') id: string) {
     return this.usersService.findOneForAdmin(id);
@@ -355,7 +400,10 @@ export class UsersController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Can only update own profile.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Can only update own profile.',
+  })
   async uploadProfilePicture(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
@@ -369,12 +417,13 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete my account' })
   @ApiResponse({ status: 200, description: 'Account deleted successfully.' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid password or account cannot be deleted.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid password or account cannot be deleted.',
+  })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  async deleteMyAccount(
-    @Request() req: any,
-  ) {
+  async deleteMyAccount(@Request() req: any) {
     return this.usersService.deleteUserAccount(req.user.id);
   }
 
@@ -392,8 +441,6 @@ export class UsersController {
   // }
 
   // Additional admin endpoints
-
-
 
   @Patch(':id/activate')
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
@@ -418,11 +465,22 @@ export class UsersController {
   @Post(':id/suspend')
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Suspend a user account with reason and email notification' })
-  @ApiResponse({ status: 200, description: 'User suspended successfully and email sent.' })
+  @ApiOperation({
+    summary: 'Suspend a user account with reason and email notification',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User suspended successfully and email sent.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  @ApiResponse({ status: 400, description: 'Bad Request - Invalid suspension reason.' })
-  async suspendUser(@Param('id') id: string, @Body() suspendUserDto: SuspendUserDto) {
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid suspension reason.',
+  })
+  async suspendUser(
+    @Param('id') id: string,
+    @Body() suspendUserDto: SuspendUserDto,
+  ) {
     return this.usersService.suspendUserWithEmail(id, suspendUserDto.reason);
   }
 
@@ -430,7 +488,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Manually verify user email' })
-  @ApiResponse({ status: 200, description: 'User email verified successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'User email verified successfully.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async verifyUserEmail(@Param('id') id: string) {
     return this.usersService.verifyUserEmail(id);
@@ -440,7 +501,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Manually verify user identity' })
-  @ApiResponse({ status: 200, description: 'User identity verified successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'User identity verified successfully.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async verifyUserIdentity(@Param('id') id: string) {
     return this.usersService.verifyUserIdentity(id);
@@ -450,7 +514,10 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Force password reset for user' })
-  @ApiResponse({ status: 200, description: 'Password reset email sent successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset email sent successfully.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
   async forcePasswordReset(@Param('id') id: string) {
     return this.usersService.forcePasswordReset(id);
@@ -512,15 +579,21 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Validate if user account can be deleted' })
-  @ApiResponse({ status: 200, description: 'Return validation results for account deletion.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return validation results for account deletion.',
+  })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Can only validate own account.' })
-  async validateAccountDeletion(
-    @Param('id') id: string,
-    @Request() req: any,
-  ) {
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Can only validate own account.',
+  })
+  async validateAccountDeletion(@Param('id') id: string, @Request() req: any) {
     const ts = new Date().toISOString();
-    const result = await this.usersService.validateAccountDeletion(id, req.user);
+    const result = await this.usersService.validateAccountDeletion(
+      id,
+      req.user,
+    );
     // Ensure standard API envelope
     return {
       data: result,
@@ -535,11 +608,20 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, EnhancedAdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Perform bulk actions on users' })
-  @ApiResponse({ status: 200, description: 'Bulk action completed successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Bulk action completed successfully.',
+  })
   async bulkAction(
-    @Body() bulkActionDto: { userIds: string[]; action: 'activate' | 'deactivate' | 'verify' | 'delete' },
+    @Body()
+    bulkActionDto: {
+      userIds: string[];
+      action: 'activate' | 'deactivate' | 'verify' | 'delete';
+    },
   ) {
-    return this.usersService.bulkAction(bulkActionDto.userIds, bulkActionDto.action);
+    return this.usersService.bulkAction(
+      bulkActionDto.userIds,
+      bulkActionDto.action,
+    );
   }
-
 }

@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -61,14 +66,14 @@ export class PaymentService {
     };
   }): Promise<any> {
     try {
-      const { 
-        amount, 
-        currency = 'gbp', 
-        bookingId, 
-        metadata = {}, 
+      const {
+        amount,
+        currency = 'gbp',
+        bookingId,
+        metadata = {},
         userId,
         billingDetails,
-        deviceInfo
+        deviceInfo,
       } = options;
 
       // Validate amount and currency
@@ -80,7 +85,7 @@ export class PaymentService {
         amount,
         currency,
         billingDetails?.address?.country,
-        billingDetails?.address?.country
+        billingDetails?.address?.country,
       );
 
       this.logger.log(`Creating payment intent with 3DS support`, {
@@ -120,7 +125,8 @@ export class PaymentService {
         paymentIntentData.receipt_email = billingDetails.email;
       }
 
-      const paymentIntent = await this.stripe.paymentIntents.create(paymentIntentData);
+      const paymentIntent =
+        await this.stripe.paymentIntents.create(paymentIntentData);
 
       this.logger.log(`Payment intent created with 3DS support`, {
         paymentIntentId: paymentIntent.id,
@@ -134,17 +140,20 @@ export class PaymentService {
       if (requires3DS && userId) {
         // Store that this payment intent may require 3DS
         // The actual 3DS flow will be triggered during confirmation
-        this.logger.log(`3D Secure may be required for payment intent: ${paymentIntent.id}`);
+        this.logger.log(
+          `3D Secure may be required for payment intent: ${paymentIntent.id}`,
+        );
       }
 
       return {
         ...paymentIntent,
         requires_3ds: requires3DS,
       };
-
     } catch (error) {
       this.logger.error('Error creating payment intent with 3DS:', error);
-      throw new BadRequestException(`Failed to create payment intent: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create payment intent: ${error.message}`,
+      );
     }
   }
 
@@ -161,18 +170,24 @@ export class PaymentService {
     try {
       // 🔍 LOGS ULTRA-DÉTAILLÉS POUR DÉBOGUER LE PROBLÈME DE CONVERSION
       this.logger.log(`🔍 [PaymentService] === DÉBUT ANALYSE BACKEND ===`);
-      this.logger.log(`🔍 [PaymentService] Montant reçu depuis frontend: ${amount}`);
+      this.logger.log(
+        `🔍 [PaymentService] Montant reçu depuis frontend: ${amount}`,
+      );
       this.logger.log(`🔍 [PaymentService] Type du montant: ${typeof amount}`);
       this.logger.log(`🔍 [PaymentService] Devise: ${currency}`);
-      
+
       // CORRECTION: Le montant reçu du frontend est déjà en centimes
       // Exemple: pour £0.93, le frontend envoie 93 (centimes)
       // Donc on utilise directement ce montant sans conversion
       const amountInCents = Math.round(amount);
-      
-      this.logger.log(`🔍 [PaymentService] Montant final envoyé à Stripe (centimes): ${amountInCents}`);
-      this.logger.log(`🔍 [PaymentService] Équivalent en devise principale: £${amountInCents / 100}`);
-      
+
+      this.logger.log(
+        `🔍 [PaymentService] Montant final envoyé à Stripe (centimes): ${amountInCents}`,
+      );
+      this.logger.log(
+        `🔍 [PaymentService] Équivalent en devise principale: £${amountInCents / 100}`,
+      );
+
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents, // Le montant est déjà en centimes depuis PaymentForm.tsx
         currency: currency.toLowerCase(),
@@ -187,14 +202,23 @@ export class PaymentService {
 
       this.logger.log(`🔍 [PaymentService] Payment Intent créé avec succès:`);
       this.logger.log(`🔍 [PaymentService] - ID: ${paymentIntent.id}`);
-      this.logger.log(`🔍 [PaymentService] - Montant Stripe: ${paymentIntent.amount} centimes`);
-      this.logger.log(`🔍 [PaymentService] - Équivalent: £${paymentIntent.amount / 100}`);
-      this.logger.log(`🔍 [PaymentService] - Devise: ${paymentIntent.currency}`);
+      this.logger.log(
+        `🔍 [PaymentService] - Montant Stripe: ${paymentIntent.amount} centimes`,
+      );
+      this.logger.log(
+        `🔍 [PaymentService] - Équivalent: £${paymentIntent.amount / 100}`,
+      );
+      this.logger.log(
+        `🔍 [PaymentService] - Devise: ${paymentIntent.currency}`,
+      );
       this.logger.log(`🔍 [PaymentService] === FIN ANALYSE BACKEND ===`);
-      
+
       return paymentIntent;
     } catch (error) {
-      this.logger.error('🔍 [PaymentService] Erreur lors de la création du Payment Intent:', error);
+      this.logger.error(
+        '🔍 [PaymentService] Erreur lors de la création du Payment Intent:',
+        error,
+      );
       throw new BadRequestException(`Erreur de paiement: ${error.message}`);
     }
   }
@@ -204,17 +228,23 @@ export class PaymentService {
    */
   async confirmPaymentIntent(
     paymentIntentId: string,
-    paymentMethodId: string
+    paymentMethodId: string,
   ): Promise<any> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.confirm(paymentIntentId, {
-        payment_method: paymentMethodId,
-      });
+      const paymentIntent = await this.stripe.paymentIntents.confirm(
+        paymentIntentId,
+        {
+          payment_method: paymentMethodId,
+        },
+      );
 
       this.logger.log(`Payment Intent confirmé: ${paymentIntentId}`);
       return paymentIntent;
     } catch (error) {
-      this.logger.error(`Erreur lors de la confirmation du Payment Intent ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de la confirmation du Payment Intent ${paymentIntentId}:`,
+        error,
+      );
       throw new BadRequestException(`Erreur de confirmation: ${error.message}`);
     }
   }
@@ -224,24 +254,27 @@ export class PaymentService {
    */
   async capturePaymentIntent(
     paymentIntentId: string,
-    amountToCapture?: number
+    amountToCapture?: number,
   ): Promise<any> {
     try {
       const captureData: any = {};
-      
+
       if (amountToCapture) {
         captureData.amount_to_capture = Math.round(amountToCapture * 100);
       }
 
       const paymentIntent = await this.stripe.paymentIntents.capture(
         paymentIntentId,
-        captureData
+        captureData,
       );
 
       this.logger.log(`Fonds capturés pour Payment Intent: ${paymentIntentId}`);
       return paymentIntent;
     } catch (error) {
-      this.logger.error(`Erreur lors de la capture des fonds ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de la capture des fonds ${paymentIntentId}:`,
+        error,
+      );
       throw new BadRequestException(`Erreur de capture: ${error.message}`);
     }
   }
@@ -251,12 +284,16 @@ export class PaymentService {
    */
   async cancelPaymentIntent(paymentIntentId: string): Promise<any> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.cancel(paymentIntentId);
-      
+      const paymentIntent =
+        await this.stripe.paymentIntents.cancel(paymentIntentId);
+
       this.logger.log(`Payment Intent annulé: ${paymentIntentId}`);
       return paymentIntent;
     } catch (error) {
-      this.logger.error(`Erreur lors de l'annulation du Payment Intent ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de l'annulation du Payment Intent ${paymentIntentId}:`,
+        error,
+      );
       throw new BadRequestException(`Erreur d'annulation: ${error.message}`);
     }
   }
@@ -267,7 +304,7 @@ export class PaymentService {
   async createRefund(
     paymentIntentId: string,
     amount?: number,
-    reason?: string
+    reason?: string,
   ): Promise<any> {
     try {
       const refundData: any = {
@@ -283,12 +320,19 @@ export class PaymentService {
       }
 
       const refund = await this.stripe.refunds.create(refundData);
-      
-      this.logger.log(`Remboursement créé: ${refund.id} pour Payment Intent: ${paymentIntentId}`);
+
+      this.logger.log(
+        `Remboursement créé: ${refund.id} pour Payment Intent: ${paymentIntentId}`,
+      );
       return refund;
     } catch (error) {
-      this.logger.error(`Erreur lors du remboursement ${paymentIntentId}:`, error);
-      throw new BadRequestException(`Erreur de remboursement: ${error.message}`);
+      this.logger.error(
+        `Erreur lors du remboursement ${paymentIntentId}:`,
+        error,
+      );
+      throw new BadRequestException(
+        `Erreur de remboursement: ${error.message}`,
+      );
     }
   }
 
@@ -297,11 +341,17 @@ export class PaymentService {
    */
   async getPaymentIntent(paymentIntentId: string): Promise<any> {
     try {
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
       return paymentIntent;
     } catch (error) {
-      this.logger.error(`Erreur lors de la récupération du Payment Intent ${paymentIntentId}:`, error);
-      throw new NotFoundException(`Payment Intent introuvable: ${paymentIntentId}`);
+      this.logger.error(
+        `Erreur lors de la récupération du Payment Intent ${paymentIntentId}:`,
+        error,
+      );
+      throw new NotFoundException(
+        `Payment Intent introuvable: ${paymentIntentId}`,
+      );
     }
   }
 
@@ -315,7 +365,7 @@ export class PaymentService {
     amount: number,
     type: TransactionType,
     description: string,
-    bookingId?: string
+    bookingId?: string,
   ): Promise<Transaction> {
     try {
       const transaction = this.transactionsRepository.create({
@@ -331,13 +381,18 @@ export class PaymentService {
         createdAt: new Date(),
       });
 
-      const savedTransaction = await this.transactionsRepository.save(transaction);
-      this.logger.log(`Transaction créée: ${savedTransaction.id} pour Payment Intent: ${paymentIntentId}`);
-      
+      const savedTransaction =
+        await this.transactionsRepository.save(transaction);
+      this.logger.log(
+        `Transaction créée: ${savedTransaction.id} pour Payment Intent: ${paymentIntentId}`,
+      );
+
       return savedTransaction;
     } catch (error) {
       this.logger.error('Erreur lors de la création de la transaction:', error);
-      throw new BadRequestException(`Erreur de création de transaction: ${error.message}`);
+      throw new BadRequestException(
+        `Erreur de création de transaction: ${error.message}`,
+      );
     }
   }
 
@@ -347,15 +402,17 @@ export class PaymentService {
   async updateTransactionStatus(
     paymentIntentId: string,
     status: TransactionStatus,
-    processedAt?: Date
+    processedAt?: Date,
   ): Promise<Transaction> {
     try {
       const transaction = await this.transactionsRepository.findOne({
-        where: { externalReference: paymentIntentId }
+        where: { externalReference: paymentIntentId },
       });
 
       if (!transaction) {
-        throw new NotFoundException(`Transaction introuvable pour Payment Intent: ${paymentIntentId}`);
+        throw new NotFoundException(
+          `Transaction introuvable pour Payment Intent: ${paymentIntentId}`,
+        );
       }
 
       transaction.status = status;
@@ -363,12 +420,16 @@ export class PaymentService {
         transaction.processedAt = processedAt;
       }
 
-      const updatedTransaction = await this.transactionsRepository.save(transaction);
+      const updatedTransaction =
+        await this.transactionsRepository.save(transaction);
       this.logger.log(`Transaction ${transaction.id} mise à jour: ${status}`);
-      
+
       return updatedTransaction;
     } catch (error) {
-      this.logger.error(`Erreur lors de la mise à jour de la transaction pour ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de la mise à jour de la transaction pour ${paymentIntentId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -380,12 +441,12 @@ export class PaymentService {
     userId: string,
     amount: number,
     bookingId: string,
-    currency: string = 'gbp'
+    currency: string = 'gbp',
   ): Promise<{ paymentIntent: any; transaction: Transaction }> {
     try {
       // Récupérer le portefeuille de l'utilisateur
       const wallet = await this.walletsRepository.findOne({
-        where: { userId }
+        where: { userId },
       });
 
       if (!wallet) {
@@ -399,8 +460,8 @@ export class PaymentService {
         metadata: {
           booking_id: bookingId,
           user_id: userId,
-          type: 'booking_hold'
-        }
+          type: 'booking_hold',
+        },
       });
 
       // Créer la transaction correspondante
@@ -411,12 +472,15 @@ export class PaymentService {
         amount,
         TransactionType.PAYMENT,
         `Blocage des fonds pour la réservation ${bookingId}`,
-        bookingId
+        bookingId,
       );
 
       return { paymentIntent, transaction };
     } catch (error) {
-      this.logger.error(`Erreur lors du blocage des fonds pour la réservation ${bookingId}:`, error);
+      this.logger.error(
+        `Erreur lors du blocage des fonds pour la réservation ${bookingId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -426,22 +490,28 @@ export class PaymentService {
    */
   async captureFundsForBooking(
     paymentIntentId: string,
-    amountToCapture?: number
+    amountToCapture?: number,
   ): Promise<{ paymentIntent: any; transaction: Transaction }> {
     try {
       // Capturer les fonds
-      const paymentIntent = await this.capturePaymentIntent(paymentIntentId, amountToCapture);
+      const paymentIntent = await this.capturePaymentIntent(
+        paymentIntentId,
+        amountToCapture,
+      );
 
       // Mettre à jour la transaction
       const transaction = await this.updateTransactionStatus(
         paymentIntentId,
         TransactionStatus.COMPLETED,
-        new Date()
+        new Date(),
       );
 
       return { paymentIntent, transaction };
     } catch (error) {
-      this.logger.error(`Erreur lors de la capture des fonds pour ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de la capture des fonds pour ${paymentIntentId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -450,7 +520,7 @@ export class PaymentService {
    * Libère les fonds bloqués (annulation de réservation)
    */
   async releaseFundsForBooking(
-    paymentIntentId: string
+    paymentIntentId: string,
   ): Promise<{ paymentIntent: any; transaction: Transaction }> {
     try {
       // Annuler le Payment Intent
@@ -460,12 +530,15 @@ export class PaymentService {
       const transaction = await this.updateTransactionStatus(
         paymentIntentId,
         TransactionStatus.CANCELLED,
-        new Date()
+        new Date(),
       );
 
       return { paymentIntent, transaction };
     } catch (error) {
-      this.logger.error(`Erreur lors de la libération des fonds pour ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Erreur lors de la libération des fonds pour ${paymentIntentId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -477,13 +550,19 @@ export class PaymentService {
     if (isNaN(amount) || amount <= 0) {
       throw new BadRequestException('Invalid payment amount');
     }
-    
-    if (amount > 10000) { // Maximum £10,000
-      throw new BadRequestException('Payment amount exceeds maximum limit of £10,000');
+
+    if (amount > 10000) {
+      // Maximum £10,000
+      throw new BadRequestException(
+        'Payment amount exceeds maximum limit of £10,000',
+      );
     }
-    
-    if (amount < 0.50) { // Minimum £0.50
-      throw new BadRequestException('Payment amount below minimum threshold of £0.50');
+
+    if (amount < 0.5) {
+      // Minimum £0.50
+      throw new BadRequestException(
+        'Payment amount below minimum threshold of £0.50',
+      );
     }
   }
 
@@ -492,7 +571,7 @@ export class PaymentService {
    */
   private validateCurrency(currency: string): void {
     const supportedCurrencies = ['gbp', 'eur', 'usd'];
-    
+
     if (!supportedCurrencies.includes(currency.toLowerCase())) {
       throw new BadRequestException(`Currency ${currency} is not supported`);
     }

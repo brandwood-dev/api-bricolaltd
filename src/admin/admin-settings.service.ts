@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Setting, SettingCategory, SettingType } from './entities/setting.entity';
+import {
+  Setting,
+  SettingCategory,
+  SettingType,
+} from './entities/setting.entity';
 import { CreateSettingDto, UpdateSettingDto } from './dto/settings.dto';
 
 @Injectable()
@@ -153,21 +157,26 @@ export class AdminSettingsService {
     });
 
     if (existingSetting) {
-      throw new Error(`Setting with key '${createSettingDto.key}' already exists in category '${createSettingDto.category}'`);
+      throw new Error(
+        `Setting with key '${createSettingDto.key}' already exists in category '${createSettingDto.category}'`,
+      );
     }
 
     const setting = this.settingRepository.create(createSettingDto);
     return this.settingRepository.save(setting);
   }
 
-  async updateSetting(key: string, updateSettingDto: UpdateSettingDto): Promise<Setting> {
+  async updateSetting(
+    key: string,
+    updateSettingDto: UpdateSettingDto,
+  ): Promise<Setting> {
     const setting = await this.getSetting(key);
-    
+
     Object.assign(setting, updateSettingDto);
     if (updateSettingDto.updatedBy !== undefined) {
       setting.updatedBy = updateSettingDto.updatedBy;
     }
-    
+
     return this.settingRepository.save(setting);
   }
 
@@ -177,7 +186,10 @@ export class AdminSettingsService {
     await this.settingRepository.save(setting);
   }
 
-  async bulkUpdateSettings(settings: Record<string, any>, updatedBy?: string): Promise<Setting[]> {
+  async bulkUpdateSettings(
+    settings: Record<string, any>,
+    updatedBy?: string,
+  ): Promise<Setting[]> {
     const updatedSettings: Setting[] = [];
 
     for (const [key, value] of Object.entries(settings)) {
@@ -214,7 +226,9 @@ export class AdminSettingsService {
     };
   }
 
-  async importSettings(importData: any): Promise<{ imported: number; errors: string[] }> {
+  async importSettings(
+    importData: any,
+  ): Promise<{ imported: number; errors: string[] }> {
     let imported = 0;
     const errors: string[] = [];
 
@@ -257,7 +271,9 @@ export class AdminSettingsService {
 
   private parseSettingValue(setting: Setting): any {
     if (setting.value === null) {
-      return setting.defaultValue ? this.parseValueByType(setting.defaultValue, setting.type) : null;
+      return setting.defaultValue
+        ? this.parseValueByType(setting.defaultValue, setting.type)
+        : null;
     }
 
     return this.parseValueByType(setting.value, setting.type);

@@ -53,7 +53,7 @@ export class EmailsService {
   }
 
   // Additional methods for email functionality
-  
+
   async markAsRead(id: string): Promise<Email> {
     const email = await this.findOne(id);
     email.isRead = true;

@@ -24,7 +24,15 @@ export class CreateCountryDto {
   @IsOptional()
   @IsString()
   @Length(1, 50)
-  @IsIn(['Europe', 'Asia', 'Africa', 'North America', 'South America', 'Oceania', 'Antarctica'])
+  @IsIn([
+    'Europe',
+    'Asia',
+    'Africa',
+    'North America',
+    'South America',
+    'Oceania',
+    'Antarctica',
+  ])
   continent?: string;
 
   @IsOptional()

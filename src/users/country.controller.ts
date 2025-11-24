@@ -51,21 +51,30 @@ export class CountryController {
 
   @Get('continent/:continent')
   @ApiOperation({ summary: 'Get countries by continent' })
-  @ApiResponse({ status: 200, description: 'List of countries in the specified continent' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of countries in the specified continent',
+  })
   async findByContinent(@Param('continent') continent: string) {
     return await this.countryService.findByContinent(continent);
   }
 
   @Get('currencies')
   @ApiOperation({ summary: 'Get all currencies with their countries' })
-  @ApiResponse({ status: 200, description: 'List of currencies and associated countries' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of currencies and associated countries',
+  })
   async getCurrencies() {
     return await this.countryService.getCurrencies();
   }
 
   @Get('phone-prefixes')
   @ApiOperation({ summary: 'Get all phone prefixes with their countries' })
-  @ApiResponse({ status: 200, description: 'List of phone prefixes and associated countries' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of phone prefixes and associated countries',
+  })
   async getPhonePrefixes() {
     return await this.countryService.getPhonePrefixes();
   }
@@ -91,7 +100,10 @@ export class CountryController {
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update country (Admin only)' })
   @ApiResponse({ status: 200, description: 'Country updated successfully' })
-  async update(@Param('id') id: string, @Body() updateCountryDto: UpdateCountryDto) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateCountryDto: UpdateCountryDto,
+  ) {
     return await this.countryService.update(id, updateCountryDto);
   }
 

@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsNumber, Min, IsString, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsUUID,
+  IsNumber,
+  Min,
+  IsString,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 
 export enum TransactionType {
   DEPOSIT = 'DEPOSIT',
@@ -36,7 +44,7 @@ export class CreateTransactionDto {
 
   @ApiProperty({
     description: 'The amount of the transaction',
-    example: 100.50,
+    example: 100.5,
   })
   @IsNotEmpty()
   @IsNumber()

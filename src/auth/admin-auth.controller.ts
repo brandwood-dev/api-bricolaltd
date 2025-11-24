@@ -168,15 +168,15 @@ export class AdminAuthController {
     if (!body.refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
-    
+
     try {
       const result = await this.authService.refreshToken(body.refreshToken);
-      
+
       // Verify the user is an admin
       if (!result.user.isAdmin) {
         throw new UnauthorizedException('Admin access required');
       }
-      
+
       return result;
     } catch (error) {
       throw new UnauthorizedException('Invalid or expired refresh token');

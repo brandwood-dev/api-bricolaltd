@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 import { ThreeDSStatus } from '../enums/three-ds-status.enum';
 
 @Entity('three_d_secure_sessions')
@@ -26,10 +33,10 @@ export class ThreeDSecureSession {
   @Column({ name: 'booking_id', nullable: true })
   bookingId?: string;
 
-  @Column({ 
+  @Column({
     type: 'enum',
     enum: ThreeDSStatus,
-    default: ThreeDSStatus.INITIATED
+    default: ThreeDSStatus.INITIATED,
   })
   status: ThreeDSStatus;
 
@@ -111,7 +118,13 @@ export class ThreeDSecureSession {
   @Column({ name: 'error_message', type: 'text', nullable: true })
   errorMessage?: string;
 
-  @Column({ name: 'risk_score', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  @Column({
+    name: 'risk_score',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+  })
   riskScore?: number;
 
   @Column({ name: 'risk_factors', type: 'jsonb', nullable: true })
@@ -151,9 +164,11 @@ export class ThreeDSecureSession {
   }
 
   isCompleted(): boolean {
-    return this.status === ThreeDSStatus.COMPLETED || 
-           this.status === ThreeDSStatus.FAILED ||
-           this.status === ThreeDSStatus.EXPIRED;
+    return (
+      this.status === ThreeDSStatus.COMPLETED ||
+      this.status === ThreeDSStatus.FAILED ||
+      this.status === ThreeDSStatus.EXPIRED
+    );
   }
 
   isChallengeRequired(): boolean {

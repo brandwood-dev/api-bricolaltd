@@ -20,14 +20,22 @@ export class PaymentTransactionService {
     private paymentProviderService: PaymentProviderService,
   ) {}
 
-  async create(createPaymentTransactionDto: CreatePaymentTransactionDto): Promise<PaymentTransaction> {
+  async create(
+    createPaymentTransactionDto: CreatePaymentTransactionDto,
+  ): Promise<PaymentTransaction> {
     // Validate that the transaction exists
-    await this.transactionsService.findOne(createPaymentTransactionDto.transactionId);
+    await this.transactionsService.findOne(
+      createPaymentTransactionDto.transactionId,
+    );
 
     // Validate that the payment provider exists
-    await this.paymentProviderService.findOne(createPaymentTransactionDto.providerId);
+    await this.paymentProviderService.findOne(
+      createPaymentTransactionDto.providerId,
+    );
 
-    const paymentTransaction = this.paymentTransactionRepository.create(createPaymentTransactionDto);
+    const paymentTransaction = this.paymentTransactionRepository.create(
+      createPaymentTransactionDto,
+    );
     return this.paymentTransactionRepository.save(paymentTransaction);
   }
 
@@ -45,13 +53,17 @@ export class PaymentTransactionService {
     });
 
     if (!paymentTransaction) {
-      throw new NotFoundException(`Payment transaction with ID ${id} not found`);
+      throw new NotFoundException(
+        `Payment transaction with ID ${id} not found`,
+      );
     }
 
     return paymentTransaction;
   }
 
-  async findByTransactionId(transactionId: string): Promise<PaymentTransaction[]> {
+  async findByTransactionId(
+    transactionId: string,
+  ): Promise<PaymentTransaction[]> {
     return this.paymentTransactionRepository.find({
       where: { transactionId },
       relations: ['transaction', 'provider'],
@@ -75,44 +87,68 @@ export class PaymentTransactionService {
     });
   }
 
-  async findByProviderTransactionId(providerTransactionId: string): Promise<PaymentTransaction> {
+  async findByProviderTransactionId(
+    providerTransactionId: string,
+  ): Promise<PaymentTransaction> {
     const paymentTransaction = await this.paymentTransactionRepository.findOne({
       where: { providerTransactionId },
       relations: ['transaction', 'provider'],
     });
 
     if (!paymentTransaction) {
-      throw new NotFoundException(`Payment transaction with provider ID ${providerTransactionId} not found`);
+      throw new NotFoundException(
+        `Payment transaction with provider ID ${providerTransactionId} not found`,
+      );
     }
 
     return paymentTransaction;
   }
 
-  async update(id: string, updatePaymentTransactionDto: UpdatePaymentTransactionDto): Promise<PaymentTransaction> {
+  async update(
+    id: string,
+    updatePaymentTransactionDto: UpdatePaymentTransactionDto,
+  ): Promise<PaymentTransaction> {
     const paymentTransaction = await this.findOne(id);
 
     // Validate transaction ID if being updated
-    if (updatePaymentTransactionDto.transactionId && updatePaymentTransactionDto.transactionId !== paymentTransaction.transactionId) {
-      await this.transactionsService.findOne(updatePaymentTransactionDto.transactionId);
+    if (
+      updatePaymentTransactionDto.transactionId &&
+      updatePaymentTransactionDto.transactionId !==
+        paymentTransaction.transactionId
+    ) {
+      await this.transactionsService.findOne(
+        updatePaymentTransactionDto.transactionId,
+      );
     }
 
     // Validate provider ID if being updated
-    if (updatePaymentTransactionDto.providerId && updatePaymentTransactionDto.providerId !== paymentTransaction.providerId) {
-      await this.paymentProviderService.findOne(updatePaymentTransactionDto.providerId);
+    if (
+      updatePaymentTransactionDto.providerId &&
+      updatePaymentTransactionDto.providerId !== paymentTransaction.providerId
+    ) {
+      await this.paymentProviderService.findOne(
+        updatePaymentTransactionDto.providerId,
+      );
     }
 
     Object.assign(paymentTransaction, updatePaymentTransactionDto);
     return this.paymentTransactionRepository.save(paymentTransaction);
   }
 
-  async updateStatus(id: string, status: string, providerStatus?: string, errorCode?: string, errorMessage?: string): Promise<PaymentTransaction> {
+  async updateStatus(
+    id: string,
+    status: string,
+    providerStatus?: string,
+    errorCode?: string,
+    errorMessage?: string,
+  ): Promise<PaymentTransaction> {
     const paymentTransaction = await this.findOne(id);
-    
+
     paymentTransaction.status = status;
     if (providerStatus) paymentTransaction.providerStatus = providerStatus;
     if (errorCode) paymentTransaction.errorCode = errorCode;
     if (errorMessage) paymentTransaction.errorMessage = errorMessage;
-    
+
     // Set processedAt if status is completed or failed
     if (status === 'completed' || status === 'failed') {
       paymentTransaction.processedAt = new Date();

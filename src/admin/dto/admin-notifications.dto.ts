@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsEnum, IsArray, IsUUID, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsArray,
+  IsUUID,
+  IsBoolean,
+} from 'class-validator';
 
 export enum NotificationType {
   INFO = 'info',
@@ -34,28 +41,28 @@ export class CreateAdminNotificationDto {
   @IsString()
   message: string;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Notification type',
     enum: NotificationType,
-    default: NotificationType.INFO 
+    default: NotificationType.INFO,
   })
   @IsEnum(NotificationType)
   @IsOptional()
   type?: NotificationType = NotificationType.INFO;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Notification priority',
     enum: NotificationPriority,
-    default: NotificationPriority.MEDIUM 
+    default: NotificationPriority.MEDIUM,
   })
   @IsEnum(NotificationPriority)
   @IsOptional()
   priority?: NotificationPriority = NotificationPriority.MEDIUM;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Notification category',
     enum: NotificationCategory,
-    default: NotificationCategory.SYSTEM 
+    default: NotificationCategory.SYSTEM,
   })
   @IsEnum(NotificationCategory)
   @IsOptional()
@@ -76,15 +83,18 @@ export class CreateAdminNotificationDto {
   // @IsOptional()
   // metadata?: Record<string, any>;
 
-  @ApiProperty({ description: 'Auto-read after specified time (in minutes)', required: false })
+  @ApiProperty({
+    description: 'Auto-read after specified time (in minutes)',
+    required: false,
+  })
   @IsOptional()
   autoReadAfter?: number;
 }
 
 export class MarkNotificationsReadDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Array of notification IDs to mark as read',
-    type: [String]
+    type: [String],
   })
   @IsArray()
   @IsUUID(4, { each: true })
@@ -92,9 +102,9 @@ export class MarkNotificationsReadDto {
 }
 
 export class DeleteNotificationsDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Array of notification IDs to delete',
-    type: [String]
+    type: [String],
   })
   @IsArray()
   @IsUUID(4, { each: true })
@@ -110,28 +120,28 @@ export class AdminNotificationFilterDto {
   @IsOptional()
   limit?: number = 50;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Filter by notification type',
     enum: NotificationType,
-    required: false 
+    required: false,
   })
   @IsEnum(NotificationType)
   @IsOptional()
   type?: NotificationType;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Filter by notification category',
     enum: NotificationCategory,
-    required: false 
+    required: false,
   })
   @IsEnum(NotificationCategory)
   @IsOptional()
   category?: NotificationCategory;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Filter by notification priority',
     enum: NotificationPriority,
-    required: false 
+    required: false,
   })
   @IsEnum(NotificationPriority)
   @IsOptional()
@@ -142,7 +152,10 @@ export class AdminNotificationFilterDto {
   @IsOptional()
   isRead?: boolean;
 
-  @ApiProperty({ description: 'Search term for title/message', required: false })
+  @ApiProperty({
+    description: 'Search term for title/message',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   search?: string;

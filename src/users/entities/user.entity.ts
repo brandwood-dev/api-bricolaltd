@@ -191,7 +191,10 @@ export class User {
   isVerified: boolean;
 
   @Column({ name: 'is_suspended', type: 'text', nullable: true })
-  @ApiProperty({ description: 'The reason for suspension if the user is suspended', required: false })
+  @ApiProperty({
+    description: 'The reason for suspension if the user is suspended',
+    required: false,
+  })
   isSuspended: string | null;
 
   @Column({ name: 'must_change_password', default: false })
@@ -245,7 +248,13 @@ export class User {
   // })
   // defaultCurrency?: Currency;
 
-  @Column({ name: 'default_currency', type: 'char', length: 3, nullable: true, default: 'GBP' })
+  @Column({
+    name: 'default_currency',
+    type: 'char',
+    length: 3,
+    nullable: true,
+    default: 'GBP',
+  })
   defaultCurrencyCode?: string;
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)

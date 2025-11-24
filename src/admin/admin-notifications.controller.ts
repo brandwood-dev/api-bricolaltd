@@ -9,7 +9,11 @@ import {
   UseGuards,
   Param,
 } from '@nestjs/common';
-import { NotificationType, NotificationCategory, NotificationPriority } from './dto/admin-notifications.dto';
+import {
+  NotificationType,
+  NotificationCategory,
+  NotificationPriority,
+} from './dto/admin-notifications.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -21,7 +25,11 @@ import {
 import { EnhancedAdminGuard } from '../auth/guards/enhanced-admin.guard';
 import { AdminPermissions } from '../auth/decorators/admin-permissions.decorator';
 import { AdminNotificationsService } from './admin-notifications.service';
-import { CreateAdminNotificationDto, MarkNotificationsReadDto, DeleteNotificationsDto } from './dto/admin-notifications.dto';
+import {
+  CreateAdminNotificationDto,
+  MarkNotificationsReadDto,
+  DeleteNotificationsDto,
+} from './dto/admin-notifications.dto';
 
 @ApiTags('Admin Notifications')
 @Controller('admin/notifications')
@@ -35,7 +43,10 @@ export class AdminNotificationsController {
   @Get()
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Get all admin notifications' })
-  @ApiResponse({ status: 200, description: 'Admin notifications retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin notifications retrieved successfully',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'type', required: false, type: String })
@@ -50,14 +61,15 @@ export class AdminNotificationsController {
     @Query('isRead') isRead?: boolean,
     @Query('priority') priority?: string,
   ) {
-    const notifications = await this.adminNotificationsService.getAdminNotifications({
-      page,
-      limit,
-      type: type as NotificationType,
-      category: category as NotificationCategory,
-      isRead,
-      priority: priority as NotificationPriority,
-    });
+    const notifications =
+      await this.adminNotificationsService.getAdminNotifications({
+        page,
+        limit,
+        type: type as NotificationType,
+        category: category as NotificationCategory,
+        isRead,
+        priority: priority as NotificationPriority,
+      });
 
     return {
       data: notifications,
@@ -68,10 +80,13 @@ export class AdminNotificationsController {
   @Get('unread-count')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Get unread notifications count' })
-  @ApiResponse({ status: 200, description: 'Unread count retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Unread count retrieved successfully',
+  })
   async getUnreadCount() {
     const count = await this.adminNotificationsService.getUnreadCount();
-    
+
     return {
       data: { count },
       message: 'Unread count retrieved successfully',
@@ -81,14 +96,18 @@ export class AdminNotificationsController {
   @Post()
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Create admin notification' })
-  @ApiResponse({ status: 201, description: 'Admin notification created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Admin notification created successfully',
+  })
   @ApiBody({ type: CreateAdminNotificationDto })
   async createAdminNotification(
     @Body() createNotificationDto: CreateAdminNotificationDto,
   ) {
-    const notification = await this.adminNotificationsService.createAdminNotification(
-      createNotificationDto,
-    );
+    const notification =
+      await this.adminNotificationsService.createAdminNotification(
+        createNotificationDto,
+      );
 
     return {
       data: notification,
@@ -100,15 +119,19 @@ export class AdminNotificationsController {
   @Post('test/basic')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Create a basic test admin notification' })
-  @ApiResponse({ status: 201, description: 'Test notification created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Test notification created successfully',
+  })
   async createBasicTestNotification() {
-    const notification = await this.adminNotificationsService.createAdminNotification({
-      title: 'Test Notification',
-      message: 'This is a test admin notification to verify WS delivery.',
-      type: NotificationType.INFO,
-      priority: NotificationPriority.MEDIUM,
-      category: NotificationCategory.SYSTEM,
-    });
+    const notification =
+      await this.adminNotificationsService.createAdminNotification({
+        title: 'Test Notification',
+        message: 'This is a test admin notification to verify WS delivery.',
+        type: NotificationType.INFO,
+        priority: NotificationPriority.MEDIUM,
+        category: NotificationCategory.SYSTEM,
+      });
 
     return {
       data: notification,
@@ -118,16 +141,22 @@ export class AdminNotificationsController {
 
   @Post('test/critical')
   @AdminPermissions('manage_notifications')
-  @ApiOperation({ summary: 'Create a critical test admin notification (emails expected)' })
-  @ApiResponse({ status: 201, description: 'Critical test notification created successfully' })
+  @ApiOperation({
+    summary: 'Create a critical test admin notification (emails expected)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Critical test notification created successfully',
+  })
   async createCriticalTestNotification() {
-    const notification = await this.adminNotificationsService.createAdminNotification({
-      title: 'Critical Test Notification',
-      message: 'This is a critical test notification to verify email alerts.',
-      type: NotificationType.ERROR,
-      priority: NotificationPriority.URGENT,
-      category: NotificationCategory.SECURITY,
-    });
+    const notification =
+      await this.adminNotificationsService.createAdminNotification({
+        title: 'Critical Test Notification',
+        message: 'This is a critical test notification to verify email alerts.',
+        type: NotificationType.ERROR,
+        priority: NotificationPriority.URGENT,
+        category: NotificationCategory.SECURITY,
+      });
 
     return {
       data: notification,
@@ -138,11 +167,12 @@ export class AdminNotificationsController {
   @Patch('mark-read')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Mark notifications as read' })
-  @ApiResponse({ status: 200, description: 'Notifications marked as read successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notifications marked as read successfully',
+  })
   @ApiBody({ type: MarkNotificationsReadDto })
-  async markNotificationsAsRead(
-    @Body() markReadDto: MarkNotificationsReadDto,
-  ) {
+  async markNotificationsAsRead(@Body() markReadDto: MarkNotificationsReadDto) {
     await this.adminNotificationsService.markNotificationsAsRead(
       markReadDto.notificationIds,
     );
@@ -156,7 +186,10 @@ export class AdminNotificationsController {
   @Patch(':id/read')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Mark single notification as read' })
-  @ApiResponse({ status: 200, description: 'Notification marked as read successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification marked as read successfully',
+  })
   async markSingleAsRead(@Param('id') id: string) {
     await this.adminNotificationsService.markNotificationsAsRead([id]);
 
@@ -169,11 +202,12 @@ export class AdminNotificationsController {
   @Delete()
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Delete multiple notifications' })
-  @ApiResponse({ status: 200, description: 'Notifications deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notifications deleted successfully',
+  })
   @ApiBody({ type: DeleteNotificationsDto })
-  async deleteNotifications(
-    @Body() deleteDto: DeleteNotificationsDto,
-  ) {
+  async deleteNotifications(@Body() deleteDto: DeleteNotificationsDto) {
     await this.adminNotificationsService.deleteNotifications(
       deleteDto.notificationIds,
     );
@@ -187,7 +221,10 @@ export class AdminNotificationsController {
   @Delete(':id')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Delete single notification' })
-  @ApiResponse({ status: 200, description: 'Notification deleted successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification deleted successfully',
+  })
   async deleteSingleNotification(@Param('id') id: string) {
     await this.adminNotificationsService.deleteNotifications([id]);
 
@@ -200,7 +237,10 @@ export class AdminNotificationsController {
   @Post('broadcast')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Broadcast notification to all admins' })
-  @ApiResponse({ status: 201, description: 'Notification broadcasted successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Notification broadcasted successfully',
+  })
   @ApiBody({ type: CreateAdminNotificationDto })
   async broadcastNotification(
     @Body() notificationDto: CreateAdminNotificationDto,
@@ -216,7 +256,10 @@ export class AdminNotificationsController {
   @Patch('mark-all-read')
   @AdminPermissions('manage_notifications')
   @ApiOperation({ summary: 'Mark all notifications as read' })
-  @ApiResponse({ status: 200, description: 'All notifications marked as read successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'All notifications marked as read successfully',
+  })
   async markAllAsRead() {
     await this.adminNotificationsService.markAllAsRead();
 

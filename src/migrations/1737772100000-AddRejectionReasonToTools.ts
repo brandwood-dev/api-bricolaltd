@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddRejectionReasonToTools1737772100000 implements MigrationInterface {
+export class AddRejectionReasonToTools1737772100000
+  implements MigrationInterface
+{
   name = 'AddRejectionReasonToTools1737772100000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

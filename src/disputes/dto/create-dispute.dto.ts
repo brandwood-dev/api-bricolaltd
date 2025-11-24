@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsUUID, IsString, IsOptional, IsArray } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsUUID,
+  IsString,
+  IsOptional,
+  IsArray,
+} from 'class-validator';
 
 export class CreateDisputeDto {
   @ApiProperty({ description: 'The ID of the user who created the dispute' })

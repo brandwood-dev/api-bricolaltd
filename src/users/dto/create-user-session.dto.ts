@@ -25,7 +25,10 @@ export class CreateUserSessionDto {
   @IsString()
   userAgent?: string;
 
-  @ApiProperty({ description: 'Device type (mobile, desktop, tablet)', required: false })
+  @ApiProperty({
+    description: 'Device type (mobile, desktop, tablet)',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   deviceType?: string;

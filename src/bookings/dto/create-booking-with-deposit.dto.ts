@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsNumber, IsDateString, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsDateString,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateBookingWithDepositDto {
@@ -11,7 +18,7 @@ export class CreateBookingWithDepositDto {
   renterId: string;
 
   @ApiProperty({
-    description: 'ID de l\'outil à louer',
+    description: "ID de l'outil à louer",
     example: '0a91d8ae-96e7-42be-bf1b-10186be9381a',
   })
   @IsString()
@@ -51,7 +58,7 @@ export class CreateBookingWithDepositDto {
 
   @ApiProperty({
     description: 'Prix total de la location',
-    example: 150.00,
+    example: 150.0,
   })
   @IsNumber()
   totalPrice: number;

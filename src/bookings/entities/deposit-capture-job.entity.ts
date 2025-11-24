@@ -18,7 +18,9 @@ import { DepositJobStatus } from '../enums/deposit-job-status.enum';
 @Index(['bookingId'])
 export class DepositCaptureJob {
   @PrimaryGeneratedColumn('uuid')
-  @ApiProperty({ description: 'The unique identifier of the deposit capture job' })
+  @ApiProperty({
+    description: 'The unique identifier of the deposit capture job',
+  })
   id: string;
 
   @Column({ name: 'booking_id' })
@@ -27,7 +29,10 @@ export class DepositCaptureJob {
 
   @ManyToOne(() => Booking, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'booking_id' })
-  @ApiProperty({ description: 'The booking this job is associated with', type: () => Booking })
+  @ApiProperty({
+    description: 'The booking this job is associated with',
+    type: () => Booking,
+  })
   booking: Booking;
 
   @Column({ name: 'scheduled_at', type: 'timestamp' })
@@ -35,11 +40,17 @@ export class DepositCaptureJob {
   scheduledAt: Date;
 
   @Column({ name: 'notification_sent_at', type: 'timestamp', nullable: true })
-  @ApiProperty({ description: 'When the notification was sent', required: false })
+  @ApiProperty({
+    description: 'When the notification was sent',
+    required: false,
+  })
   notificationSentAt?: Date;
 
   @Column({ name: 'capture_attempted_at', type: 'timestamp', nullable: true })
-  @ApiProperty({ description: 'When the capture was attempted', required: false })
+  @ApiProperty({
+    description: 'When the capture was attempted',
+    required: false,
+  })
   captureAttemptedAt?: Date;
 
   @Column({
@@ -48,7 +59,7 @@ export class DepositCaptureJob {
     enum: DepositJobStatus,
     default: DepositJobStatus.SCHEDULED,
   })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'The status of the deposit capture job',
     enum: DepositJobStatus,
     default: DepositJobStatus.SCHEDULED,
@@ -64,7 +75,10 @@ export class DepositCaptureJob {
   lastError?: string;
 
   @Column({ name: 'metadata', type: 'json', nullable: true })
-  @ApiProperty({ description: 'Additional metadata for the job', required: false })
+  @ApiProperty({
+    description: 'Additional metadata for the job',
+    required: false,
+  })
   metadata?: any;
 
   @CreateDateColumn({ name: 'created_at' })

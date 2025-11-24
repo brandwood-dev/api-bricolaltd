@@ -88,7 +88,10 @@ export class ReviewsController {
 
   @Get('tools/stats')
   @ApiOperation({ summary: 'Get global tool reviews statistics (public)' })
-  @ApiResponse({ status: 200, description: 'Return global stats: total and average rating.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return global stats: total and average rating.',
+  })
   @SetMetadata('isPublic', true)
   getToolReviewsStatsPublic() {
     return this.reviewsService.getToolReviewsStatsPublic();
@@ -175,7 +178,10 @@ export class ReviewsController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  updateToolReview(@Param('id') id: string, @Body() updateReviewToolDto: UpdateReviewToolDto) {
+  updateToolReview(
+    @Param('id') id: string,
+    @Body() updateReviewToolDto: UpdateReviewToolDto,
+  ) {
     return this.reviewsService.updateToolReview(id, updateReviewToolDto);
   }
 
@@ -223,7 +229,10 @@ export class ReviewsController {
 
   @Get('app/check/:userId')
   @ApiOperation({ summary: 'Check if user has already reviewed the app' })
-  @ApiResponse({ status: 200, description: 'Return whether user has reviewed the app.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return whether user has reviewed the app.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   checkUserAppReview(@Param('userId') userId: string) {
     return this.reviewsService.checkUserAppReview(userId);
@@ -238,7 +247,10 @@ export class ReviewsController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  updateAppReview(@Param('id') id: string, @Body() updateReviewAppDto: UpdateReviewAppDto) {
+  updateAppReview(
+    @Param('id') id: string,
+    @Body() updateReviewAppDto: UpdateReviewAppDto,
+  ) {
     return this.reviewsService.updateAppReview(id, updateReviewAppDto);
   }
 

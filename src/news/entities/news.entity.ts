@@ -6,9 +6,11 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../users/entities/user.entity';
+import { Section } from './section.entity';
 
 @Entity('news')
 export class News {
@@ -34,8 +36,6 @@ export class News {
   })
   imageUrl?: string;
 
-
-
   @Column({ default: true })
   @ApiProperty({ description: 'Whether the news is published', default: true })
   isPublic: boolean = true;
@@ -56,21 +56,28 @@ export class News {
   adminId: string;
 
   @Column({ nullable: true })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Brief summary of the news article',
-    required: false 
+    required: false,
   })
   summary?: string;
 
   @Column({ nullable: true })
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Category ID for the news article',
-    required: false 
+    required: false,
   })
   categoryId?: string;
 
   @Column({ nullable: true })
   category?: string;
+
+  @OneToMany(() => Section, (section) => section.news, {
+    cascade: true,
+    eager: true,
+  })
+  @ApiProperty({ description: 'The sections that compose this article' })
+  sections: Section[];
 
   @CreateDateColumn()
   @ApiProperty({ description: 'The date when the news was created' })

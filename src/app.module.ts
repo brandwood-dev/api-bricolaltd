@@ -29,7 +29,8 @@ import { RefundsModule } from './refunds/refunds.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      // Load multiple env files; later files override earlier ones
+      envFilePath: ['.env', '.env.production'],
     }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({

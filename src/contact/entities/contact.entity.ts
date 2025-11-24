@@ -134,7 +134,9 @@ export class Contact {
   createdAt: Date;
 
   @UpdateDateColumn()
-  @ApiProperty({ description: 'Date when the contact message was last updated' })
+  @ApiProperty({
+    description: 'Date when the contact message was last updated',
+  })
   updatedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })

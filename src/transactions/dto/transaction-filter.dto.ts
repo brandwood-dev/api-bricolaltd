@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum, IsDateString, IsUUID, IsNumber, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsDateString,
+  IsUUID,
+  IsNumber,
+  Min,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { TransactionType } from '../enums/transaction-type.enum';
 import { TransactionStatus } from '../enums/transaction-status.enum';
@@ -75,7 +83,7 @@ export class TransactionFilterParams {
 
   @ApiPropertyOptional({
     description: 'Minimum transaction amount',
-    example: 10.00,
+    example: 10.0,
   })
   @IsOptional()
   @IsNumber()
@@ -85,7 +93,7 @@ export class TransactionFilterParams {
 
   @ApiPropertyOptional({
     description: 'Maximum transaction amount',
-    example: 1000.00,
+    example: 1000.0,
   })
   @IsOptional()
   @IsNumber()

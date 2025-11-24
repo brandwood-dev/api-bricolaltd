@@ -15,14 +15,14 @@ export class PaymentTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'transaction_id' })
+  @Column({ name: 'transaction_id', type: 'varchar', length: 100 })
   transactionId: string;
 
   @ManyToOne(() => Transaction)
   @JoinColumn({ name: 'transaction_id' })
   transaction: Transaction;
 
-  @Column({ name: 'payment_method', type: 'varchar', length: 50 })
+  @Column({ name: 'payment_method', type: 'varchar', length: 30 })
   paymentMethod: PaymentMethod;
 
   @Column({ name: 'provider_id' })
@@ -38,13 +38,13 @@ export class PaymentTransaction {
   @Column({ name: 'currency', type: 'varchar', length: 3, default: 'EUR' })
   currency: string;
 
-  @Column({ name: 'status', type: 'varchar', length: 50 })
+  @Column({ name: 'status', type: 'varchar', length: 30 })
   status: string;
 
   @Column({
     name: 'provider_transaction_id',
     type: 'varchar',
-    length: 255,
+    length: 150,
     nullable: true,
   })
   providerTransactionId: string | null;
@@ -52,18 +52,18 @@ export class PaymentTransaction {
   @Column({
     name: 'provider_status',
     type: 'varchar',
-    length: 50,
+    length: 30,
     nullable: true,
   })
   providerStatus: string | null;
 
-  @Column({ name: 'error_code', type: 'varchar', length: 50, nullable: true })
+  @Column({ name: 'error_code', type: 'varchar', length: 30, nullable: true })
   errorCode: string | null;
 
-  @Column({ name: 'error_message', type: 'text', nullable: true })
+  @Column({ name: 'error_message', type: 'longtext', nullable: true })
   errorMessage: string | null;
 
-  @Column({ name: 'metadata', type: 'json', nullable: true })
+  @Column({ name: 'metadata', type: 'longtext', nullable: true })
   metadata: Record<string, any> | null;
 
   @CreateDateColumn({ name: 'created_at' })

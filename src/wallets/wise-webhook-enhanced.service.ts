@@ -49,7 +49,9 @@ export class WiseWebhookService {
   /**
    * Process incoming Wise webhook event
    */
-  async processWebhook(event: WiseWebhookEvent): Promise<{ status: string; message: string }> {
+  async processWebhook(
+    event: WiseWebhookEvent,
+  ): Promise<{ status: string; message: string }> {
     try {
       this.logger.log(`Processing Wise webhook: ${event.event_type}`, {
         eventType: event.event_type,
@@ -69,32 +71,35 @@ export class WiseWebhookService {
       switch (event_type) {
         case WiseEventType.TRANSFER_STATUS_CHANGE:
           return await this.handleTransferStatusChange(resource);
-        
+
         case WiseEventType.TRANSFER_PROBLEM:
           return await this.handleTransferProblem(resource);
-        
+
         case WiseEventType.BALANCE_CREDIT:
           return await this.handleBalanceCredit(resource);
-        
+
         case WiseEventType.BALANCE_DEBIT:
           return await this.handleBalanceDebit(resource);
-        
+
         case WiseEventType.RECIPIENT_CREATED:
           return await this.handleRecipientCreated(resource);
-        
+
         case WiseEventType.RECIPIENT_UPDATED:
           return await this.handleRecipientUpdated(resource);
-        
+
         case WiseEventType.QUOTE_EXPIRED:
           return await this.handleQuoteExpired(resource);
-        
+
         default:
           this.logger.log(`Unhandled Wise event type: ${event_type}`);
-          return { status: 'ignored', message: `Unhandled event type: ${event_type}` };
+          return {
+            status: 'ignored',
+            message: `Unhandled event type: ${event_type}`,
+          };
       }
     } catch (error) {
       this.logger.error('Failed to process Wise webhook:', error);
-      
+
       // Create admin notification for webhook processing failure
       await this.adminNotificationsService.createAdminNotification({
         title: 'Wise Webhook Processing Failed',
@@ -111,11 +116,15 @@ export class WiseWebhookService {
   /**
    * Handle transfer status changes
    */
-  private async handleTransferStatusChange(resource: any): Promise<{ status: string; message: string }> {
+  private async handleTransferStatusChange(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     const { id: transferId, status } = resource;
 
     if (!transferId || !status) {
-      this.logger.warn('Invalid transfer status change - missing required fields');
+      this.logger.warn(
+        'Invalid transfer status change - missing required fields',
+      );
       return { status: 'ignored', message: 'Missing transfer ID or status' };
     }
 
@@ -129,11 +138,15 @@ export class WiseWebhookService {
     });
 
     if (!transaction) {
-      this.logger.warn(`No transaction found for Wise transfer ID: ${transferId}`);
+      this.logger.warn(
+        `No transaction found for Wise transfer ID: ${transferId}`,
+      );
       return { status: 'ignored', message: 'Transaction not found' };
     }
 
-    this.logger.log(`Updating transaction ${transaction.id} with Wise status: ${status}`);
+    this.logger.log(
+      `Updating transaction ${transaction.id} with Wise status: ${status}`,
+    );
 
     // Update transaction based on Wise status
     switch (status) {
@@ -141,23 +154,23 @@ export class WiseWebhookService {
       case 'processing':
         transaction.status = TransactionStatus.PROCESSING;
         break;
-      
+
       case 'funds_converted':
       case 'outgoing_payment_sent':
         transaction.status = TransactionStatus.PROCESSING;
         break;
-      
+
       case 'completed':
         transaction.status = TransactionStatus.COMPLETED;
         transaction.processedAt = new Date();
         break;
-      
+
       case 'cancelled':
       case 'bounced_back':
       case 'funds_refunded':
         transaction.status = TransactionStatus.FAILED;
         break;
-      
+
       default:
         this.logger.warn(`Unknown Wise transfer status: ${status}`);
         transaction.status = TransactionStatus.PROCESSING;
@@ -170,17 +183,26 @@ export class WiseWebhookService {
     await this.transactionRepository.save(transaction);
 
     // Create admin notification for important status changes
-    if (['completed', 'cancelled', 'bounced_back', 'funds_refunded'].includes(status)) {
+    if (
+      ['completed', 'cancelled', 'bounced_back', 'funds_refunded'].includes(
+        status,
+      )
+    ) {
       await this.createTransferStatusNotification(transaction, status);
     }
 
-    return { status: 'processed', message: `Transfer status updated to ${status}` };
+    return {
+      status: 'processed',
+      message: `Transfer status updated to ${status}`,
+    };
   }
 
   /**
    * Handle transfer problems (delays, compliance issues, etc.)
    */
-  private async handleTransferProblem(resource: any): Promise<{ status: string; message: string }> {
+  private async handleTransferProblem(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     const { id: transferId, status, activeCases } = resource;
 
     this.logger.warn(`Transfer problem detected for ${transferId}:`, {
@@ -221,9 +243,11 @@ export class WiseWebhookService {
   /**
    * Handle balance credit events
    */
-  private async handleBalanceCredit(resource: any): Promise<{ status: string; message: string }> {
+  private async handleBalanceCredit(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     this.logger.log('Balance credit event:', resource);
-    
+
     // This could be used for reconciliation or notifications
     // For now, just log and acknowledge
     return { status: 'acknowledged', message: 'Balance credit noted' };
@@ -232,9 +256,11 @@ export class WiseWebhookService {
   /**
    * Handle balance debit events
    */
-  private async handleBalanceDebit(resource: any): Promise<{ status: string; message: string }> {
+  private async handleBalanceDebit(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     this.logger.log('Balance debit event:', resource);
-    
+
     // This could be used for reconciliation or notifications
     // For now, just log and acknowledge
     return { status: 'acknowledged', message: 'Balance debit noted' };
@@ -243,9 +269,11 @@ export class WiseWebhookService {
   /**
    * Handle recipient created events
    */
-  private async handleRecipientCreated(resource: any): Promise<{ status: string; message: string }> {
+  private async handleRecipientCreated(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     this.logger.log('Recipient created:', resource);
-    
+
     // Could be used for notifications or audit
     return { status: 'acknowledged', message: 'Recipient creation noted' };
   }
@@ -253,9 +281,11 @@ export class WiseWebhookService {
   /**
    * Handle recipient updated events
    */
-  private async handleRecipientUpdated(resource: any): Promise<{ status: string; message: string }> {
+  private async handleRecipientUpdated(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     this.logger.log('Recipient updated:', resource);
-    
+
     // Could be used for notifications or audit
     return { status: 'acknowledged', message: 'Recipient update noted' };
   }
@@ -263,9 +293,11 @@ export class WiseWebhookService {
   /**
    * Handle quote expired events
    */
-  private async handleQuoteExpired(resource: any): Promise<{ status: string; message: string }> {
+  private async handleQuoteExpired(
+    resource: any,
+  ): Promise<{ status: string; message: string }> {
     this.logger.log('Quote expired:', resource);
-    
+
     // Could be used to notify users to create new quotes
     return { status: 'acknowledged', message: 'Quote expiration noted' };
   }
@@ -273,7 +305,10 @@ export class WiseWebhookService {
   /**
    * Create admin notification for transfer status changes
    */
-  private async createTransferStatusNotification(transaction: Transaction, status: string): Promise<void> {
+  private async createTransferStatusNotification(
+    transaction: Transaction,
+    status: string,
+  ): Promise<void> {
     let title: string;
     let message: string;
     let type: AdminNotificationType;
@@ -328,7 +363,10 @@ export class WiseWebhookService {
     try {
       return await this.wiseService.getTransfer(transferId);
     } catch (error) {
-      this.logger.error(`Failed to get transfer details for ${transferId}:`, error);
+      this.logger.error(
+        `Failed to get transfer details for ${transferId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -336,13 +374,21 @@ export class WiseWebhookService {
   /**
    * Retry failed transfer
    */
-  async retryTransfer(transferId: string): Promise<{ success: boolean; message: string }> {
+  async retryTransfer(
+    transferId: string,
+  ): Promise<{ success: boolean; message: string }> {
     try {
       // Get current transfer details
       const transfer = await this.getTransferDetails(transferId);
-      
-      if (transfer.status !== 'cancelled' && transfer.status !== 'bounced_back') {
-        return { success: false, message: 'Transfer cannot be retried in current status' };
+
+      if (
+        transfer.status !== 'cancelled' &&
+        transfer.status !== 'bounced_back'
+      ) {
+        return {
+          success: false,
+          message: 'Transfer cannot be retried in current status',
+        };
       }
 
       // Create new transfer with same details
@@ -360,10 +406,16 @@ export class WiseWebhookService {
 
       this.logger.log(`Transfer retry successful: ${newTransfer.id}`);
 
-      return { success: true, message: `Transfer retried successfully: ${newTransfer.id}` };
+      return {
+        success: true,
+        message: `Transfer retried successfully: ${newTransfer.id}`,
+      };
     } catch (error) {
       this.logger.error(`Transfer retry failed for ${transferId}:`, error);
-      return { success: false, message: `Transfer retry failed: ${error.message}` };
+      return {
+        success: false,
+        message: `Transfer retry failed: ${error.message}`,
+      };
     }
   }
 }

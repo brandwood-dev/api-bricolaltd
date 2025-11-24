@@ -8,7 +8,11 @@ import {
 import { Request, Response, NextFunction } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SecurityLog, SecurityEventType, SecuritySeverity } from '../../admin/entities/security-log.entity';
+import {
+  SecurityLog,
+  SecurityEventType,
+  SecuritySeverity,
+} from '../../admin/entities/security-log.entity';
 import { BlockedIp, BlockReason } from '../../admin/entities/blocked-ip.entity';
 
 interface RateLimitConfig {
@@ -39,9 +43,12 @@ export class RateLimitMiddleware implements NestMiddleware {
     private blockedIpRepository: Repository<BlockedIp>,
   ) {
     // Clean up expired records every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup();
+      },
+      5 * 60 * 1000,
+    );
   }
 
   use(req: Request, res: Response, next: NextFunction): void {
@@ -157,7 +164,10 @@ export class RateLimitMiddleware implements NestMiddleware {
     res.setHeader('X-RateLimit-Reset', resetTime);
 
     if (record.blocked && record.blockExpires) {
-      res.setHeader('Retry-After', Math.ceil((record.blockExpires - Date.now()) / 1000));
+      res.setHeader(
+        'Retry-After',
+        Math.ceil((record.blockExpires - Date.now()) / 1000),
+      );
     }
   }
 
@@ -197,11 +207,15 @@ export class RateLimitMiddleware implements NestMiddleware {
             attemptCount: 0,
           });
 
-          this.logger.warn(`IP ${ipAddress} automatically blocked due to rate limit violations`);
+          this.logger.warn(
+            `IP ${ipAddress} automatically blocked due to rate limit violations`,
+          );
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to handle rate limit violation: ${error.message}`);
+      this.logger.error(
+        `Failed to handle rate limit violation: ${error.message}`,
+      );
     }
   }
 
@@ -218,7 +232,10 @@ export class RateLimitMiddleware implements NestMiddleware {
   private cleanup(): void {
     const now = Date.now();
     for (const [key, record] of this.requestCounts.entries()) {
-      if (now > record.resetTime && (!record.blockExpires || now > record.blockExpires)) {
+      if (
+        now > record.resetTime &&
+        (!record.blockExpires || now > record.blockExpires)
+      ) {
         this.requestCounts.delete(key);
       }
     }

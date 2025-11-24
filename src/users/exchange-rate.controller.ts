@@ -64,10 +64,14 @@ export class ExchangeRateController {
     @Query('from') fromCurrency: string,
     @Query('to') toCurrency: string,
   ): Promise<{ data: ExchangeRateResponse; message: string }> {
-    this.logger.log(`🌐 [Controller] GET /exchange-rates?from=${fromCurrency}&to=${toCurrency}`);
-    
+    this.logger.log(
+      `🌐 [Controller] GET /exchange-rates?from=${fromCurrency}&to=${toCurrency}`,
+    );
+
     if (!fromCurrency || !toCurrency) {
-      this.logger.error(`❌ [Controller] Missing parameters: from=${fromCurrency}, to=${toCurrency}`);
+      this.logger.error(
+        `❌ [Controller] Missing parameters: from=${fromCurrency}, to=${toCurrency}`,
+      );
       throw new HttpException(
         'Both from and to currency codes are required',
         HttpStatus.BAD_REQUEST,
@@ -76,7 +80,9 @@ export class ExchangeRateController {
 
     // Validate currency codes (should be 3 characters)
     if (fromCurrency.length !== 3 || toCurrency.length !== 3) {
-      this.logger.error(`❌ [Controller] Invalid currency code length: from=${fromCurrency} (${fromCurrency.length}), to=${toCurrency} (${toCurrency.length})`);
+      this.logger.error(
+        `❌ [Controller] Invalid currency code length: from=${fromCurrency} (${fromCurrency.length}), to=${toCurrency} (${toCurrency.length})`,
+      );
       throw new HttpException(
         'Currency codes must be 3 characters long',
         HttpStatus.BAD_REQUEST,
@@ -84,7 +90,9 @@ export class ExchangeRateController {
     }
 
     try {
-      this.logger.log(`🔄 [Controller] Calling service for ${fromCurrency.toUpperCase()} → ${toCurrency.toUpperCase()}`);
+      this.logger.log(
+        `🔄 [Controller] Calling service for ${fromCurrency.toUpperCase()} → ${toCurrency.toUpperCase()}`,
+      );
       const exchangeRate = await this.exchangeRateService.getExchangeRate(
         fromCurrency.toUpperCase(),
         toCurrency.toUpperCase(),
@@ -94,11 +102,16 @@ export class ExchangeRateController {
         data: exchangeRate,
         message: 'Exchange rate retrieved successfully',
       };
-      
-      this.logger.log(`✅ [Controller] Success: ${fromCurrency} → ${toCurrency} = ${exchangeRate.rate}`);
+
+      this.logger.log(
+        `✅ [Controller] Success: ${fromCurrency} → ${toCurrency} = ${exchangeRate.rate}`,
+      );
       return response;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error getting exchange rate ${fromCurrency} → ${toCurrency}:`, error.message);
+      this.logger.error(
+        `❌ [Controller] Error getting exchange rate ${fromCurrency} → ${toCurrency}:`,
+        error.message,
+      );
       this.logger.error(`📊 [Controller] Error stack:`, error.stack);
       throw error;
     }
@@ -150,8 +163,10 @@ export class ExchangeRateController {
   async getBulkExchangeRates(
     @Query('base') baseCurrency: string,
   ): Promise<{ data: BulkExchangeRateResponse; message: string }> {
-    this.logger.log(`🌐 [Controller] GET /exchange-rates/bulk?base=${baseCurrency}`);
-    
+    this.logger.log(
+      `🌐 [Controller] GET /exchange-rates/bulk?base=${baseCurrency}`,
+    );
+
     if (!baseCurrency) {
       this.logger.error(`❌ [Controller] Missing base currency parameter`);
       throw new HttpException(
@@ -162,7 +177,9 @@ export class ExchangeRateController {
 
     // Validate currency code (should be 3 characters)
     if (baseCurrency.length !== 3) {
-      this.logger.error(`❌ [Controller] Invalid base currency code length: ${baseCurrency} (${baseCurrency.length})`);
+      this.logger.error(
+        `❌ [Controller] Invalid base currency code length: ${baseCurrency} (${baseCurrency.length})`,
+      );
       throw new HttpException(
         'Currency code must be 3 characters long',
         HttpStatus.BAD_REQUEST,
@@ -170,7 +187,9 @@ export class ExchangeRateController {
     }
 
     try {
-      this.logger.log(`🔄 [Controller] Calling service for bulk rates with base: ${baseCurrency.toUpperCase()}`);
+      this.logger.log(
+        `🔄 [Controller] Calling service for bulk rates with base: ${baseCurrency.toUpperCase()}`,
+      );
       const bulkRates = await this.exchangeRateService.getBulkExchangeRates(
         baseCurrency.toUpperCase(),
       );
@@ -179,12 +198,20 @@ export class ExchangeRateController {
         data: bulkRates,
         message: 'Bulk exchange rates retrieved successfully',
       };
-      
-      this.logger.log(`✅ [Controller] Bulk rates success for ${baseCurrency}: ${Object.keys(bulkRates.rates).length} rates`);
-      this.logger.log(`📊 [Controller] Bulk rates data:`, JSON.stringify(bulkRates, null, 2));
+
+      this.logger.log(
+        `✅ [Controller] Bulk rates success for ${baseCurrency}: ${Object.keys(bulkRates.rates).length} rates`,
+      );
+      this.logger.log(
+        `📊 [Controller] Bulk rates data:`,
+        JSON.stringify(bulkRates, null, 2),
+      );
       return response;
     } catch (error) {
-      this.logger.error(`❌ [Controller] Error getting bulk rates for ${baseCurrency}:`, error.message);
+      this.logger.error(
+        `❌ [Controller] Error getting bulk rates for ${baseCurrency}:`,
+        error.message,
+      );
       this.logger.error(`📊 [Controller] Error stack:`, error.stack);
       throw error;
     }

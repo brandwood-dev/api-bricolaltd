@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Get,
-  UseGuards,
-  Query,
-} from '@nestjs/common';
+import { Controller, Get, UseGuards, Query } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -30,7 +25,7 @@ export class AdminDashboardController {
   @ApiQuery({ name: 'end_date', required: false, type: String })
   async getDashboardData(
     @Query('start_date') startDate?: string,
-    @Query('end_date') endDate?: string
+    @Query('end_date') endDate?: string,
   ) {
     return this.adminDashboardService.getDashboardData(startDate, endDate);
   }
@@ -39,7 +34,11 @@ export class AdminDashboardController {
   @AdminPermissions('view_dashboard')
   @ApiOperation({ summary: 'Get dashboard overview statistics' })
   @ApiResponse({ status: 200, description: 'Dashboard overview data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getDashboardOverview(@Query('period') period: string = '30d') {
     return this.adminDashboardService.getDashboardOverview(period);
   }
@@ -47,7 +46,11 @@ export class AdminDashboardController {
   @Get('kpis')
   @ApiOperation({ summary: 'Get key performance indicators' })
   @ApiResponse({ status: 200, description: 'KPI data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getKPIs(@Query('period') period: string = '30d') {
     return this.adminDashboardService.getKPIs(period);
   }
@@ -63,7 +66,11 @@ export class AdminDashboardController {
   @Get('revenue-chart')
   @ApiOperation({ summary: 'Get revenue chart data' })
   @ApiResponse({ status: 200, description: 'Revenue chart data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getRevenueChart(@Query('period') period: string = '30d') {
     return this.adminDashboardService.getRevenueChart(period);
   }
@@ -71,7 +78,11 @@ export class AdminDashboardController {
   @Get('user-growth')
   @ApiOperation({ summary: 'Get user growth data' })
   @ApiResponse({ status: 200, description: 'User growth data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getUserGrowth(@Query('period') period: string = '30d') {
     return this.adminDashboardService.getUserGrowth(period);
   }
@@ -79,7 +90,11 @@ export class AdminDashboardController {
   @Get('booking-stats')
   @ApiOperation({ summary: 'Get booking statistics' })
   @ApiResponse({ status: 200, description: 'Booking statistics data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getBookingStats(@Query('period') period: string = '30d') {
     return this.adminDashboardService.getBookingStats(period);
   }
@@ -95,7 +110,11 @@ export class AdminDashboardController {
   @Get('dispute-overview')
   @ApiOperation({ summary: 'Get dispute overview' })
   @ApiResponse({ status: 200, description: 'Dispute overview data' })
-  @ApiQuery({ name: 'period', required: false, enum: ['7d', '30d', '90d', '1y'] })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['7d', '30d', '90d', '1y'],
+  })
   async getDisputeOverview() {
     return this.adminDashboardService.getDisputeOverview();
   }

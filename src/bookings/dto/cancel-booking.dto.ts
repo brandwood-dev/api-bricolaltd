@@ -10,5 +10,4 @@ export class CancelBookingDto {
   @IsString()
   @MaxLength(1000)
   cancellationMessage?: string;
-
 }

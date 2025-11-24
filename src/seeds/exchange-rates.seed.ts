@@ -30,10 +30,10 @@ const defaultExchangeRates = [
   // SAR as base currency
   { from: 'SAR', to: 'GBP', rate: 0.218 },
   { from: 'SAR', to: 'KWD', rate: 0.082 },
-  { from: 'SAR', to: 'BHD', rate: 0.100 },
+  { from: 'SAR', to: 'BHD', rate: 0.1 },
   { from: 'SAR', to: 'OMR', rate: 0.102 },
   { from: 'SAR', to: 'QAR', rate: 0.971 },
-  { from: 'SAR', to: 'AED', rate: 0.980 },
+  { from: 'SAR', to: 'AED', rate: 0.98 },
   { from: 'SAR', to: 'EUR', rate: 0.253 },
   { from: 'SAR', to: 'USD', rate: 0.267 },
 
@@ -49,13 +49,13 @@ const defaultExchangeRates = [
 
   // OMR as base currency
   { from: 'OMR', to: 'GBP', rate: 2.13 },
-  { from: 'OMR', to: 'KWD', rate: 0.800 },
+  { from: 'OMR', to: 'KWD', rate: 0.8 },
   { from: 'OMR', to: 'SAR', rate: 9.75 },
-  { from: 'OMR', to: 'BHD', rate: 0.980 },
+  { from: 'OMR', to: 'BHD', rate: 0.98 },
   { from: 'OMR', to: 'QAR', rate: 9.47 },
   { from: 'OMR', to: 'AED', rate: 9.55 },
   { from: 'OMR', to: 'EUR', rate: 2.47 },
-  { from: 'OMR', to: 'USD', rate: 2.60 },
+  { from: 'OMR', to: 'USD', rate: 2.6 },
 
   // QAR as base currency
   { from: 'QAR', to: 'GBP', rate: 0.225 },
@@ -88,7 +88,7 @@ const defaultExchangeRates = [
   { from: 'EUR', to: 'USD', rate: 1.05 },
 
   // USD as base currency
-  { from: 'USD', to: 'GBP', rate: 0.820 },
+  { from: 'USD', to: 'GBP', rate: 0.82 },
   { from: 'USD', to: 'KWD', rate: 0.307 },
   { from: 'USD', to: 'SAR', rate: 3.75 },
   { from: 'USD', to: 'BHD', rate: 0.377 },
@@ -106,10 +106,14 @@ export async function seedExchangeRates(dataSource: DataSource): Promise<void> {
 
   try {
     // Verify all currencies exist
-    const currencies = await currencyRepository.find({ where: { isActive: true } });
-    const currencyCodes = currencies.map(c => c.code);
-    
-    console.log(`📊 Found ${currencies.length} active currencies: ${currencyCodes.join(', ')}`);
+    const currencies = await currencyRepository.find({
+      where: { isActive: true },
+    });
+    const currencyCodes = currencies.map((c) => c.code);
+
+    console.log(
+      `📊 Found ${currencies.length} active currencies: ${currencyCodes.join(', ')}`,
+    );
 
     // Insert default exchange rates
     let insertedCount = 0;
@@ -117,8 +121,13 @@ export async function seedExchangeRates(dataSource: DataSource): Promise<void> {
 
     for (const rateData of defaultExchangeRates) {
       // Check if both currencies exist
-      if (!currencyCodes.includes(rateData.from) || !currencyCodes.includes(rateData.to)) {
-        console.log(`⚠️  Skipping rate ${rateData.from}->${rateData.to}: Currency not found`);
+      if (
+        !currencyCodes.includes(rateData.from) ||
+        !currencyCodes.includes(rateData.to)
+      ) {
+        console.log(
+          `⚠️  Skipping rate ${rateData.from}->${rateData.to}: Currency not found`,
+        );
         skippedCount++;
         continue;
       }
@@ -132,7 +141,9 @@ export async function seedExchangeRates(dataSource: DataSource): Promise<void> {
       });
 
       if (existingRate) {
-        console.log(`⏭️  Rate ${rateData.from}->${rateData.to} already exists, skipping`);
+        console.log(
+          `⏭️  Rate ${rateData.from}->${rateData.to} already exists, skipping`,
+        );
         skippedCount++;
         continue;
       }
@@ -147,14 +158,15 @@ export async function seedExchangeRates(dataSource: DataSource): Promise<void> {
       });
 
       await exchangeRateRepository.save(exchangeRate);
-      console.log(`✅ Created rate: ${rateData.from} -> ${rateData.to} = ${rateData.rate}`);
+      console.log(
+        `✅ Created rate: ${rateData.from} -> ${rateData.to} = ${rateData.rate}`,
+      );
       insertedCount++;
     }
 
     console.log(`🎉 Exchange rates seeding completed!`);
     console.log(`   📈 Inserted: ${insertedCount} rates`);
     console.log(`   ⏭️  Skipped: ${skippedCount} rates`);
-    
   } catch (error) {
     console.error('❌ Error seeding exchange rates:', error);
     throw error;

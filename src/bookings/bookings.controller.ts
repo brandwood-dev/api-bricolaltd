@@ -15,11 +15,26 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { RejectBookingDto } from './dto/reject-booking.dto';
-import { ValidateCodeDto, ValidateCodeResponseDto } from './dto/validate-code.dto';
-import { CalculatePricingDto, PricingResponseDto } from './dto/calculate-pricing.dto';
-import { CheckAvailabilityDto, AvailabilityResponseDto } from './dto/check-availability.dto';
-import { BookingStatsQueryDto, BookingStatsResponseDto } from './dto/booking-stats.dto';
-import { AdminBookingQueryDto, AdminBookingResponseDto } from './dto/admin-booking-query.dto';
+import {
+  ValidateCodeDto,
+  ValidateCodeResponseDto,
+} from './dto/validate-code.dto';
+import {
+  CalculatePricingDto,
+  PricingResponseDto,
+} from './dto/calculate-pricing.dto';
+import {
+  CheckAvailabilityDto,
+  AvailabilityResponseDto,
+} from './dto/check-availability.dto';
+import {
+  BookingStatsQueryDto,
+  BookingStatsResponseDto,
+} from './dto/booking-stats.dto';
+import {
+  AdminBookingQueryDto,
+  AdminBookingResponseDto,
+} from './dto/admin-booking-query.dto';
 import { ConfirmToolReturnDto } from './dto/confirm-tool-return.dto';
 import { ConfirmDepositSetupDto } from './dto/confirm-deposit-setup.dto';
 import { CreateBookingWithDepositDto } from './dto/create-booking-with-deposit.dto';
@@ -43,13 +58,16 @@ export class BookingsController {
   // Endpoint de test temporaire sans authentification
   @Get('test-stats')
   @ApiOperation({ summary: 'Test booking statistics (no auth)' })
-  @ApiResponse({ status: 200, description: 'Booking statistics retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Booking statistics retrieved successfully.',
+  })
   async testBookingStats(@Query() queryDto?: BookingStatsQueryDto) {
     try {
       const stats = await this.bookingsService.getBookingStats(queryDto);
       return {
         data: stats,
-        message: 'Request successful'
+        message: 'Request successful',
       };
     } catch (error) {
       throw error;
@@ -76,7 +94,8 @@ export class BookingsController {
   @ApiOperation({ summary: 'Create a new booking with payment integration' })
   @ApiResponse({
     status: 201,
-    description: 'The booking and payment intent have been successfully created.',
+    description:
+      'The booking and payment intent have been successfully created.',
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   createWithPayment(@Body() createBookingDto: CreateBookingDto) {
@@ -86,13 +105,18 @@ export class BookingsController {
   @Post('with-deposit-setup')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new booking with automatic deposit setup' })
+  @ApiOperation({
+    summary: 'Create a new booking with automatic deposit setup',
+  })
   @ApiResponse({
     status: 201,
-    description: 'The booking and deposit setup intent have been successfully created.',
+    description:
+      'The booking and deposit setup intent have been successfully created.',
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  createWithDepositSetup(@Body() createBookingDto: CreateBookingWithDepositDto) {
+  createWithDepositSetup(
+    @Body() createBookingDto: CreateBookingWithDepositDto,
+  ) {
     return this.bookingsService.createBookingWithDepositSetup(createBookingDto);
   }
 
@@ -108,7 +132,6 @@ export class BookingsController {
   findAll() {
     return this.bookingsService.findAll();
   }
-
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -142,7 +165,9 @@ export class BookingsController {
   @Get('user/owner/:userId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all bookings where the authenticated user is the owner' })
+  @ApiOperation({
+    summary: 'Get all bookings where the authenticated user is the owner',
+  })
   @ApiParam({ name: 'userId', description: 'User ID' })
   @ApiResponse({
     status: 200,
@@ -202,16 +227,22 @@ export class BookingsController {
   @Post(':id/confirm-deposit-setup')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Confirm deposit setup intent for automatic capture' })
+  @ApiOperation({
+    summary: 'Confirm deposit setup intent for automatic capture',
+  })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({
     status: 200,
-    description: 'Deposit setup confirmed successfully and automatic capture scheduled.',
+    description:
+      'Deposit setup confirmed successfully and automatic capture scheduled.',
     type: Booking,
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  confirmDepositSetup(@Param('id') id: string, @Body() confirmData: ConfirmDepositSetupDto) {
+  confirmDepositSetup(
+    @Param('id') id: string,
+    @Body() confirmData: ConfirmDepositSetupDto,
+  ) {
     return this.bookingsService.confirmDepositSetup(id, confirmData);
   }
 
@@ -227,7 +258,10 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  cancelBooking(@Param('id') id: string, @Body() cancelBookingDto: CancelBookingDto) {
+  cancelBooking(
+    @Param('id') id: string,
+    @Body() cancelBookingDto: CancelBookingDto,
+  ) {
     return this.bookingsService.cancelBooking(id, cancelBookingDto);
   }
 
@@ -259,7 +293,10 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  rejectBooking(@Param('id') id: string, @Body() rejectBookingDto: RejectBookingDto) {
+  rejectBooking(
+    @Param('id') id: string,
+    @Body() rejectBookingDto: RejectBookingDto,
+  ) {
     return this.bookingsService.rejectBooking(id, rejectBookingDto);
   }
 
@@ -270,7 +307,8 @@ export class BookingsController {
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({
     status: 200,
-    description: 'The booking has been successfully accepted with validation code.',
+    description:
+      'The booking has been successfully accepted with validation code.',
     type: Booking,
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
@@ -282,17 +320,26 @@ export class BookingsController {
   @Patch(':id/validate-code')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Validate booking code and update status to ONGOING' })
+  @ApiOperation({
+    summary: 'Validate booking code and update status to ONGOING',
+  })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({
     status: 200,
-    description: 'Validation code verified successfully and booking status updated to ONGOING.',
+    description:
+      'Validation code verified successfully and booking status updated to ONGOING.',
     type: ValidateCodeResponseDto,
   })
   @ApiResponse({ status: 400, description: 'Invalid validation code.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  validateBookingCode(@Param('id') id: string, @Body() validateCodeDto: ValidateCodeDto) {
-    return this.bookingsService.validateBookingCode(id, validateCodeDto.validationCode);
+  validateBookingCode(
+    @Param('id') id: string,
+    @Body() validateCodeDto: ValidateCodeDto,
+  ) {
+    return this.bookingsService.validateBookingCode(
+      id,
+      validateCodeDto.validationCode,
+    );
   }
 
   @Patch(':id/confirm-return')
@@ -307,8 +354,16 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  confirmToolReturn(@Param('id') id: string, @Body() confirmToolReturnDto: ConfirmToolReturnDto, @Request() req) {
-    return this.bookingsService.confirmToolReturn(id, confirmToolReturnDto, req.user.id);
+  confirmToolReturn(
+    @Param('id') id: string,
+    @Body() confirmToolReturnDto: ConfirmToolReturnDto,
+    @Request() req,
+  ) {
+    return this.bookingsService.confirmToolReturn(
+      id,
+      confirmToolReturnDto,
+      req.user.id,
+    );
   }
 
   @Patch(':id/confirm-pickup')
@@ -339,7 +394,11 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  reportToolPickup(@Param('id') id: string, @Body() reportData: any, @Request() req) {
+  reportToolPickup(
+    @Param('id') id: string,
+    @Body() reportData: any,
+    @Request() req,
+  ) {
     return this.bookingsService.reportToolPickup(id, reportData, req.user.id);
   }
 
@@ -370,7 +429,9 @@ export class BookingsController {
   @Get('admin')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all bookings with pagination and filters (admin only)' })
+  @ApiOperation({
+    summary: 'Get all bookings with pagination and filters (admin only)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Paginated bookings retrieved successfully.',
@@ -401,7 +462,9 @@ export class BookingsController {
     status: 200,
     description: 'Booking analytics retrieved successfully.',
   })
-  getBookingAnalytics(@Query('period') period: 'week' | 'month' | 'year' = 'month') {
+  getBookingAnalytics(
+    @Query('period') period: 'week' | 'month' | 'year' = 'month',
+  ) {
     return this.bookingsService.getBookingAnalytics(period);
   }
 
@@ -425,11 +488,23 @@ export class BookingsController {
     status: 200,
     description: 'Bulk action performed successfully.',
   })
-  bulkUpdateBookings(@Body() bulkActionDto: { bookingIds: string[]; action: 'confirm' | 'cancel' | 'complete'; reason?: string; adminNotes?: string }) {
-    return this.bookingsService.bulkUpdateBookings(bulkActionDto.bookingIds, bulkActionDto.action, {
-      reason: bulkActionDto.reason,
-      message: bulkActionDto.adminNotes
-    });
+  bulkUpdateBookings(
+    @Body()
+    bulkActionDto: {
+      bookingIds: string[];
+      action: 'confirm' | 'cancel' | 'complete';
+      reason?: string;
+      adminNotes?: string;
+    },
+  ) {
+    return this.bookingsService.bulkUpdateBookings(
+      bulkActionDto.bookingIds,
+      bulkActionDto.action,
+      {
+        reason: bulkActionDto.reason,
+        message: bulkActionDto.adminNotes,
+      },
+    );
   }
 
   @Get(':id/history')
@@ -454,8 +529,19 @@ export class BookingsController {
     status: 200,
     description: 'Notification sent successfully.',
   })
-  sendBookingNotification(@Param('id') id: string, @Body() notificationDto: { type: 'reminder' | 'update' | 'confirmation'; message?: string }) {
-    return this.bookingsService.sendBookingNotification(id, notificationDto.type, notificationDto.message);
+  sendBookingNotification(
+    @Param('id') id: string,
+    @Body()
+    notificationDto: {
+      type: 'reminder' | 'update' | 'confirmation';
+      message?: string;
+    },
+  ) {
+    return this.bookingsService.sendBookingNotification(
+      id,
+      notificationDto.type,
+      notificationDto.message,
+    );
   }
 
   @Post(':id/cancel-deposit')
@@ -483,8 +569,15 @@ export class BookingsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  refundDeposit(@Param('id') id: string, @Body() refundData: { amount?: number; reason?: string }) {
-    return this.bookingsService.refundDeposit(id, refundData.amount, refundData.reason);
+  refundDeposit(
+    @Param('id') id: string,
+    @Body() refundData: { amount?: number; reason?: string },
+  ) {
+    return this.bookingsService.refundDeposit(
+      id,
+      refundData.amount,
+      refundData.reason,
+    );
   }
 
   @Delete(':id')

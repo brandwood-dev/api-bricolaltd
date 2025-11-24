@@ -33,16 +33,64 @@ export class AdminToolsController {
   @Get()
   @AdminPermissions('manage_tools')
   @ApiOperation({ summary: 'Get all tools with admin filters and pagination' })
-  @ApiResponse({ status: 200, description: 'Return paginated tools with filters.' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for tool title' })
-  @ApiQuery({ name: 'status', required: false, enum: ['DRAFT', 'PUBLISHED', 'UNDER_REVIEW', 'REJECTED', 'ARCHIVED'], description: 'Filter by tool status' })
-  @ApiQuery({ name: 'categoryId', required: false, type: String, description: 'Filter by category ID' })
-  @ApiQuery({ name: 'subcategoryId', required: false, type: String, description: 'Filter by subcategory ID' })
-  @ApiQuery({ name: 'ownerId', required: false, type: String, description: 'Filter by owner ID' })
-  @ApiQuery({ name: 'dateFrom', required: false, type: String, description: 'Filter by creation date from (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'dateTo', required: false, type: String, description: 'Filter by creation date to (YYYY-MM-DD)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated tools with filters.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term for tool title',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['DRAFT', 'PUBLISHED', 'UNDER_REVIEW', 'REJECTED', 'ARCHIVED'],
+    description: 'Filter by tool status',
+  })
+  @ApiQuery({
+    name: 'categoryId',
+    required: false,
+    type: String,
+    description: 'Filter by category ID',
+  })
+  @ApiQuery({
+    name: 'subcategoryId',
+    required: false,
+    type: String,
+    description: 'Filter by subcategory ID',
+  })
+  @ApiQuery({
+    name: 'ownerId',
+    required: false,
+    type: String,
+    description: 'Filter by owner ID',
+  })
+  @ApiQuery({
+    name: 'dateFrom',
+    required: false,
+    type: String,
+    description: 'Filter by creation date from (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'dateTo',
+    required: false,
+    type: String,
+    description: 'Filter by creation date to (YYYY-MM-DD)',
+  })
   async findAllForAdmin(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
@@ -78,7 +126,10 @@ export class AdminToolsController {
   @Get(':id')
   @AdminPermissions('manage_tools')
   @ApiOperation({ summary: 'Get a tool by ID for admin' })
-  @ApiResponse({ status: 200, description: 'Return the tool with full details.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return the tool with full details.',
+  })
   @ApiResponse({ status: 404, description: 'Tool not found.' })
   @ApiParam({ name: 'id', description: 'Tool ID' })
   async findOneForAdmin(@Param('id') id: string) {
@@ -106,7 +157,10 @@ export class AdminToolsController {
     @Param('id') id: string,
     @Body() updateToolStatusDto: UpdateToolStatusDto,
   ) {
-    if (!updateToolStatusDto.reason || updateToolStatusDto.reason.trim() === '') {
+    if (
+      !updateToolStatusDto.reason ||
+      updateToolStatusDto.reason.trim() === ''
+    ) {
       throw new BadRequestException('Rejection reason is required');
     }
     return this.adminToolsService.rejectTool(id, updateToolStatusDto.reason);
@@ -117,14 +171,22 @@ export class AdminToolsController {
   @AdminPermissions('manage_tools')
   @ApiOperation({ summary: 'Run rejection templates test for 6 reasons' })
   @ApiResponse({ status: 200, description: 'Test executed successfully.' })
-  async runRejectionTemplatesTest(@Body() body: { ownerEmail: string; ownerId?: string }) {
-    return this.adminToolsService.runRejectionTemplatesTest(body.ownerEmail, body.ownerId);
+  async runRejectionTemplatesTest(
+    @Body() body: { ownerEmail: string; ownerId?: string },
+  ) {
+    return this.adminToolsService.runRejectionTemplatesTest(
+      body.ownerEmail,
+      body.ownerId,
+    );
   }
 
   @Patch(':id/status')
   @AdminPermissions('manage_tools')
   @ApiOperation({ summary: 'Update tool status' })
-  @ApiResponse({ status: 200, description: 'Tool status updated successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tool status updated successfully.',
+  })
   @ApiResponse({ status: 404, description: 'Tool not found.' })
   @ApiParam({ name: 'id', description: 'Tool ID' })
   async updateToolStatus(
@@ -140,8 +202,11 @@ export class AdminToolsController {
   @ApiResponse({ status: 200, description: 'Tool deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Tool not found.' })
   @ApiParam({ name: 'id', description: 'Tool ID' })
-  async deleteTool(@Param('id') id: string) {
-    return this.adminToolsService.deleteTool(id);
+  async deleteTool(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.adminToolsService.deleteTool(id, body.reason);
   }
 
   @Patch(':id/archive')

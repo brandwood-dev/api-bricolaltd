@@ -35,7 +35,9 @@ export class DepositSchedulerService {
     try {
       // Calculer les dates de notification et de capture
       const startDate = new Date(booking.startDate);
-      const notificationDate = new Date(startDate.getTime() - 48 * 60 * 60 * 1000); // 48h avant
+      const notificationDate = new Date(
+        startDate.getTime() - 48 * 60 * 60 * 1000,
+      ); // 48h avant
       const captureDate = new Date(startDate.getTime() - 24 * 60 * 60 * 1000); // 24h avant
 
       const metadata: DepositJobMetadata = {
@@ -56,11 +58,15 @@ export class DepositSchedulerService {
       });
 
       const savedJob = await this.depositJobRepository.save(job);
-      this.logger.log(`Job de capture programmé: ${savedJob.id} pour booking: ${booking.id}`);
+      this.logger.log(
+        `Job de capture programmé: ${savedJob.id} pour booking: ${booking.id}`,
+      );
 
       return savedJob;
     } catch (error) {
-      this.logger.error(`Erreur lors de la programmation du job: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la programmation du job: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -89,13 +95,17 @@ export class DepositSchedulerService {
         relations: ['renter', 'tool', 'owner'],
       });
 
-      this.logger.log(`${bookingsToNotify.length} réservations nécessitent une notification`);
+      this.logger.log(
+        `${bookingsToNotify.length} réservations nécessitent une notification`,
+      );
 
       for (const booking of bookingsToNotify) {
         await this.sendDepositNotification(booking);
       }
     } catch (error) {
-      this.logger.error(`Erreur lors du traitement des notifications: ${error.message}`);
+      this.logger.error(
+        `Erreur lors du traitement des notifications: ${error.message}`,
+      );
     }
   }
 
@@ -123,13 +133,17 @@ export class DepositSchedulerService {
         relations: ['renter', 'tool', 'owner'],
       });
 
-      this.logger.log(`${bookingsToCapture.length} réservations prêtes pour capture`);
+      this.logger.log(
+        `${bookingsToCapture.length} réservations prêtes pour capture`,
+      );
 
       for (const booking of bookingsToCapture) {
         await this.captureBookingDeposit(booking);
       }
     } catch (error) {
-      this.logger.error(`Erreur lors du traitement des captures: ${error.message}`);
+      this.logger.error(
+        `Erreur lors du traitement des captures: ${error.message}`,
+      );
     }
   }
 
@@ -152,7 +166,10 @@ export class DepositSchedulerService {
       };
 
       // Envoyer l'email de notification
-      const success = await this.depositNotificationService.sendDepositReminderEmail(notificationData);
+      const success =
+        await this.depositNotificationService.sendDepositReminderEmail(
+          notificationData,
+        );
 
       if (success) {
         // Mettre à jour la réservation
@@ -174,10 +191,14 @@ export class DepositSchedulerService {
 
         this.logger.log(`Notification envoyée pour booking: ${booking.id}`);
       } else {
-        this.logger.error(`Échec de l'envoi de notification pour booking: ${booking.id}`);
+        this.logger.error(
+          `Échec de l'envoi de notification pour booking: ${booking.id}`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Erreur lors de l'envoi de notification pour ${booking.id}: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de l'envoi de notification pour ${booking.id}: ${error.message}`,
+      );
     }
   }
 
@@ -187,7 +208,9 @@ export class DepositSchedulerService {
   private async captureBookingDeposit(booking: Booking): Promise<void> {
     try {
       if (!booking.stripeCustomerId || !booking.depositPaymentMethodId) {
-        this.logger.warn(`Données Stripe manquantes pour booking: ${booking.id}`);
+        this.logger.warn(
+          `Données Stripe manquantes pour booking: ${booking.id}`,
+        );
         return;
       }
 
@@ -212,7 +235,8 @@ export class DepositSchedulerService {
       }
 
       // Tenter la capture
-      const result = await this.stripeDepositService.captureDeposit(captureData);
+      const result =
+        await this.stripeDepositService.captureDeposit(captureData);
 
       if (result.success) {
         // Capture réussie
@@ -238,9 +262,13 @@ export class DepositSchedulerService {
           hoursUntilCapture: 0,
           capturedAmount: captureData.amount,
         };
-        await this.depositNotificationService.sendDepositCapturedEmail(notificationData);
+        await this.depositNotificationService.sendDepositCapturedEmail(
+          notificationData,
+        );
 
-        this.logger.log(`Caution capturée avec succès pour booking: ${booking.id}`);
+        this.logger.log(
+          `Caution capturée avec succès pour booking: ${booking.id}`,
+        );
       } else {
         // Capture échouée
         await this.bookingRepository.update(booking.id, {
@@ -267,12 +295,18 @@ export class DepositSchedulerService {
           hoursUntilCapture: 0,
           failureReason: result.error || 'Erreur inconnue lors de la capture',
         };
-        await this.depositNotificationService.sendDepositFailedEmail(failureNotificationData);
+        await this.depositNotificationService.sendDepositFailedEmail(
+          failureNotificationData,
+        );
 
-        this.logger.error(`Échec de capture pour booking: ${booking.id} - ${result.error}`);
+        this.logger.error(
+          `Échec de capture pour booking: ${booking.id} - ${result.error}`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Erreur lors de la capture pour ${booking.id}: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la capture pour ${booking.id}: ${error.message}`,
+      );
 
       // Marquer comme échoué
       await this.bookingRepository.update(booking.id, {
@@ -309,7 +343,9 @@ export class DepositSchedulerService {
       this.logger.log(`${jobs.length} jobs de caution récupérés`);
       return jobs;
     } catch (error) {
-      this.logger.error(`Erreur lors de la récupération des jobs: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la récupération des jobs: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -317,7 +353,9 @@ export class DepositSchedulerService {
   /**
    * Récupérer les jobs de capture de caution par statut
    */
-  async getDepositJobsByStatus(status: DepositJobStatus): Promise<DepositCaptureJob[]> {
+  async getDepositJobsByStatus(
+    status: DepositJobStatus,
+  ): Promise<DepositCaptureJob[]> {
     try {
       const jobs = await this.depositJobRepository.find({
         where: { status },
@@ -330,7 +368,9 @@ export class DepositSchedulerService {
       this.logger.log(`${jobs.length} jobs avec statut ${status} récupérés`);
       return jobs;
     } catch (error) {
-      this.logger.error(`Erreur lors de la récupération des jobs par statut: ${error.message}`);
+      this.logger.error(
+        `Erreur lors de la récupération des jobs par statut: ${error.message}`,
+      );
       throw error;
     }
   }

@@ -1,12 +1,14 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class UpdateContactCategoryEnum1758144800000 implements MigrationInterface {
+export class UpdateContactCategoryEnum1758144800000
+  implements MigrationInterface
+{
   name = 'UpdateContactCategoryEnum1758144800000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Check if contacts table exists, if not create it
     const tableExists = await queryRunner.hasTable('contacts');
-    
+
     if (!tableExists) {
       // Create contacts table if it doesn't exist
       await queryRunner.query(`
@@ -31,8 +33,11 @@ export class UpdateContactCategoryEnum1758144800000 implements MigrationInterfac
       `);
     } else {
       // Check if category column exists
-      const categoryColumnExists = await queryRunner.hasColumn('contacts', 'category');
-      
+      const categoryColumnExists = await queryRunner.hasColumn(
+        'contacts',
+        'category',
+      );
+
       if (!categoryColumnExists) {
         // Add category column if it doesn't exist
         await queryRunner.query(`
@@ -52,10 +57,13 @@ export class UpdateContactCategoryEnum1758144800000 implements MigrationInterfac
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Revert category column to old enum values if needed
     const tableExists = await queryRunner.hasTable('contacts');
-    
+
     if (tableExists) {
-      const categoryColumnExists = await queryRunner.hasColumn('contacts', 'category');
-      
+      const categoryColumnExists = await queryRunner.hasColumn(
+        'contacts',
+        'category',
+      );
+
       if (categoryColumnExists) {
         await queryRunner.query(`
           ALTER TABLE \`contacts\` 

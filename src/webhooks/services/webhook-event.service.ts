@@ -25,12 +25,15 @@ export class WebhookEventService {
   async isEventProcessed(eventId: string): Promise<boolean> {
     try {
       const existingEvent = await this.webhookEventRepository.findOne({
-        where: { eventId }
+        where: { eventId },
       });
-      
+
       return !!existingEvent;
     } catch (error) {
-      this.logger.error(`Error checking if event ${eventId} is processed:`, error);
+      this.logger.error(
+        `Error checking if event ${eventId} is processed:`,
+        error,
+      );
       // In case of error, assume it's processed to avoid double processing
       return true;
     }
@@ -42,7 +45,7 @@ export class WebhookEventService {
   async storeWebhookEvent(
     event: Stripe.Event,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<StripeWebhookEvent> {
     try {
       const webhookEvent = this.webhookEventRepository.create({
@@ -56,7 +59,7 @@ export class WebhookEventService {
 
       const savedEvent = await this.webhookEventRepository.save(webhookEvent);
       this.logger.log(`Webhook event stored: ${event.type} - ${event.id}`);
-      
+
       return savedEvent;
     } catch (error) {
       this.logger.error(`Error storing webhook event ${event.id}:`, error);
@@ -75,9 +78,9 @@ export class WebhookEventService {
           processed: true,
           processedAt: new Date(),
           processingError: error || null,
-        }
+        },
       );
-      
+
       this.logger.log(`Webhook event marked as processed: ${eventId}`);
     } catch (error) {
       this.logger.error(`Error marking event ${eventId} as processed:`, error);
@@ -87,7 +90,9 @@ export class WebhookEventService {
   /**
    * Get unprocessed events for retry
    */
-  async getUnprocessedEvents(limit: number = 100): Promise<StripeWebhookEvent[]> {
+  async getUnprocessedEvents(
+    limit: number = 100,
+  ): Promise<StripeWebhookEvent[]> {
     try {
       return await this.webhookEventRepository.find({
         where: { processed: false },
@@ -105,18 +110,17 @@ export class WebhookEventService {
    */
   async incrementRetryCount(eventId: string): Promise<void> {
     try {
-      await this.webhookEventRepository.increment(
-        { eventId },
-        'retryCount',
-        1
-      );
-      
+      await this.webhookEventRepository.increment({ eventId }, 'retryCount', 1);
+
       await this.webhookEventRepository.update(
         { eventId },
-        { lastRetryAt: new Date() }
+        { lastRetryAt: new Date() },
       );
     } catch (error) {
-      this.logger.error(`Error incrementing retry count for ${eventId}:`, error);
+      this.logger.error(
+        `Error incrementing retry count for ${eventId}:`,
+        error,
+      );
     }
   }
 
@@ -128,7 +132,8 @@ export class WebhookEventService {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const result = await this.webhookEventRepository.createQueryBuilder()
+      const result = await this.webhookEventRepository
+        .createQueryBuilder()
         .delete()
         .where('processed = :processed', { processed: true })
         .andWhere('created_at < :date', { date: thirtyDaysAgo })
@@ -136,7 +141,7 @@ export class WebhookEventService {
 
       const deletedCount = result.affected || 0;
       this.logger.log(`Cleaned up ${deletedCount} old webhook events`);
-      
+
       return deletedCount;
     } catch (error) {
       this.logger.error('Error cleaning up old events:', error);
@@ -151,7 +156,9 @@ export class WebhookEventService {
     try {
       // Basic validation
       if (!event.id || !event.type || !event.data) {
-        this.logger.warn('Event missing required fields', { eventId: event.id });
+        this.logger.warn('Event missing required fields', {
+          eventId: event.id,
+        });
         return false;
       }
 

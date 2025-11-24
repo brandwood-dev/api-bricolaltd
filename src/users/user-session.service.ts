@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { UserSession } from './entities/user-session.entity';
@@ -12,7 +16,9 @@ export class UserSessionService {
     private userSessionRepository: Repository<UserSession>,
   ) {}
 
-  async create(createUserSessionDto: CreateUserSessionDto): Promise<UserSession> {
+  async create(
+    createUserSessionDto: CreateUserSessionDto,
+  ): Promise<UserSession> {
     const userSession = this.userSessionRepository.create({
       ...createUserSessionDto,
       lastActivityAt: new Date(),
@@ -22,10 +28,10 @@ export class UserSessionService {
 
   async findAllByUser(userId: string): Promise<UserSession[]> {
     return this.userSessionRepository.find({
-      where: { 
+      where: {
         userId,
         isActive: true,
-        expiresAt: MoreThan(new Date())
+        expiresAt: MoreThan(new Date()),
       },
       relations: ['user'],
       order: { lastActivityAt: 'DESC' },
@@ -50,7 +56,10 @@ export class UserSessionService {
     });
   }
 
-  async update(id: string, updateUserSessionDto: UpdateUserSessionDto): Promise<UserSession> {
+  async update(
+    id: string,
+    updateUserSessionDto: UpdateUserSessionDto,
+  ): Promise<UserSession> {
     const session = await this.findOne(id);
     Object.assign(session, updateUserSessionDto);
     return this.userSessionRepository.save(session);
@@ -64,7 +73,7 @@ export class UserSessionService {
 
   async revokeSession(id: string, currentUserId: string): Promise<void> {
     const session = await this.findOne(id);
-    
+
     // Users can only revoke their own sessions
     if (session.userId !== currentUserId) {
       throw new ForbiddenException('You can only revoke your own sessions');
@@ -74,7 +83,10 @@ export class UserSessionService {
     await this.userSessionRepository.save(session);
   }
 
-  async revokeAllUserSessions(userId: string, exceptSessionId?: string): Promise<void> {
+  async revokeAllUserSessions(
+    userId: string,
+    exceptSessionId?: string,
+  ): Promise<void> {
     const query = this.userSessionRepository
       .createQueryBuilder()
       .update(UserSession)
@@ -102,7 +114,7 @@ export class UserSessionService {
       where: {
         userId,
         isActive: true,
-        expiresAt: MoreThan(new Date())
+        expiresAt: MoreThan(new Date()),
       },
     });
   }

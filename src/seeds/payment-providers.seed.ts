@@ -4,9 +4,9 @@ import { PaymentMethod } from '../transactions/enums/payment-method.enum';
 
 export async function seedPaymentProviders(dataSource: DataSource) {
   console.log('💳 Seeding payment providers...');
-  
+
   const paymentProviderRepository = dataSource.getRepository(PaymentProvider);
-  
+
   const providersData = [
     {
       name: 'stripe',
@@ -18,8 +18,8 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       config: {
         currency: 'EUR',
         feePercentage: 2.9,
-        fixedFee: 0.30
-      }
+        fixedFee: 0.3,
+      },
     },
     {
       name: 'paypal',
@@ -27,12 +27,13 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       description: 'Global digital payment platform',
       isActive: true,
       supportedMethods: [PaymentMethod.PAYPAL],
-      logoUrl: 'https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg',
+      logoUrl:
+        'https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg',
       config: {
         currency: 'EUR',
         feePercentage: 3.4,
-        fixedFee: 0.35
-      }
+        fixedFee: 0.35,
+      },
     },
     {
       name: 'bank_transfer',
@@ -42,21 +43,21 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       supportedMethods: [PaymentMethod.BANK_TRANSFER],
       config: {
         currency: 'EUR',
-        processingDays: 3
-      }
-    }
+        processingDays: 3,
+      },
+    },
   ];
-  
+
   for (const providerData of providersData) {
     const existingProvider = await paymentProviderRepository.findOne({
-      where: { name: providerData.name }
+      where: { name: providerData.name },
     });
-    
+
     if (!existingProvider) {
       const provider = paymentProviderRepository.create(providerData);
       await paymentProviderRepository.save(provider);
     }
   }
-  
+
   console.log('✅ Payment providers seeded successfully');
 }

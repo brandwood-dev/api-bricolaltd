@@ -1,10 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Contact, ContactStatus, ContactCategory, ContactPriority } from './entities/contact.entity';
+import {
+  Contact,
+  ContactStatus,
+  ContactCategory,
+  ContactPriority,
+} from './entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { EmailSenderService } from '../emails/email-sender.service';
 import { ConfigService } from '@nestjs/config';
+import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import { NotificationCategory, NotificationPriority } from '../admin/dto/admin-notifications.dto';
 
 @Injectable()
 export class ContactService {
@@ -13,6 +20,7 @@ export class ContactService {
     private contactRepository: Repository<Contact>,
     private emailSenderService: EmailSenderService,
     private configService: ConfigService,
+    private adminNotificationsService: AdminNotificationsService,
   ) {}
 
   async create(createContactDto: CreateContactDto): Promise<Contact> {
@@ -26,7 +34,10 @@ export class ContactService {
     const savedContact = await this.contactRepository.save(contact);
 
     // Send notification email to admin
-    await this.sendAdminNotification(savedContact);
+    await this.sendAdminNotificationEmail(savedContact);
+
+    // Create system notification for all administrators
+    await this.createAdminNotifications(savedContact);
 
     // Send confirmation email to user
     await this.sendUserConfirmation(savedContact);
@@ -66,11 +77,11 @@ export class ContactService {
     contact.response = response;
     contact.respondedAt = new Date();
     contact.status = ContactStatus.RESOLVED;
-    
+
     const updatedContact = await this.contactRepository.save(contact);
 
-    // Send response email to user
-    await this.sendResponseEmail(updatedContact);
+    // Note: The email is now sent by the frontend via /emails/send-contact-response
+    // to avoid duplicate emails and use the professional HTML template
 
     return updatedContact;
   }
@@ -80,10 +91,37 @@ export class ContactService {
     await this.contactRepository.remove(contact);
   }
 
-  private async sendAdminNotification(contact: Contact): Promise<void> {
+  async sendAdminNotification(notificationData: {
+    contactId: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    subject: string;
+    category: string;
+    priority: string;
+  }): Promise<{ success: boolean; message: string }> {
     try {
-      const adminEmail = this.configService.get('SES_FROM_EMAIL') || 'admin@bricolaltd.com';
-      
+      // This method is called from frontend after contact creation
+      // But the actual admin notification is already sent in the create() method
+      // So we just return success here
+      return {
+        success: true,
+        message: 'Admin notification processed successfully',
+      };
+    } catch (error) {
+      console.error('Error processing admin notification:', error);
+      return {
+        success: false,
+        message: 'Failed to process admin notification',
+      };
+    }
+  }
+
+  private async sendAdminNotificationEmail(contact: Contact): Promise<void> {
+    try {
+      const adminEmail =
+        this.configService.get('SES_FROM_EMAIL') || 'contact@bricolaltd.com';
+
       await this.emailSenderService.sendEmail({
         to: adminEmail,
         subject: `Nouveau message de contact - ${contact.subject}`,
@@ -161,37 +199,18 @@ export class ContactService {
     }
   }
 
-  private async sendResponseEmail(contact: Contact): Promise<void> {
+  private async createAdminNotifications(contact: Contact): Promise<void> {
     try {
-      await this.emailSenderService.sendEmail({
-        to: contact.email,
-        subject: `Réponse à votre message: ${contact.subject} - Bricola`,
-        html: `
-          <h2>Réponse à votre message</h2>
-          <p>Bonjour ${contact.firstName},</p>
-          <p>Nous vous remercions pour votre message concernant "${contact.subject}". Voici notre réponse :</p>
-          <div style="background-color: #e8f5e8; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">
-            ${contact.response?.replace(/\n/g, '<br>')}
-          </div>
-          <p>Si vous avez d'autres questions, n'hésitez pas à nous recontacter.</p>
-          <p>Cordialement,<br>L'équipe Bricola</p>
-          <hr>
-          <p style="font-size: 12px; color: #666;">Référence: ${contact.id}</p>
-        `,
-        text: `
-          Réponse à votre message\n\n
-          Bonjour ${contact.firstName},\n\n
-          Nous vous remercions pour votre message concernant "${contact.subject}". Voici notre réponse :\n\n
-          ${contact.response}\n\n
-          Si vous avez d'autres questions, n'hésitez pas à nous recontacter.\n\n
-          Cordialement,\n
-          L'équipe Bricola\n\n
-          Référence: ${contact.id}
-        `,
-      });
+      // Create a system notification for all administrators
+      await this.adminNotificationsService.createSystemNotification(
+        'Nouveau message de contact',
+        `${contact.firstName} ${contact.lastName} a envoyé un message: "${contact.subject}"`,
+        undefined, // Use default type (SYSTEM)
+        NotificationPriority.MEDIUM,
+      );
     } catch (error) {
-      console.error('Failed to send response email:', error);
-      // Don't throw error to avoid blocking response
+      console.error('Failed to create admin notifications:', error);
+      // Don't throw error to avoid blocking contact creation
     }
   }
 }

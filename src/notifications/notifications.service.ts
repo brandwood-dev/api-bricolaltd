@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions } from 'typeorm';
 import { Notification } from './entities/notification.entity';
@@ -13,8 +17,12 @@ export class NotificationsService {
     private notificationRepository: Repository<Notification>,
   ) {}
 
-  async create(createNotificationDto: CreateNotificationDto): Promise<Notification> {
-    const notification = this.notificationRepository.create(createNotificationDto);
+  async create(
+    createNotificationDto: CreateNotificationDto,
+  ): Promise<Notification> {
+    const notification = this.notificationRepository.create(
+      createNotificationDto,
+    );
     return await this.notificationRepository.save(notification);
   }
 
@@ -24,7 +32,12 @@ export class NotificationsService {
     type?: NotificationType,
     isRead?: boolean,
     userId?: string,
-  ): Promise<{ data: Notification[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: Notification[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const options: FindManyOptions<Notification> = {
       relations: ['user'],
       order: { createdAt: 'DESC' },
@@ -39,7 +52,8 @@ export class NotificationsService {
       if (userId) options.where.userId = userId;
     }
 
-    const [data, total] = await this.notificationRepository.findAndCount(options);
+    const [data, total] =
+      await this.notificationRepository.findAndCount(options);
 
     return {
       data,
@@ -67,7 +81,12 @@ export class NotificationsService {
     page: number = 1,
     limit: number = 10,
     isRead?: boolean,
-  ): Promise<{ data: Notification[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: Notification[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const options: FindManyOptions<Notification> = {
       where: { userId },
       order: { createdAt: 'DESC' },
@@ -79,7 +98,8 @@ export class NotificationsService {
       options.where = { ...options.where, isRead };
     }
 
-    const [data, total] = await this.notificationRepository.findAndCount(options);
+    const [data, total] =
+      await this.notificationRepository.findAndCount(options);
 
     return {
       data,
@@ -89,7 +109,10 @@ export class NotificationsService {
     };
   }
 
-  async update(id: string, updateNotificationDto: UpdateNotificationDto): Promise<Notification> {
+  async update(
+    id: string,
+    updateNotificationDto: UpdateNotificationDto,
+  ): Promise<Notification> {
     const notification = await this.findOne(id);
 
     // If marking as read, set readAt timestamp
@@ -115,7 +138,9 @@ export class NotificationsService {
 
     // If userId is provided, ensure the notification belongs to the user
     if (userId && notification.userId !== userId) {
-      throw new ForbiddenException('You can only mark your own notifications as read');
+      throw new ForbiddenException(
+        'You can only mark your own notifications as read',
+      );
     }
 
     return await this.update(id, { isRead: true });
@@ -126,7 +151,9 @@ export class NotificationsService {
 
     // If userId is provided, ensure the notification belongs to the user
     if (userId && notification.userId !== userId) {
-      throw new ForbiddenException('You can only mark your own notifications as unread');
+      throw new ForbiddenException(
+        'You can only mark your own notifications as unread',
+      );
     }
 
     return await this.update(id, { isRead: false });

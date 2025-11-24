@@ -77,18 +77,24 @@ export class PaymentTestDataSeeder {
     try {
       // Create test users
       const testUsers = await this.createTestUsers();
-      
+
       // Create test tools and categories
       const testTools = await this.createTestTools(testUsers);
-      
+
       // Create test bookings
       const testBookings = await this.createTestBookings(testUsers, testTools);
-      
+
       // Create test transactions
-      const testTransactions = await this.createTestTransactions(testUsers, testBookings);
-      
+      const testTransactions = await this.createTestTransactions(
+        testUsers,
+        testBookings,
+      );
+
       // Create test wallets
-      const testWallets = await this.createTestWallets(testUsers, testTransactions);
+      const testWallets = await this.createTestWallets(
+        testUsers,
+        testTransactions,
+      );
 
       this.logger.log('✅ Payment test data created successfully');
 
@@ -184,7 +190,7 @@ export class PaymentTestDataSeeder {
 
     for (const config of testUserConfigs) {
       const hashedPassword = await bcrypt.hash(config.password, 10);
-      
+
       const user = this.userRepository.create({
         email: config.email,
         password: hashedPassword,
@@ -212,10 +218,19 @@ export class PaymentTestDataSeeder {
    */
   private async createTestTools(users: User[]): Promise<Tool[]> {
     const categories = [
-      { name: 'Power Tools', description: 'Electric and battery-powered tools' },
+      {
+        name: 'Power Tools',
+        description: 'Electric and battery-powered tools',
+      },
       { name: 'Hand Tools', description: 'Manual tools and equipment' },
-      { name: 'Garden Tools', description: 'Tools for gardening and landscaping' },
-      { name: 'Construction', description: 'Heavy-duty construction equipment' },
+      {
+        name: 'Garden Tools',
+        description: 'Tools for gardening and landscaping',
+      },
+      {
+        name: 'Construction',
+        description: 'Heavy-duty construction equipment',
+      },
     ];
 
     const createdCategories: Category[] = [];
@@ -225,7 +240,7 @@ export class PaymentTestDataSeeder {
       createdCategories.push(savedCategory);
     }
 
-    const toolOwners = users.filter(user => !user.isAdmin);
+    const toolOwners = users.filter((user) => !user.isAdmin);
     const tools = [
       {
         title: 'Premium Drill Set',
@@ -280,7 +295,7 @@ export class PaymentTestDataSeeder {
     const createdTools: Tool[] = [];
     for (const toolData of tools) {
       const tool = this.toolRepository.create(toolData);
-      
+
       const savedTool = await this.toolRepository.save(tool);
       createdTools.push(savedTool);
     }
@@ -292,8 +307,11 @@ export class PaymentTestDataSeeder {
   /**
    * Create test bookings with different statuses
    */
-  private async createTestBookings(users: User[], tools: Tool[]): Promise<Booking[]> {
-    const regularUsers = users.filter(user => !user.isAdmin);
+  private async createTestBookings(
+    users: User[],
+    tools: Tool[],
+  ): Promise<Booking[]> {
+    const regularUsers = users.filter((user) => !user.isAdmin);
     const bookings: Booking[] = [];
 
     const bookingConfigs = [
@@ -345,7 +363,7 @@ export class PaymentTestDataSeeder {
 
     for (const config of bookingConfigs) {
       const booking = this.bookingRepository.create(config);
-      
+
       const savedBooking = await this.bookingRepository.save(booking);
       bookings.push(savedBooking);
     }
@@ -357,7 +375,10 @@ export class PaymentTestDataSeeder {
   /**
    * Create test transactions with different statuses and types
    */
-  private async createTestTransactions(users: User[], bookings: Booking[]): Promise<Transaction[]> {
+  private async createTestTransactions(
+    users: User[],
+    bookings: Booking[],
+  ): Promise<Transaction[]> {
     const transactions: Transaction[] = [];
 
     const transactionConfigs: TestTransactionData[] = [
@@ -450,8 +471,8 @@ export class PaymentTestDataSeeder {
     for (let i = 0; i < transactionConfigs.length && i < bookings.length; i++) {
       const config = transactionConfigs[i];
       const booking = bookings[i];
-      const sender = users.find(u => u.id === booking.renter.id);
-      const recipient = users.find(u => u.id === booking.tool.owner.id);
+      const sender = users.find((u) => u.id === booking.renter.id);
+      const recipient = users.find((u) => u.id === booking.tool.owner.id);
 
       const transaction = this.transactionRepository.create({
         ...config,
@@ -459,10 +480,13 @@ export class PaymentTestDataSeeder {
         recipient,
         booking,
         description: this.generateTransactionDescription(config.type, booking),
-        createdAt: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within last 30 days
+        createdAt: new Date(
+          Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000,
+        ), // Random date within last 30 days
       });
-      
-      const savedTransaction = await this.transactionRepository.save(transaction);
+
+      const savedTransaction =
+        await this.transactionRepository.save(transaction);
       transactions.push(savedTransaction);
     }
 
@@ -473,12 +497,15 @@ export class PaymentTestDataSeeder {
   /**
    * Create test wallets with balances and transaction history
    */
-  private async createTestWallets(users: User[], transactions: Transaction[]): Promise<Wallet[]> {
+  private async createTestWallets(
+    users: User[],
+    transactions: Transaction[],
+  ): Promise<Wallet[]> {
     const wallets: Wallet[] = [];
 
     for (const user of users) {
-      const userTransactions = transactions.filter(t => 
-        t.sender.id === user.id || t.recipient.id === user.id
+      const userTransactions = transactions.filter(
+        (t) => t.sender.id === user.id || t.recipient.id === user.id,
       );
 
       // Calculate balance from transactions
@@ -497,7 +524,7 @@ export class PaymentTestDataSeeder {
         pendingBalance: 0,
         reservedBalance: 0,
       });
-      
+
       const savedWallet = await this.walletRepository.save(wallet);
       wallets.push(savedWallet);
     }
@@ -509,7 +536,10 @@ export class PaymentTestDataSeeder {
   /**
    * Generate transaction description based on type and booking
    */
-  private generateTransactionDescription(type: TransactionType, booking: Booking): string {
+  private generateTransactionDescription(
+    type: TransactionType,
+    booking: Booking,
+  ): string {
     switch (type) {
       case TransactionType.PAYMENT:
         return `Payment for ${booking.tool.title} rental`;
@@ -529,33 +559,33 @@ export class PaymentTestDataSeeder {
    */
   async cleanupTestData(): Promise<void> {
     this.logger.log('🧹 Cleaning up payment test data...');
-    
+
     try {
       // Delete in reverse order to respect foreign key constraints
-      await this.transactionRepository.delete({ 
-        description: Like('%test%') 
+      await this.transactionRepository.delete({
+        description: Like('%test%'),
       });
-      
-      await this.bookingRepository.delete({ 
-        tool: { title: Like('%test%') } 
+
+      await this.bookingRepository.delete({
+        tool: { title: Like('%test%') },
       });
-      
-      await this.toolRepository.delete({ 
-        title: Like('%test%') 
+
+      await this.toolRepository.delete({
+        title: Like('%test%'),
       });
-      
-      await this.categoryRepository.delete({ 
-        name: Like('%test%') 
+
+      await this.categoryRepository.delete({
+        name: Like('%test%'),
       });
-      
-      await this.walletRepository.delete({ 
-        user: { email: Like('%test%') } 
+
+      await this.walletRepository.delete({
+        user: { email: Like('%test%') },
       });
-      
-      await this.userRepository.delete({ 
-        email: Like('%test%') 
+
+      await this.userRepository.delete({
+        email: Like('%test%'),
       });
-      
+
       this.logger.log('✅ Payment test data cleaned up successfully');
     } catch (error) {
       this.logger.error('❌ Failed to cleanup payment test data:', error);

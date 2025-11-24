@@ -31,7 +31,9 @@ export class AdminReviewsService {
   ) {}
 
   // Get all tool reviews with filters and pagination
-  async getToolReviews(filters: ReviewFilters = {}): Promise<PaginatedResponse<ReviewTool>> {
+  async getToolReviews(
+    filters: ReviewFilters = {},
+  ): Promise<PaginatedResponse<ReviewTool>> {
     const {
       page = 1,
       limit = 10,
@@ -89,7 +91,9 @@ export class AdminReviewsService {
   }
 
   // Get all app reviews with filters and pagination
-  async getAppReviews(filters: ReviewFilters = {}): Promise<PaginatedResponse<ReviewApp>> {
+  async getAppReviews(
+    filters: ReviewFilters = {},
+  ): Promise<PaginatedResponse<ReviewApp>> {
     const {
       page = 1,
       limit = 10,
@@ -188,7 +192,10 @@ export class AdminReviewsService {
   }
 
   // Get tool reviews statistics
-  async getToolReviewsStats(): Promise<{ total: number; averageRating: number }> {
+  async getToolReviewsStats(): Promise<{
+    total: number;
+    averageRating: number;
+  }> {
     const result = await this.reviewToolRepository
       .createQueryBuilder('review')
       .select('COUNT(*)', 'total')
@@ -202,7 +209,10 @@ export class AdminReviewsService {
   }
 
   // Get app reviews statistics
-  async getAppReviewsStats(): Promise<{ total: number; averageRating: number }> {
+  async getAppReviewsStats(): Promise<{
+    total: number;
+    averageRating: number;
+  }> {
     const result = await this.reviewAppRepository
       .createQueryBuilder('review')
       .select('COUNT(*)', 'total')

@@ -24,7 +24,15 @@ import { AdminModule } from '../admin/admin.module';
     forwardRef(() => AdminModule),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsGateway, AdminNotificationsGateway],
-  exports: [NotificationsService, NotificationsGateway, AdminNotificationsGateway],
+  providers: [
+    NotificationsService,
+    NotificationsGateway,
+    AdminNotificationsGateway,
+  ],
+  exports: [
+    NotificationsService,
+    NotificationsGateway,
+    AdminNotificationsGateway,
+  ],
 })
 export class NotificationsModule {}

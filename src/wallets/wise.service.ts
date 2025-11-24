@@ -9,7 +9,8 @@ export class WiseService {
   private apiUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiUrl = this.configService.get<string>('WISE_API_URL') || 'https://api.wise.com';
+    this.apiUrl =
+      this.configService.get<string>('WISE_API_URL') || 'https://api.wise.com';
     const token = this.configService.get<string>('WISE_API_TOKEN');
     this.client = axios.create({
       baseURL: this.apiUrl,
@@ -58,8 +59,14 @@ export class WiseService {
     return res.data;
   }
 
-  async fundTransfer(transferId: string | number, fundingData: { type: 'BALANCE' }): Promise<any> {
-    const res = await this.client.post(`/v1/transfers/${transferId}/payments`, fundingData);
+  async fundTransfer(
+    transferId: string | number,
+    fundingData: { type: 'BALANCE' },
+  ): Promise<any> {
+    const res = await this.client.post(
+      `/v1/transfers/${transferId}/payments`,
+      fundingData,
+    );
     return res.data;
   }
 

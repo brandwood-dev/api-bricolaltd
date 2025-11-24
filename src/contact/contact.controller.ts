@@ -10,7 +10,12 @@ import {
   HttpStatus,
   HttpCode,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { Contact, ContactStatus } from './entities/contact.entity';
@@ -199,5 +204,33 @@ export class ContactController {
   })
   async remove(@Param('id') id: string): Promise<void> {
     return this.contactService.remove(id);
+  }
+
+  @Post('admin-notification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Send admin notification for new contact (Internal use)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin notification sent successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request',
+  })
+  async sendAdminNotification(
+    @Body()
+    notificationData: {
+      contactId: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      subject: string;
+      category: string;
+      priority: string;
+    },
+  ): Promise<{ success: boolean; message: string }> {
+    return this.contactService.sendAdminNotification(notificationData);
   }
 }

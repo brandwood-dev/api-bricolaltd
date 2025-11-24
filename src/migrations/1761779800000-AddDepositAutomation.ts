@@ -54,12 +54,16 @@ export class AddDepositAutomation1761779800000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Suppression des index
-    await queryRunner.query(`DROP INDEX idx_bookings_stripe_customer ON bookings`);
-    await queryRunner.query(`DROP INDEX idx_bookings_deposit_schedule ON bookings`);
-    
+    await queryRunner.query(
+      `DROP INDEX idx_bookings_stripe_customer ON bookings`,
+    );
+    await queryRunner.query(
+      `DROP INDEX idx_bookings_deposit_schedule ON bookings`,
+    );
+
     // Suppression de la table deposit_capture_jobs
     await queryRunner.query(`DROP TABLE deposit_capture_jobs`);
-    
+
     // Suppression des colonnes ajoutées à la table bookings
     await queryRunner.query(`
       ALTER TABLE bookings 

@@ -41,10 +41,11 @@ export class CategoriesController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   async createCategory(@Body() createCategoryDto: CreateCategoryDto) {
-    const category = await this.categoriesService.createCategory(createCategoryDto);
+    const category =
+      await this.categoriesService.createCategory(createCategoryDto);
     return {
       data: category,
-      message: 'Category created successfully'
+      message: 'Category created successfully',
     };
   }
 
@@ -59,7 +60,7 @@ export class CategoriesController {
     const categories = await this.categoriesService.findAllCategories();
     return {
       data: categories,
-      message: 'Categories retrieved successfully'
+      message: 'Categories retrieved successfully',
     };
   }
 
@@ -87,7 +88,7 @@ export class CategoriesController {
     const category = await this.categoriesService.findCategoryById(id);
     return {
       data: category,
-      message: 'Category retrieved successfully'
+      message: 'Category retrieved successfully',
     };
   }
 

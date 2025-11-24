@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import * as crypto from 'crypto';
@@ -32,7 +37,13 @@ interface WiseTransfer {
   user: string;
   targetAccount: string;
   quote: string;
-  status: 'incoming_payment_waiting' | 'processing' | 'funds_converted' | 'outgoing_payment_sent' | 'completed' | 'cancelled';
+  status:
+    | 'incoming_payment_waiting'
+    | 'processing'
+    | 'funds_converted'
+    | 'outgoing_payment_sent'
+    | 'completed'
+    | 'cancelled';
   reference: string;
   rate: number;
   created: string;
@@ -96,12 +107,19 @@ export class WiseService {
 
   constructor(private readonly configService: ConfigService) {
     const configuredUrl = this.configService.get<string>('WISE_API_URL');
-    const environment = (this.configService.get<string>('WISE_ENVIRONMENT') || 'live').toLowerCase();
-    this.apiUrl = configuredUrl || (environment === 'sandbox' ? 'https://api.sandbox.transferwise.com' : 'https://api.wise.com');
+    const environment = (
+      this.configService.get<string>('WISE_ENVIRONMENT') || 'live'
+    ).toLowerCase();
+    this.apiUrl =
+      configuredUrl ||
+      (environment === 'sandbox'
+        ? 'https://api.sandbox.transferwise.com'
+        : 'https://api.wise.com');
     this.apiKey = this.configService.get<string>('WISE_API_KEY') || '';
     const profileRaw = this.configService.get<string>('WISE_PROFILE_ID') || '';
     this.profileId = parseInt(profileRaw.trim(), 10);
-    this.webhookSecret = this.configService.get<string>('WISE_WEBHOOK_SECRET') || '';
+    this.webhookSecret =
+      this.configService.get<string>('WISE_WEBHOOK_SECRET') || '';
 
     if (!this.apiKey) {
       throw new Error('WISE_API_KEY is not configured');
@@ -121,28 +139,46 @@ export class WiseService {
 
     // Add request interceptor for logging
     this.client.interceptors.request.use((config) => {
-      this.logger.log(`Wise API Request: ${config.method?.toUpperCase()} ${config.url}`);
+      this.logger.log(
+        `Wise API Request: ${config.method?.toUpperCase()} ${config.url}`,
+      );
       return config;
     });
 
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => {
-        this.logger.log(`Wise API Response: ${response.status} ${response.config.url}`);
+        this.logger.log(
+          `Wise API Response: ${response.status} ${response.config.url}`,
+        );
         return response;
       },
       (error: AxiosError) => {
         this.handleApiError(error);
         return Promise.reject(error);
-      }
+      },
     );
   }
 
   private detectCurrencyFromIban(iban?: string): string {
     const cc = (iban || '').trim().slice(0, 2).toUpperCase();
     const map: Record<string, string> = {
-      GB: 'GBP', FR: 'EUR', DE: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR', IE: 'EUR', AT: 'EUR',
-      AE: 'AED', SA: 'SAR', QA: 'QAR', KW: 'KWD', BH: 'BHD', OM: 'OMR'
+      GB: 'GBP',
+      FR: 'EUR',
+      DE: 'EUR',
+      ES: 'EUR',
+      IT: 'EUR',
+      NL: 'EUR',
+      BE: 'EUR',
+      PT: 'EUR',
+      IE: 'EUR',
+      AT: 'EUR',
+      AE: 'AED',
+      SA: 'SAR',
+      QA: 'QAR',
+      KW: 'KWD',
+      BH: 'BHD',
+      OM: 'OMR',
     };
     return map[cc] || 'GBP';
   }
@@ -152,19 +188,26 @@ export class WiseService {
    */
   async createQuote(params: WiseQuoteRequest): Promise<WiseQuote> {
     try {
-      this.logger.log(`Creating quote: ${params.sourceCurrency} → ${params.targetCurrency}`);
+      this.logger.log(
+        `Creating quote: ${params.sourceCurrency} → ${params.targetCurrency}`,
+      );
       this.logger.log(`Quote profile (service): ${this.profileId}`);
-      
-      const response = await this.client.post(`/v3/profiles/${this.profileId}/quotes`, {
-        source: params.sourceCurrency,
-        target: params.targetCurrency,
-        rateType: 'FIXED',
-        sourceAmount: params.sourceAmount,
-        targetAmount: params.targetAmount,
-        payOut: params.payOut || 'BANK_TRANSFER',
-      });
 
-      this.logger.log(`Quote created with ID: ${response.data.id}, profile: ${response.data.profile}`);
+      const response = await this.client.post(
+        `/v3/profiles/${this.profileId}/quotes`,
+        {
+          source: params.sourceCurrency,
+          target: params.targetCurrency,
+          rateType: 'FIXED',
+          sourceAmount: params.sourceAmount,
+          targetAmount: params.targetAmount,
+          payOut: params.payOut || 'BANK_TRANSFER',
+        },
+      );
+
+      this.logger.log(
+        `Quote created with ID: ${response.data.id}, profile: ${response.data.profile}`,
+      );
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to create quote: ${error.message}`);
@@ -188,10 +231,14 @@ export class WiseService {
   /**
    * Create a recipient account for transfers
    */
-  async createRecipientAccount(params: WiseRecipientRequest): Promise<WiseRecipient> {
+  async createRecipientAccount(
+    params: WiseRecipientRequest,
+  ): Promise<WiseRecipient> {
     try {
-      this.logger.log(`Creating recipient account for ${params.accountHolderName}`);
-      
+      this.logger.log(
+        `Creating recipient account for ${params.accountHolderName}`,
+      );
+
       const response = await this.client.post('/v1/accounts', {
         profile: this.profileId,
         accountHolderName: params.accountHolderName,
@@ -203,7 +250,9 @@ export class WiseService {
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to create recipient account: ${error.message}`);
-      throw new InternalServerErrorException('Failed to create Wise recipient account');
+      throw new InternalServerErrorException(
+        'Failed to create Wise recipient account',
+      );
     }
   }
 
@@ -215,8 +264,12 @@ export class WiseService {
       const response = await this.client.get(`/v1/accounts/${recipientId}`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to get recipient account ${recipientId}: ${error.message}`);
-      throw new InternalServerErrorException('Failed to get Wise recipient account');
+      this.logger.error(
+        `Failed to get recipient account ${recipientId}: ${error.message}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to get Wise recipient account',
+      );
     }
   }
 
@@ -230,7 +283,9 @@ export class WiseService {
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to list recipient accounts: ${error.message}`);
-      throw new InternalServerErrorException('Failed to list Wise recipient accounts');
+      throw new InternalServerErrorException(
+        'Failed to list Wise recipient accounts',
+      );
     }
   }
 
@@ -241,15 +296,17 @@ export class WiseService {
     try {
       this.logger.log(`Creating transfer for quote ${params.quoteUuid}`);
       this.logger.log(`Transfer profile (service): ${this.profileId}`);
-      
+
       const response = await this.client.post('/v1/transfers', {
         profile: this.profileId,
         targetAccount: params.targetAccount,
         quoteUuid: params.quoteUuid,
         customerTransactionId: params.customerTransactionId,
         reference: params.reference || `Transfer-${Date.now()}`,
-        transferPurpose: params.transferPurpose || 'verification.transfers.purpose.pay.bills',
-        sourceOfFunds: params.sourceOfFunds || 'verification.source.of.funds.other',
+        transferPurpose:
+          params.transferPurpose || 'verification.transfers.purpose.pay.bills',
+        sourceOfFunds:
+          params.sourceOfFunds || 'verification.source.of.funds.other',
       });
 
       return response.data;
@@ -262,21 +319,33 @@ export class WiseService {
   /**
    * Fund a transfer (complete the transfer)
    */
-  async fundTransfer(transferId: string, fundingData: { type: 'BALANCE' | 'CARD' }): Promise<any> {
+  async fundTransfer(
+    transferId: string,
+    fundingData: { type: 'BALANCE' | 'CARD' },
+  ): Promise<any> {
     try {
       this.logger.log(`Funding transfer ${transferId}`);
-      
-      const response = await this.client.post(`/v3/profiles/${this.profileId}/transfers/${transferId}/payments`, fundingData);
+
+      const response = await this.client.post(
+        `/v3/profiles/${this.profileId}/transfers/${transferId}/payments`,
+        fundingData,
+      );
       return response.data;
     } catch (error: any) {
-      this.logger.error(`Failed to fund transfer ${transferId}: ${error.message}`);
-      
+      this.logger.error(
+        `Failed to fund transfer ${transferId}: ${error.message}`,
+      );
+
       // Handle specific permission/balance issues
       if (error.response?.status === 403) {
-        this.logger.warn(`Funding permission denied for transfer ${transferId}. This may indicate insufficient balance or API key restrictions.`);
-        throw new Error(`Transfer funding denied. This may indicate insufficient balance or API key restrictions. Transfer ID: ${transferId}`);
+        this.logger.warn(
+          `Funding permission denied for transfer ${transferId}. This may indicate insufficient balance or API key restrictions.`,
+        );
+        throw new Error(
+          `Transfer funding denied. This may indicate insufficient balance or API key restrictions. Transfer ID: ${transferId}`,
+        );
       }
-      
+
       throw new InternalServerErrorException('Failed to fund Wise transfer');
     }
   }
@@ -287,20 +356,22 @@ export class WiseService {
   async createAndFundTransfer(params: WiseTransferRequest): Promise<any> {
     try {
       this.logger.log(`Creating and funding transfer`);
-      
+
       // Create the transfer
       const transfer = await this.createTransfer(params);
-      
+
       // Fund the transfer using balance
       const payment = await this.fundTransfer(transfer.id, { type: 'BALANCE' });
-      
+
       return {
         transfer,
         payment,
       };
     } catch (error) {
       this.logger.error(`Failed to create and fund transfer: ${error.message}`);
-      throw new InternalServerErrorException('Failed to create and fund Wise transfer');
+      throw new InternalServerErrorException(
+        'Failed to create and fund Wise transfer',
+      );
     }
   }
 
@@ -312,7 +383,9 @@ export class WiseService {
       const response = await this.client.get(`/v1/transfers/${transferId}`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to get transfer ${transferId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get transfer ${transferId}: ${error.message}`,
+      );
       throw new InternalServerErrorException('Failed to get Wise transfer');
     }
   }
@@ -323,11 +396,15 @@ export class WiseService {
   async cancelTransfer(transferId: string): Promise<WiseTransfer> {
     try {
       this.logger.log(`Cancelling transfer ${transferId}`);
-      
-      const response = await this.client.put(`/v1/transfers/${transferId}/cancel`);
+
+      const response = await this.client.put(
+        `/v1/transfers/${transferId}/cancel`,
+      );
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to cancel transfer ${transferId}: ${error.message}`);
+      this.logger.error(
+        `Failed to cancel transfer ${transferId}: ${error.message}`,
+      );
       throw new InternalServerErrorException('Failed to cancel Wise transfer');
     }
   }
@@ -364,18 +441,25 @@ export class WiseService {
    */
   async getAccountBalance(): Promise<any> {
     try {
-      const response = await this.client.get(`/v1/profiles/${this.profileId}/balances`);
+      const response = await this.client.get(
+        `/v1/profiles/${this.profileId}/balances`,
+      );
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to get account balance: ${error.message}`);
-      throw new InternalServerErrorException('Failed to get Wise account balance');
+      throw new InternalServerErrorException(
+        'Failed to get Wise account balance',
+      );
     }
   }
 
   /**
    * Get exchange rates
    */
-  async getExchangeRates(sourceCurrency: string, targetCurrency: string): Promise<any> {
+  async getExchangeRates(
+    sourceCurrency: string,
+    targetCurrency: string,
+  ): Promise<any> {
     try {
       const response = await this.client.get('/v1/rates', {
         params: {
@@ -386,7 +470,9 @@ export class WiseService {
       return response.data;
     } catch (error) {
       this.logger.error(`Failed to get exchange rates: ${error.message}`);
-      throw new InternalServerErrorException('Failed to get Wise exchange rates');
+      throw new InternalServerErrorException(
+        'Failed to get Wise exchange rates',
+      );
     }
   }
 
@@ -395,7 +481,9 @@ export class WiseService {
    */
   validateWebhookSignature(payload: any, signature: string): boolean {
     if (!this.webhookSecret) {
-      this.logger.warn('WISE_WEBHOOK_SECRET not configured, skipping validation');
+      this.logger.warn(
+        'WISE_WEBHOOK_SECRET not configured, skipping validation',
+      );
       return true;
     }
 
@@ -407,7 +495,7 @@ export class WiseService {
         .digest('hex');
 
       const isValid = computedSignature === signature;
-      
+
       if (!isValid) {
         this.logger.error('Invalid webhook signature', {
           computed: computedSignature,
@@ -417,7 +505,9 @@ export class WiseService {
 
       return isValid;
     } catch (error) {
-      this.logger.error(`Failed to validate webhook signature: ${error.message}`);
+      this.logger.error(
+        `Failed to validate webhook signature: ${error.message}`,
+      );
       return false;
     }
   }
@@ -429,7 +519,7 @@ export class WiseService {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
-      
+
       this.logger.error(`Wise API Error ${status}:`, {
         status,
         data,
@@ -440,7 +530,9 @@ export class WiseService {
       if (status === 400) {
         throw new BadRequestException('Invalid request to Wise API');
       } else if (status === 401) {
-        throw new InternalServerErrorException('Wise API authentication failed');
+        throw new InternalServerErrorException(
+          'Wise API authentication failed',
+        );
       } else if (status === 403) {
         throw new InternalServerErrorException('Wise API access denied');
       } else if (status === 404) {

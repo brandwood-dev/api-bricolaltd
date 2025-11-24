@@ -2,12 +2,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsDateString } from 'class-validator';
 
 export class BookingStatsQueryDto {
-  @ApiProperty({ description: 'Start date for stats calculation', required: false })
+  @ApiProperty({
+    description: 'Start date for stats calculation',
+    required: false,
+  })
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
-  @ApiProperty({ description: 'End date for stats calculation', required: false })
+  @ApiProperty({
+    description: 'End date for stats calculation',
+    required: false,
+  })
   @IsOptional()
   @IsDateString()
   endDate?: string;

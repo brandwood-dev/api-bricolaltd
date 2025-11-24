@@ -81,5 +81,5 @@ export enum NotificationType {
   // Admin and Moderation
   CONTENT_FLAGGED = 'content_flagged',
   USER_REPORTED = 'user_reported',
-  MODERATION_ACTION = 'moderation_action'
+  MODERATION_ACTION = 'moderation_action',
 }

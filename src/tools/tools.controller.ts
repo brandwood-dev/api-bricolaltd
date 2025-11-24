@@ -162,7 +162,7 @@ export class ToolsController {
     @Req() req: any,
   ) {
     console.table(updateToolDto);
-  
+
     // The files are attached to the request by the FileUploadMiddleware
     const files = req.files;
     return this.toolsService.update(id, updateToolDto, files);

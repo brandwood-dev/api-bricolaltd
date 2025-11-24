@@ -48,11 +48,11 @@ import { EmailsModule } from '../emails/emails.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      User, 
-      Country, 
-      UserPreference, 
-      UserSession, 
-      UserActivity, 
+      User,
+      Country,
+      UserPreference,
+      UserSession,
+      UserActivity,
       AccountDeletionRequest,
       SecurityLog,
       BlockedIp,
@@ -68,8 +68,8 @@ import { EmailsModule } from '../emails/emails.module';
       Wallet,
       Email,
       Currency,
-      ExchangeRate
-    ]), 
+      ExchangeRate,
+    ]),
     S3Module,
     EmailsModule,
     JwtModule.registerAsync({
@@ -83,31 +83,31 @@ import { EmailsModule } from '../emails/emails.module';
     forwardRef(() => WalletsModule),
   ],
   controllers: [
-    UsersController, 
-    UserSessionController, 
-    UserActivityController, 
+    UsersController,
+    UserSessionController,
+    UserActivityController,
     UserPreferenceController,
     CountryController,
     AccountDeletionRequestController,
-    ExchangeRateController
+    ExchangeRateController,
   ],
   providers: [
-    UsersService, 
-    UserSessionService, 
-    UserActivityService, 
+    UsersService,
+    UserSessionService,
+    UserActivityService,
     UserPreferenceService,
     CountryService,
     AccountDeletionRequestService,
-    ExchangeRateService
+    ExchangeRateService,
   ],
   exports: [
-    UsersService, 
-    UserSessionService, 
-    UserActivityService, 
+    UsersService,
+    UserSessionService,
+    UserActivityService,
     UserPreferenceService,
     CountryService,
     AccountDeletionRequestService,
-    ExchangeRateService
+    ExchangeRateService,
   ],
 })
 export class UsersModule {
@@ -120,8 +120,9 @@ export class UsersModule {
           isMultiple: false,
         }),
       )
-      .forRoutes(
-        { path: 'users/:id/upload-profile', method: RequestMethod.POST }
-      );
+      .forRoutes({
+        path: 'users/:id/upload-profile',
+        method: RequestMethod.POST,
+      });
   }
 }

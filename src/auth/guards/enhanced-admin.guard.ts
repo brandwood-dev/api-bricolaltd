@@ -11,7 +11,11 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { SecurityLog, SecurityEventType, SecuritySeverity } from '../../admin/entities/security-log.entity';
+import {
+  SecurityLog,
+  SecurityEventType,
+  SecuritySeverity,
+} from '../../admin/entities/security-log.entity';
 import { BlockedIp } from '../../admin/entities/blocked-ip.entity';
 import { ADMIN_PERMISSIONS_KEY } from '../decorators/admin-permissions.decorator';
 import { Request } from 'express';
@@ -65,7 +69,10 @@ export class EnhancedAdminGuard implements CanActivate {
         context.getHandler(),
       );
 
-      if (requiredPermissions && !this.hasPermissions(user, requiredPermissions)) {
+      if (
+        requiredPermissions &&
+        !this.hasPermissions(user, requiredPermissions)
+      ) {
         await this.logSecurityEvent({
           eventType: SecurityEventType.UNAUTHORIZED_ACCESS,
           severity: SecuritySeverity.MEDIUM,
@@ -99,7 +106,10 @@ export class EnhancedAdminGuard implements CanActivate {
 
       return true;
     } catch (error) {
-      if (error instanceof ForbiddenException || error instanceof UnauthorizedException) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof UnauthorizedException
+      ) {
         throw error;
       }
       this.logger.error('Error in EnhancedAdminGuard:', error);
@@ -177,7 +187,9 @@ export class EnhancedAdminGuard implements CanActivate {
     return user.isAdmin;
   }
 
-  private async logSecurityEvent(eventData: Partial<SecurityLog>): Promise<void> {
+  private async logSecurityEvent(
+    eventData: Partial<SecurityLog>,
+  ): Promise<void> {
     try {
       const securityLog = this.securityLogRepository.create(eventData);
       await this.securityLogRepository.save(securityLog);

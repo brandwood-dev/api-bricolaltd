@@ -41,28 +41,28 @@ import { WebhookCronService } from './webhook-cron.service';
     WalletsModule,
   ],
   controllers: [
-    StripeWebhookController, 
+    StripeWebhookController,
     WiseWebhookController,
-    EnhancedStripeWebhookController // New secure controller
+    EnhancedStripeWebhookController, // New secure controller
   ],
   providers: [
     // Original services
-    StripeWebhookService, 
-    WiseWebhookService, 
+    StripeWebhookService,
+    WiseWebhookService,
     WiseService,
-    
+
     // Enhanced security services
     EnhancedStripeWebhookService,
     StripeWebhookGuard,
     WebhookEventService,
     WebhookRetryService,
     WebhookRateLimitService,
-    
+
     // Cron services
     WebhookCronService,
   ],
   exports: [
-    StripeWebhookService, 
+    StripeWebhookService,
     WiseWebhookService,
     EnhancedStripeWebhookService,
     WebhookEventService,

@@ -19,10 +19,20 @@ export class DepositNotificationService {
 
   constructor(private readonly sendGridService: SendGridService) {}
 
-  async sendDepositReminderEmail(data: DepositNotificationData): Promise<boolean> {
+  async sendDepositReminderEmail(
+    data: DepositNotificationData,
+  ): Promise<boolean> {
     try {
-      const { booking, user, toolName, rentalStartDate, rentalEndDate, depositAmount, hoursUntilCapture } = data;
-      
+      const {
+        booking,
+        user,
+        toolName,
+        rentalStartDate,
+        rentalEndDate,
+        depositAmount,
+        hoursUntilCapture,
+      } = data;
+
       const html = this.generateDepositReminderHtml(data);
       const text = this.generateDepositReminderText(data);
 
@@ -30,26 +40,35 @@ export class DepositNotificationService {
         to: user.email,
         subject: `Rappel : Caution de ${depositAmount}€ pour votre location - ${toolName}`,
         html,
-        text
+        text,
       });
 
       if (success) {
-        this.logger.log(`Deposit reminder email sent successfully to ${user.email} for booking ${booking.id}`);
+        this.logger.log(
+          `Deposit reminder email sent successfully to ${user.email} for booking ${booking.id}`,
+        );
       } else {
-        this.logger.error(`Failed to send deposit reminder email to ${user.email} for booking ${booking.id}`);
+        this.logger.error(
+          `Failed to send deposit reminder email to ${user.email} for booking ${booking.id}`,
+        );
       }
 
       return success;
     } catch (error) {
-      this.logger.error(`Error sending deposit reminder email for booking ${data.booking.id}:`, error);
+      this.logger.error(
+        `Error sending deposit reminder email for booking ${data.booking.id}:`,
+        error,
+      );
       return false;
     }
   }
 
-  async sendDepositCapturedEmail(data: DepositNotificationData & { capturedAmount: number }): Promise<boolean> {
+  async sendDepositCapturedEmail(
+    data: DepositNotificationData & { capturedAmount: number },
+  ): Promise<boolean> {
     try {
       const { booking, user, toolName, capturedAmount } = data;
-      
+
       const html = this.generateDepositCapturedHtml(data);
       const text = this.generateDepositCapturedText(data);
 
@@ -57,26 +76,35 @@ export class DepositNotificationService {
         to: user.email,
         subject: `Caution prélevée : ${capturedAmount}€ pour votre location - ${toolName}`,
         html,
-        text
+        text,
       });
 
       if (success) {
-        this.logger.log(`Deposit captured email sent successfully to ${user.email} for booking ${booking.id}`);
+        this.logger.log(
+          `Deposit captured email sent successfully to ${user.email} for booking ${booking.id}`,
+        );
       } else {
-        this.logger.error(`Failed to send deposit captured email to ${user.email} for booking ${booking.id}`);
+        this.logger.error(
+          `Failed to send deposit captured email to ${user.email} for booking ${booking.id}`,
+        );
       }
 
       return success;
     } catch (error) {
-      this.logger.error(`Error sending deposit captured email for booking ${data.booking.id}:`, error);
+      this.logger.error(
+        `Error sending deposit captured email for booking ${data.booking.id}:`,
+        error,
+      );
       return false;
     }
   }
 
-  async sendDepositFailedEmail(data: DepositNotificationData & { failureReason: string }): Promise<boolean> {
+  async sendDepositFailedEmail(
+    data: DepositNotificationData & { failureReason: string },
+  ): Promise<boolean> {
     try {
       const { booking, user, toolName, failureReason } = data;
-      
+
       const html = this.generateDepositFailedHtml(data);
       const text = this.generateDepositFailedText(data);
 
@@ -84,26 +112,38 @@ export class DepositNotificationService {
         to: user.email,
         subject: `Échec du prélèvement de caution pour votre location - ${toolName}`,
         html,
-        text
+        text,
       });
 
       if (success) {
-        this.logger.log(`Deposit failed email sent successfully to ${user.email} for booking ${booking.id}`);
+        this.logger.log(
+          `Deposit failed email sent successfully to ${user.email} for booking ${booking.id}`,
+        );
       } else {
-        this.logger.error(`Failed to send deposit failed email to ${user.email} for booking ${booking.id}`);
+        this.logger.error(
+          `Failed to send deposit failed email to ${user.email} for booking ${booking.id}`,
+        );
       }
 
       return success;
     } catch (error) {
-      this.logger.error(`Error sending deposit failed email for booking ${data.booking.id}:`, error);
+      this.logger.error(
+        `Error sending deposit failed email for booking ${data.booking.id}:`,
+        error,
+      );
       return false;
     }
   }
 
-  async sendDepositRefundedEmail(data: DepositNotificationData & { refundedAmount: number; refundReason?: string }): Promise<boolean> {
+  async sendDepositRefundedEmail(
+    data: DepositNotificationData & {
+      refundedAmount: number;
+      refundReason?: string;
+    },
+  ): Promise<boolean> {
     try {
       const { booking, user, toolName, refundedAmount, refundReason } = data;
-      
+
       const html = this.generateDepositRefundedHtml(data);
       const text = this.generateDepositRefundedText(data);
 
@@ -111,25 +151,39 @@ export class DepositNotificationService {
         to: user.email,
         subject: `Remboursement de caution : ${refundedAmount}€ pour votre location - ${toolName}`,
         html,
-        text
+        text,
       });
 
       if (success) {
-        this.logger.log(`Deposit refunded email sent successfully to ${user.email} for booking ${booking.id}`);
+        this.logger.log(
+          `Deposit refunded email sent successfully to ${user.email} for booking ${booking.id}`,
+        );
       } else {
-        this.logger.error(`Failed to send deposit refunded email to ${user.email} for booking ${booking.id}`);
+        this.logger.error(
+          `Failed to send deposit refunded email to ${user.email} for booking ${booking.id}`,
+        );
       }
 
       return success;
     } catch (error) {
-      this.logger.error(`Error sending deposit refunded email for booking ${data.booking.id}:`, error);
+      this.logger.error(
+        `Error sending deposit refunded email for booking ${data.booking.id}:`,
+        error,
+      );
       return false;
     }
   }
 
   private generateDepositReminderHtml(data: DepositNotificationData): string {
-    const { user, toolName, rentalStartDate, rentalEndDate, depositAmount, hoursUntilCapture } = data;
-    
+    const {
+      user,
+      toolName,
+      rentalStartDate,
+      rentalEndDate,
+      depositAmount,
+      hoursUntilCapture,
+    } = data;
+
     return `
       <!DOCTYPE html>
       <html>
@@ -194,8 +248,15 @@ export class DepositNotificationService {
   }
 
   private generateDepositReminderText(data: DepositNotificationData): string {
-    const { user, toolName, rentalStartDate, rentalEndDate, depositAmount, hoursUntilCapture } = data;
-    
+    const {
+      user,
+      toolName,
+      rentalStartDate,
+      rentalEndDate,
+      depositAmount,
+      hoursUntilCapture,
+    } = data;
+
     return `
 Rappel de caution - Bricola
 
@@ -227,9 +288,11 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositCapturedHtml(data: DepositNotificationData & { capturedAmount: number }): string {
+  private generateDepositCapturedHtml(
+    data: DepositNotificationData & { capturedAmount: number },
+  ): string {
     const { user, toolName, rentalStartDate, capturedAmount } = data;
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -282,9 +345,11 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositCapturedText(data: DepositNotificationData & { capturedAmount: number }): string {
+  private generateDepositCapturedText(
+    data: DepositNotificationData & { capturedAmount: number },
+  ): string {
     const { user, toolName, rentalStartDate, capturedAmount } = data;
-    
+
     return `
 Caution prélevée - Bricola
 
@@ -309,9 +374,11 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositFailedHtml(data: DepositNotificationData & { failureReason: string }): string {
+  private generateDepositFailedHtml(
+    data: DepositNotificationData & { failureReason: string },
+  ): string {
     const { user, toolName, rentalStartDate, failureReason } = data;
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -369,9 +436,11 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositFailedText(data: DepositNotificationData & { failureReason: string }): string {
+  private generateDepositFailedText(
+    data: DepositNotificationData & { failureReason: string },
+  ): string {
     const { user, toolName, rentalStartDate, failureReason } = data;
-    
+
     return `
 Échec du prélèvement de caution - Bricola
 
@@ -401,9 +470,14 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositRefundedHtml(data: DepositNotificationData & { refundedAmount: number; refundReason?: string }): string {
+  private generateDepositRefundedHtml(
+    data: DepositNotificationData & {
+      refundedAmount: number;
+      refundReason?: string;
+    },
+  ): string {
     const { user, toolName, refundedAmount, refundReason } = data;
-    
+
     return `
       <!DOCTYPE html>
       <html>
@@ -455,9 +529,14 @@ Email automatique - Ne pas répondre
     `;
   }
 
-  private generateDepositRefundedText(data: DepositNotificationData & { refundedAmount: number; refundReason?: string }): string {
+  private generateDepositRefundedText(
+    data: DepositNotificationData & {
+      refundedAmount: number;
+      refundReason?: string;
+    },
+  ): string {
     const { user, toolName, refundedAmount, refundReason } = data;
-    
+
     return `
 Remboursement de caution - Bricola
 

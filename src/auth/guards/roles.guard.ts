@@ -22,7 +22,7 @@ export class RolesGuard implements CanActivate {
 
   private userHasRole(user: User, role: Role): boolean {
     if (!user) return false;
-    
+
     switch (role) {
       case Role.ADMIN:
         return user.isAdmin;

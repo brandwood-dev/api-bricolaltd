@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsDateString, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsDateString,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -11,12 +19,12 @@ export enum BookingStatus {
   CANCELLED = 'CANCELLED',
   REJECTED = 'REJECTED',
   RETURNED = 'RETURNED',
-  DISPUTE = 'DISPUTE'
+  DISPUTE = 'DISPUTE',
 }
 
 export enum SortOrder {
   ASC = 'ASC',
-  DESC = 'DESC'
+  DESC = 'DESC',
 }
 
 export enum SortField {
@@ -24,18 +32,27 @@ export enum SortField {
   START_DATE = 'startDate',
   END_DATE = 'endDate',
   STATUS = 'status',
-  TOTAL_AMOUNT = 'totalAmount'
+  TOTAL_AMOUNT = 'totalAmount',
 }
 
 export class AdminBookingQueryDto {
-  @ApiPropertyOptional({ description: 'Page number (starts from 1)', minimum: 1, default: 1 })
+  @ApiPropertyOptional({
+    description: 'Page number (starts from 1)',
+    minimum: 1,
+    default: 1,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ description: 'Number of items per page', minimum: 1, maximum: 100, default: 10 })
+  @ApiPropertyOptional({
+    description: 'Number of items per page',
+    minimum: 1,
+    maximum: 100,
+    default: 10,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -43,12 +60,18 @@ export class AdminBookingQueryDto {
   @Max(100)
   limit?: number = 10;
 
-  @ApiPropertyOptional({ description: 'Search term for booking ID, renter name, tool title, or owner name' })
+  @ApiPropertyOptional({
+    description:
+      'Search term for booking ID, renter name, tool title, or owner name',
+  })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by booking status', enum: BookingStatus })
+  @ApiPropertyOptional({
+    description: 'Filter by booking status',
+    enum: BookingStatus,
+  })
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus;
@@ -78,12 +101,20 @@ export class AdminBookingQueryDto {
   @IsString()
   toolId?: string;
 
-  @ApiPropertyOptional({ description: 'Sort field', enum: SortField, default: SortField.CREATED_AT })
+  @ApiPropertyOptional({
+    description: 'Sort field',
+    enum: SortField,
+    default: SortField.CREATED_AT,
+  })
   @IsOptional()
   @IsEnum(SortField)
   sortBy?: SortField = SortField.CREATED_AT;
 
-  @ApiPropertyOptional({ description: 'Sort order', enum: SortOrder, default: SortOrder.DESC })
+  @ApiPropertyOptional({
+    description: 'Sort order',
+    enum: SortOrder,
+    default: SortOrder.DESC,
+  })
   @IsOptional()
   @IsEnum(SortOrder)
   sortOrder?: SortOrder = SortOrder.DESC;

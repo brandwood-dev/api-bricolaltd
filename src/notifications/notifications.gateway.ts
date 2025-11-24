@@ -26,7 +26,9 @@ interface AuthenticatedSocket extends Socket {
   },
   namespace: '/notifications',
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -43,22 +45,24 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   async handleConnection(client: AuthenticatedSocket) {
     try {
       const authTokenRaw = client.handshake.auth?.token as string | undefined;
-      const authToken = authTokenRaw && authTokenRaw.startsWith('Bearer ')
-        ? authTokenRaw.slice(7)
-        : authTokenRaw;
-      const headerAuth = client.handshake.headers?.authorization as string | undefined;
-      const headerToken = headerAuth && headerAuth.startsWith('Bearer ')
-        ? headerAuth.split(' ')[1]
-        : undefined;
+      const authToken =
+        authTokenRaw && authTokenRaw.startsWith('Bearer ')
+          ? authTokenRaw.slice(7)
+          : authTokenRaw;
+      const headerAuth = client.handshake.headers?.authorization;
+      const headerToken =
+        headerAuth && headerAuth.startsWith('Bearer ')
+          ? headerAuth.split(' ')[1]
+          : undefined;
       const token = authToken || headerToken;
 
       const secretUsed = process.env.JWT_SECRET || 'bricola_secret_key';
       this.logger.log(
         `WS auth: got token from ${authToken ? 'auth' : headerToken ? 'header' : 'none'}; ` +
-        `preview=${token ? token.substring(0, 12) + '...' : 'none'}; ` +
-        `hasBearerHeader=${headerAuth ? headerAuth.startsWith('Bearer ') : false}; ` +
-        `hadBearerInAuth=${authTokenRaw ? authTokenRaw.startsWith('Bearer ') : false}; ` +
-        `secretUsed=${secretUsed ? (secretUsed.substring(0, 6) + '...') : 'undefined'}`,
+          `preview=${token ? token.substring(0, 12) + '...' : 'none'}; ` +
+          `hasBearerHeader=${headerAuth ? headerAuth.startsWith('Bearer ') : false}; ` +
+          `hadBearerInAuth=${authTokenRaw ? authTokenRaw.startsWith('Bearer ') : false}; ` +
+          `secretUsed=${secretUsed ? secretUsed.substring(0, 6) + '...' : 'undefined'}`,
       );
       if (!token) {
         client.disconnect();
@@ -69,7 +73,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       const decoded: any = this.jwtService.decode(token) || {};
       this.logger.log(
         `WS token decode: sub=${decoded?.sub ?? 'none'}; isAdmin=${decoded?.isAdmin ?? 'n/a'}; ` +
-        `iat=${decoded?.iat ?? 'n/a'}; exp=${decoded?.exp ?? 'n/a'}`,
+          `iat=${decoded?.iat ?? 'n/a'}; exp=${decoded?.exp ?? 'n/a'}`,
       );
 
       // Verify explicitly with known secret to avoid module misconfig surprises
@@ -88,12 +92,16 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       this.connectedUsers.set(client.userId, userSockets);
 
       client.join(`user_${client.userId}`);
-      
+
       // Send unread notifications count
-      const unreadCount = await this.notificationsService.getUnreadCount(client.userId);
+      const unreadCount = await this.notificationsService.getUnreadCount(
+        client.userId,
+      );
       client.emit('unread_count', { count: unreadCount });
-      
-      this.logger.log(`User ${client.userId} connected with socket ${client.id}`);
+
+      this.logger.log(
+        `User ${client.userId} connected with socket ${client.id}`,
+      );
     } catch (error) {
       this.logger.error(
         `Connection error: name=${error?.name} msg=${error?.message} stack=${error?.stack?.split('\n')[0]}`,
@@ -103,8 +111,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
         const rawHeader = client.handshake?.headers?.authorization || '';
         this.logger.error(
           `Token debug: authTokenPreview=${rawAuth ? rawAuth.substring(0, 12) + '...' : 'none'}; ` +
-          `headerAuthPreview=${rawHeader ? rawHeader.substring(0, 20) + '...' : 'none'}; ` +
-          `hasDots=${(rawAuth || rawHeader).includes('.')}`,
+            `headerAuthPreview=${rawHeader ? rawHeader.substring(0, 20) + '...' : 'none'}; ` +
+            `hasDots=${(rawAuth || rawHeader).includes('.')}`,
         );
       } catch {}
       client.disconnect();
@@ -114,14 +122,16 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   handleDisconnect(client: AuthenticatedSocket) {
     if (client.userId) {
       const userSockets = this.connectedUsers.get(client.userId) || [];
-      const updatedSockets = userSockets.filter(socketId => socketId !== client.id);
-      
+      const updatedSockets = userSockets.filter(
+        (socketId) => socketId !== client.id,
+      );
+
       if (updatedSockets.length === 0) {
         this.connectedUsers.delete(client.userId);
       } else {
         this.connectedUsers.set(client.userId, updatedSockets);
       }
-      
+
       this.logger.log(`User ${client.userId} disconnected socket ${client.id}`);
     }
   }
@@ -129,10 +139,14 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   @SubscribeMessage('get_notifications')
   async handleGetNotifications(@ConnectedSocket() client: AuthenticatedSocket) {
     if (!client.userId) return;
-    
-    const notifications = await this.notificationsService.findByUserId(client.userId);
-    const unreadCount = await this.notificationsService.getUnreadCount(client.userId);
-    
+
+    const notifications = await this.notificationsService.findByUserId(
+      client.userId,
+    );
+    const unreadCount = await this.notificationsService.getUnreadCount(
+      client.userId,
+    );
+
     client.emit('notifications', { notifications, unreadCount });
   }
 
@@ -142,17 +156,22 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     @MessageBody() data: { notificationId: string },
   ) {
     if (!client.userId) return;
-    
-    await this.notificationsService.markAsRead(data.notificationId, client.userId);
-    const unreadCount = await this.notificationsService.getUnreadCount(client.userId);
-    
+
+    await this.notificationsService.markAsRead(
+      data.notificationId,
+      client.userId,
+    );
+    const unreadCount = await this.notificationsService.getUnreadCount(
+      client.userId,
+    );
+
     client.emit('unread_count', { count: unreadCount });
   }
 
   @SubscribeMessage('mark_all_as_read')
   async handleMarkAllAsRead(@ConnectedSocket() client: AuthenticatedSocket) {
     if (!client.userId) return;
-    
+
     await this.notificationsService.markAllAsRead(client.userId);
     client.emit('unread_count', { count: 0 });
   }
@@ -162,10 +181,12 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     this.server.to(`user_${userId}`).emit('new_notification', notification);
     // Track last notification to allow verification in tests
     this.lastNotificationByUser.set(userId, notification);
-    
+
     // Update unread count
     const unreadCount = await this.notificationsService.getUnreadCount(userId);
-    this.server.to(`user_${userId}`).emit('unread_count', { count: unreadCount });
+    this.server
+      .to(`user_${userId}`)
+      .emit('unread_count', { count: unreadCount });
   }
 
   // Method to broadcast notification to all connected users

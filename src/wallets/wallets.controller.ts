@@ -1,10 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Logger,
+} from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 @ApiTags('wallets')
 @Controller('wallets')
@@ -16,7 +31,10 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new wallet' })
-  @ApiResponse({ status: 201, description: 'The wallet has been successfully created.' })
+  @ApiResponse({
+    status: 201,
+    description: 'The wallet has been successfully created.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -61,7 +79,10 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a wallet' })
-  @ApiResponse({ status: 200, description: 'The wallet has been successfully updated.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The wallet has been successfully updated.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
@@ -73,7 +94,10 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a wallet' })
-  @ApiResponse({ status: 200, description: 'The wallet has been successfully deleted.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The wallet has been successfully deleted.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
@@ -85,7 +109,10 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add funds to a wallet' })
-  @ApiResponse({ status: 200, description: 'Funds have been successfully added.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Funds have been successfully added.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -98,8 +125,14 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Deduct funds from a wallet' })
-  @ApiResponse({ status: 200, description: 'Funds have been successfully deducted.' })
-  @ApiResponse({ status: 400, description: 'Bad request or insufficient funds.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Funds have been successfully deducted.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request or insufficient funds.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
@@ -121,7 +154,10 @@ export class WalletsController {
   @Get('user/:userId/stats')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get user wallet statistics including cumulative balance, available balance, and successful transactions count' })
+  @ApiOperation({
+    summary:
+      'Get user wallet statistics including cumulative balance, available balance, and successful transactions count',
+  })
   @ApiResponse({ status: 200, description: 'Return the wallet statistics.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
@@ -133,12 +169,29 @@ export class WalletsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a withdrawal request' })
-  @ApiResponse({ status: 201, description: 'Withdrawal request created successfully.' })
-  @ApiResponse({ status: 400, description: 'Insufficient balance or invalid amount.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Withdrawal request created successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Insufficient balance or invalid amount.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  createWithdrawal(@Param('userId') userId: string, @Body() withdrawalData: { amount: number; accountDetails?: any }) {
-    this.logger.log(`Create withdrawal request`, { userId, amount: withdrawalData?.amount, method: withdrawalData?.accountDetails?.method })
-    return this.walletsService.createWithdrawal(userId, withdrawalData.amount, withdrawalData.accountDetails);
+  createWithdrawal(
+    @Param('userId') userId: string,
+    @Body() withdrawalData: { amount: number; accountDetails?: any },
+  ) {
+    this.logger.log(`Create withdrawal request`, {
+      userId,
+      amount: withdrawalData?.amount,
+      method: withdrawalData?.accountDetails?.method,
+    });
+    return this.walletsService.createWithdrawal(
+      userId,
+      withdrawalData.amount,
+      withdrawalData.accountDetails,
+    );
   }
 }

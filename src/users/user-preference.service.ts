@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserPreference } from './entities/user-preference.entity';
@@ -12,7 +16,9 @@ export class UserPreferenceService {
     private userPreferenceRepository: Repository<UserPreference>,
   ) {}
 
-  async create(createUserPreferenceDto: CreateUserPreferenceDto): Promise<UserPreference> {
+  async create(
+    createUserPreferenceDto: CreateUserPreferenceDto,
+  ): Promise<UserPreference> {
     // Check if user already has preferences
     const existingPreference = await this.userPreferenceRepository.findOne({
       where: { userId: createUserPreferenceDto.userId },
@@ -22,7 +28,9 @@ export class UserPreferenceService {
       throw new ConflictException('User preferences already exist');
     }
 
-    const preference = this.userPreferenceRepository.create(createUserPreferenceDto);
+    const preference = this.userPreferenceRepository.create(
+      createUserPreferenceDto,
+    );
     return await this.userPreferenceRepository.save(preference);
   }
 
@@ -52,22 +60,30 @@ export class UserPreferenceService {
     });
 
     if (!preference) {
-      throw new NotFoundException(`User preferences for user ${userId} not found`);
+      throw new NotFoundException(
+        `User preferences for user ${userId} not found`,
+      );
     }
 
     return preference;
   }
 
-  async update(id: string, updateUserPreferenceDto: UpdateUserPreferenceDto): Promise<UserPreference> {
+  async update(
+    id: string,
+    updateUserPreferenceDto: UpdateUserPreferenceDto,
+  ): Promise<UserPreference> {
     const preference = await this.findOne(id);
-    
+
     Object.assign(preference, updateUserPreferenceDto);
     return await this.userPreferenceRepository.save(preference);
   }
 
-  async updateByUserId(userId: string, updateUserPreferenceDto: UpdateUserPreferenceDto): Promise<UserPreference> {
+  async updateByUserId(
+    userId: string,
+    updateUserPreferenceDto: UpdateUserPreferenceDto,
+  ): Promise<UserPreference> {
     const preference = await this.findByUserId(userId);
-    
+
     Object.assign(preference, updateUserPreferenceDto);
     return await this.userPreferenceRepository.save(preference);
   }
@@ -97,12 +113,15 @@ export class UserPreferenceService {
     };
   }
 
-  async updateNotificationSettings(userId: string, settings: {
-    emailNotifications?: boolean;
-    pushNotifications?: boolean;
-    smsNotifications?: boolean;
-    marketingEmails?: boolean;
-  }): Promise<UserPreference> {
+  async updateNotificationSettings(
+    userId: string,
+    settings: {
+      emailNotifications?: boolean;
+      pushNotifications?: boolean;
+      smsNotifications?: boolean;
+      marketingEmails?: boolean;
+    },
+  ): Promise<UserPreference> {
     return await this.updateByUserId(userId, settings);
   }
 }

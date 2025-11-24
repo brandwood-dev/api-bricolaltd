@@ -37,7 +37,6 @@ export class Subcategory {
   })
   description?: string;
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   @ManyToOne(() => Category, (category) => category.subcategories, {
     onDelete: 'CASCADE',
   })

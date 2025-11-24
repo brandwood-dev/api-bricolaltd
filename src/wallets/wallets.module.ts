@@ -11,9 +11,22 @@ import { WiseController } from './wise-enhanced.controller';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Wallet, Transaction]), forwardRef(() => AdminModule)],
+  imports: [
+    TypeOrmModule.forFeature([Wallet, Transaction]),
+    forwardRef(() => AdminModule),
+  ],
   controllers: [WalletsController, WiseController],
-  providers: [WalletsService, WithdrawalProcessingService, WiseService, WiseWebhookService],
-  exports: [WalletsService, WithdrawalProcessingService, WiseService, WiseWebhookService],
+  providers: [
+    WalletsService,
+    WithdrawalProcessingService,
+    WiseService,
+    WiseWebhookService,
+  ],
+  exports: [
+    WalletsService,
+    WithdrawalProcessingService,
+    WiseService,
+    WiseWebhookService,
+  ],
 })
 export class WalletsModule {}

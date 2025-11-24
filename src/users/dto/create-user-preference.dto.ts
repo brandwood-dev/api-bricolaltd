@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsBoolean, IsNumber, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsNumber,
+  IsIn,
+} from 'class-validator';
 
 export class CreateUserPreferenceDto {
   @IsString()

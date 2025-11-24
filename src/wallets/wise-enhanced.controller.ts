@@ -14,7 +14,13 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { Request } from '@nestjs/common';
@@ -85,8 +91,9 @@ export class WiseController {
   @ApiResponse({ status: 201, description: 'Quote created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async createQuote(
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) createQuoteDto: CreateQuoteDto,
-    @Request() req: any
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    createQuoteDto: CreateQuoteDto,
+    @Request() req: any,
   ): Promise<any> {
     try {
       this.logger.log(`Creating Wise quote for user ${req.user.id}`, {
@@ -109,7 +116,10 @@ export class WiseController {
 
       return quote;
     } catch (error) {
-      this.logger.error(`Failed to create Wise quote for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to create Wise quote for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -123,7 +133,7 @@ export class WiseController {
   @ApiResponse({ status: 404, description: 'Quote not found' })
   async getQuote(
     @Param('id') quoteId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any> {
     try {
       this.logger.log(`Getting Wise quote ${quoteId} for user ${req.user.id}`);
@@ -132,7 +142,10 @@ export class WiseController {
 
       return quote;
     } catch (error) {
-      this.logger.error(`Failed to get Wise quote ${quoteId} for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise quote ${quoteId} for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -142,11 +155,15 @@ export class WiseController {
    */
   @Post('recipients')
   @ApiOperation({ summary: 'Create a Wise recipient account' })
-  @ApiResponse({ status: 201, description: 'Recipient account created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Recipient account created successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async createRecipient(
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) createRecipientDto: CreateRecipientDto,
-    @Request() req: any
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    createRecipientDto: CreateRecipientDto,
+    @Request() req: any,
   ): Promise<any> {
     try {
       this.logger.log(`Creating Wise recipient for user ${req.user.id}`, {
@@ -158,7 +175,8 @@ export class WiseController {
       // Validate bank details
       this.validateBankDetails(createRecipientDto);
 
-      const recipient = await this.wiseService.createRecipientAccount(createRecipientDto);
+      const recipient =
+        await this.wiseService.createRecipientAccount(createRecipientDto);
 
       // Create admin notification
       await this.adminNotificationsService.createAdminNotification({
@@ -171,7 +189,10 @@ export class WiseController {
 
       return recipient;
     } catch (error) {
-      this.logger.error(`Failed to create Wise recipient for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to create Wise recipient for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -185,16 +206,21 @@ export class WiseController {
   @ApiResponse({ status: 404, description: 'Recipient not found' })
   async getRecipient(
     @Param('id') recipientId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any> {
     try {
-      this.logger.log(`Getting Wise recipient ${recipientId} for user ${req.user.id}`);
+      this.logger.log(
+        `Getting Wise recipient ${recipientId} for user ${req.user.id}`,
+      );
 
       const recipient = await this.wiseService.getRecipientAccount(recipientId);
 
       return recipient;
     } catch (error) {
-      this.logger.error(`Failed to get Wise recipient ${recipientId} for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise recipient ${recipientId} for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -204,20 +230,28 @@ export class WiseController {
    */
   @Get('recipients')
   @ApiOperation({ summary: 'List Wise recipient accounts' })
-  @ApiResponse({ status: 200, description: 'Recipients retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recipients retrieved successfully',
+  })
   @ApiQuery({ name: 'currency', required: false, type: String })
   async listRecipients(
     @Query('currency') currency: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any[]> {
     try {
-      this.logger.log(`Listing Wise recipients for user ${req.user.id}`, { currency });
+      this.logger.log(`Listing Wise recipients for user ${req.user.id}`, {
+        currency,
+      });
 
       const recipients = await this.wiseService.listRecipientAccounts(currency);
 
       return recipients;
     } catch (error) {
-      this.logger.error(`Failed to list Wise recipients for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to list Wise recipients for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -230,8 +264,9 @@ export class WiseController {
   @ApiResponse({ status: 201, description: 'Transfer created successfully' })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async createTransfer(
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) createTransferDto: CreateTransferDto,
-    @Request() req: any
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    createTransferDto: CreateTransferDto,
+    @Request() req: any,
   ): Promise<any> {
     try {
       this.logger.log(`Creating Wise transfer for user ${req.user.id}`, {
@@ -253,7 +288,10 @@ export class WiseController {
 
       return transfer;
     } catch (error) {
-      this.logger.error(`Failed to create Wise transfer for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to create Wise transfer for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -268,15 +306,22 @@ export class WiseController {
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async fundTransfer(
     @Param('id') transferId: string,
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) fundTransferDto: FundTransferDto,
-    @Request() req: any
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    fundTransferDto: FundTransferDto,
+    @Request() req: any,
   ): Promise<any> {
     try {
-      this.logger.log(`Funding Wise transfer ${transferId} for user ${req.user.id}`, {
-        type: fundTransferDto.type,
-      });
+      this.logger.log(
+        `Funding Wise transfer ${transferId} for user ${req.user.id}`,
+        {
+          type: fundTransferDto.type,
+        },
+      );
 
-      const payment = await this.wiseService.fundTransfer(transferId, fundTransferDto);
+      const payment = await this.wiseService.fundTransfer(
+        transferId,
+        fundTransferDto,
+      );
 
       // Create admin notification
       await this.adminNotificationsService.createAdminNotification({
@@ -289,7 +334,10 @@ export class WiseController {
 
       return payment;
     } catch (error) {
-      this.logger.error(`Failed to fund Wise transfer ${transferId} for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to fund Wise transfer ${transferId} for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -299,20 +347,28 @@ export class WiseController {
    */
   @Post('transfers/create-and-fund')
   @ApiOperation({ summary: 'Create and fund a Wise transfer' })
-  @ApiResponse({ status: 201, description: 'Transfer created and funded successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Transfer created and funded successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid input' })
   async createAndFundTransfer(
-    @Body(new ValidationPipe({ transform: true, whitelist: true })) createTransferDto: CreateTransferDto,
-    @Request() req: any
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    createTransferDto: CreateTransferDto,
+    @Request() req: any,
   ): Promise<any> {
     try {
-      this.logger.log(`Creating and funding Wise transfer for user ${req.user.id}`, {
-        targetAccount: createTransferDto.targetAccount,
-        quoteUuid: createTransferDto.quoteUuid,
-        customerTransactionId: createTransferDto.customerTransactionId,
-      });
+      this.logger.log(
+        `Creating and funding Wise transfer for user ${req.user.id}`,
+        {
+          targetAccount: createTransferDto.targetAccount,
+          quoteUuid: createTransferDto.quoteUuid,
+          customerTransactionId: createTransferDto.customerTransactionId,
+        },
+      );
 
-      const result = await this.wiseService.createAndFundTransfer(createTransferDto);
+      const result =
+        await this.wiseService.createAndFundTransfer(createTransferDto);
 
       // Create admin notification
       await this.adminNotificationsService.createAdminNotification({
@@ -325,7 +381,10 @@ export class WiseController {
 
       return result;
     } catch (error) {
-      this.logger.error(`Failed to create and fund Wise transfer for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to create and fund Wise transfer for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -339,16 +398,21 @@ export class WiseController {
   @ApiResponse({ status: 404, description: 'Transfer not found' })
   async getTransfer(
     @Param('id') transferId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any> {
     try {
-      this.logger.log(`Getting Wise transfer ${transferId} for user ${req.user.id}`);
+      this.logger.log(
+        `Getting Wise transfer ${transferId} for user ${req.user.id}`,
+      );
 
       const transfer = await this.wiseService.getTransfer(transferId);
 
       return transfer;
     } catch (error) {
-      this.logger.error(`Failed to get Wise transfer ${transferId} for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise transfer ${transferId} for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -362,10 +426,12 @@ export class WiseController {
   @ApiResponse({ status: 400, description: 'Cannot cancel transfer' })
   async cancelTransfer(
     @Param('id') transferId: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any> {
     try {
-      this.logger.log(`Cancelling Wise transfer ${transferId} for user ${req.user.id}`);
+      this.logger.log(
+        `Cancelling Wise transfer ${transferId} for user ${req.user.id}`,
+      );
 
       const transfer = await this.wiseService.cancelTransfer(transferId);
 
@@ -380,7 +446,10 @@ export class WiseController {
 
       return transfer;
     } catch (error) {
-      this.logger.error(`Failed to cancel Wise transfer ${transferId} for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to cancel Wise transfer ${transferId} for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -399,7 +468,10 @@ export class WiseController {
 
       return profiles;
     } catch (error) {
-      this.logger.error(`Failed to get Wise profiles for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise profiles for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -418,7 +490,10 @@ export class WiseController {
 
       return profile;
     } catch (error) {
-      this.logger.error(`Failed to get Wise profile for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise profile for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -437,7 +512,10 @@ export class WiseController {
 
       return balance;
     } catch (error) {
-      this.logger.error(`Failed to get Wise account balance for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise account balance for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -447,13 +525,16 @@ export class WiseController {
    */
   @Get('rates')
   @ApiOperation({ summary: 'Get Wise exchange rates' })
-  @ApiResponse({ status: 200, description: 'Exchange rates retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Exchange rates retrieved successfully',
+  })
   @ApiQuery({ name: 'source', required: true, type: String })
   @ApiQuery({ name: 'target', required: true, type: String })
   async getExchangeRates(
     @Query('source') sourceCurrency: string,
     @Query('target') targetCurrency: string,
-    @Request() req: any
+    @Request() req: any,
   ): Promise<any> {
     try {
       this.logger.log(`Getting Wise exchange rates for user ${req.user.id}`, {
@@ -461,11 +542,17 @@ export class WiseController {
         targetCurrency,
       });
 
-      const rates = await this.wiseService.getExchangeRates(sourceCurrency, targetCurrency);
+      const rates = await this.wiseService.getExchangeRates(
+        sourceCurrency,
+        targetCurrency,
+      );
 
       return rates;
     } catch (error) {
-      this.logger.error(`Failed to get Wise exchange rates for user ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to get Wise exchange rates for user ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -478,7 +565,9 @@ export class WiseController {
   @ApiOperation({ summary: 'Test Wise API connection (admin only)' })
   @ApiResponse({ status: 200, description: 'Connection test successful' })
   @ApiResponse({ status: 503, description: 'Connection test failed' })
-  async testConnection(@Request() req: any): Promise<{ success: boolean; message: string }> {
+  async testConnection(
+    @Request() req: any,
+  ): Promise<{ success: boolean; message: string }> {
     try {
       this.logger.log(`Testing Wise API connection by admin ${req.user.id}`);
 
@@ -493,7 +582,10 @@ export class WiseController {
           category: AdminNotificationCategory.PAYMENT,
         });
 
-        return { success: true, message: 'Wise API connection test successful' };
+        return {
+          success: true,
+          message: 'Wise API connection test successful',
+        };
       } else {
         await this.adminNotificationsService.createAdminNotification({
           title: 'Wise API Connection Test Failed',
@@ -503,10 +595,15 @@ export class WiseController {
           category: AdminNotificationCategory.PAYMENT,
         });
 
-        throw new InternalServerErrorException('Wise API connection test failed');
+        throw new InternalServerErrorException(
+          'Wise API connection test failed',
+        );
       }
     } catch (error) {
-      this.logger.error(`Wise API connection test failed for admin ${req.user.id}:`, error);
+      this.logger.error(
+        `Wise API connection test failed for admin ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -516,8 +613,13 @@ export class WiseController {
    */
   @Post('test-recipient')
   @UseGuards(AdminGuard)
-  @ApiOperation({ summary: 'Create test recipient with test bank details (admin only)' })
-  @ApiResponse({ status: 201, description: 'Test recipient created successfully' })
+  @ApiOperation({
+    summary: 'Create test recipient with test bank details (admin only)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Test recipient created successfully',
+  })
   async createTestRecipient(@Request() req: any): Promise<any> {
     try {
       this.logger.log(`Creating test Wise recipient by admin ${req.user.id}`);
@@ -534,7 +636,10 @@ export class WiseController {
 
       return recipient;
     } catch (error) {
-      this.logger.error(`Failed to create test Wise recipient for admin ${req.user.id}:`, error);
+      this.logger.error(
+        `Failed to create test Wise recipient for admin ${req.user.id}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -548,21 +653,29 @@ export class WiseController {
     // Basic validation for different recipient types
     if (type === 'iban') {
       if (!details.iban) {
-        throw new BadRequestException('IBAN is required for IBAN recipient type');
+        throw new BadRequestException(
+          'IBAN is required for IBAN recipient type',
+        );
       }
       if (!this.validateIBAN(details.iban)) {
         throw new BadRequestException('Invalid IBAN format');
       }
       if (!details.bic) {
-        throw new BadRequestException('BIC is required for IBAN recipient type');
+        throw new BadRequestException(
+          'BIC is required for IBAN recipient type',
+        );
       }
     } else if (type === 'sort_code') {
       if (!details.sortCode || !details.accountNumber) {
-        throw new BadRequestException('Sort code and account number are required for UK bank transfer');
+        throw new BadRequestException(
+          'Sort code and account number are required for UK bank transfer',
+        );
       }
     } else if (type === 'bank_account') {
       if (!details.accountNumber || !details.routingNumber) {
-        throw new BadRequestException('Account number and routing number are required for US bank transfer');
+        throw new BadRequestException(
+          'Account number and routing number are required for US bank transfer',
+        );
       }
     }
 
@@ -579,15 +692,31 @@ export class WiseController {
   private validateIBAN(iban: string): boolean {
     // Basic IBAN validation - remove spaces and check length
     const cleanIBAN = iban.replace(/\s/g, '').toUpperCase();
-    
+
     if (cleanIBAN.length < 15 || cleanIBAN.length > 34) {
       return false;
     }
 
     // Check country code (first 2 characters)
     const countryCode = cleanIBAN.substring(0, 2);
-    const countryCodes = ['GB', 'FR', 'DE', 'IT', 'ES', 'NL', 'BE', 'AT', 'SE', 'DK', 'NO', 'FI', 'IE', 'PT', 'CH'];
-    
+    const countryCodes = [
+      'GB',
+      'FR',
+      'DE',
+      'IT',
+      'ES',
+      'NL',
+      'BE',
+      'AT',
+      'SE',
+      'DK',
+      'NO',
+      'FI',
+      'IE',
+      'PT',
+      'CH',
+    ];
+
     if (!countryCodes.includes(countryCode)) {
       return false;
     }

@@ -30,13 +30,46 @@ export class AdminReviewsController {
   @Get('tools')
   @AdminPermissions('manage_reviews')
   @ApiOperation({ summary: 'Get all tool reviews with filters and pagination' })
-  @ApiResponse({ status: 200, description: 'Return paginated tool reviews with filters.' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for user name, email, tool title, or comment' })
-  @ApiQuery({ name: 'rating', required: false, type: Number, description: 'Filter by rating (1-5)' })
-  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Start date filter (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'End date filter (YYYY-MM-DD)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated tool reviews with filters.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term for user name, email, tool title, or comment',
+  })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    description: 'Filter by rating (1-5)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Start date filter (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'End date filter (YYYY-MM-DD)',
+  })
   async getToolReviews(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -72,13 +105,46 @@ export class AdminReviewsController {
   @Get('app')
   @AdminPermissions('manage_reviews')
   @ApiOperation({ summary: 'Get all app reviews with filters and pagination' })
-  @ApiResponse({ status: 200, description: 'Return paginated app reviews with filters.' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' })
-  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search term for user name, email, or comment' })
-  @ApiQuery({ name: 'rating', required: false, type: Number, description: 'Filter by rating (1-5)' })
-  @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Start date filter (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'endDate', required: false, type: String, description: 'End date filter (YYYY-MM-DD)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated app reviews with filters.',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default: 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search term for user name, email, or comment',
+  })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    description: 'Filter by rating (1-5)',
+  })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description: 'Start date filter (YYYY-MM-DD)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description: 'End date filter (YYYY-MM-DD)',
+  })
   async getAppReviews(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -170,7 +236,10 @@ export class AdminReviewsController {
   @Delete('tools/:id')
   @AdminPermissions('manage_reviews')
   @ApiOperation({ summary: 'Delete a tool review' })
-  @ApiResponse({ status: 200, description: 'Tool review deleted successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Tool review deleted successfully.',
+  })
   @ApiResponse({ status: 404, description: 'Tool review not found.' })
   @ApiParam({ name: 'id', description: 'Tool review ID' })
   async deleteToolReview(@Param('id') id: string) {

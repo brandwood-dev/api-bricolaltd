@@ -32,12 +32,14 @@ export class AccountDeletionRequestService {
     }
 
     // Check if there's already a pending request
-    const existingRequest = await this.accountDeletionRequestRepository.findOne({
-      where: {
-        userId,
-        status: DeletionStatus.PENDING,
+    const existingRequest = await this.accountDeletionRequestRepository.findOne(
+      {
+        where: {
+          userId,
+          status: DeletionStatus.PENDING,
+        },
       },
-    });
+    );
 
     if (existingRequest) {
       throw new BadRequestException(
@@ -70,7 +72,9 @@ export class AccountDeletionRequestService {
     });
   }
 
-  async findByStatus(status: DeletionStatus): Promise<AccountDeletionRequest[]> {
+  async findByStatus(
+    status: DeletionStatus,
+  ): Promise<AccountDeletionRequest[]> {
     return this.accountDeletionRequestRepository.find({
       where: { status },
       relations: ['user', 'reviewedByAdmin'],
@@ -79,10 +83,12 @@ export class AccountDeletionRequestService {
   }
 
   async findOne(id: string): Promise<AccountDeletionRequest> {
-    const deletionRequest = await this.accountDeletionRequestRepository.findOne({
-      where: { id },
-      relations: ['user', 'reviewedByAdmin'],
-    });
+    const deletionRequest = await this.accountDeletionRequestRepository.findOne(
+      {
+        where: { id },
+        relations: ['user', 'reviewedByAdmin'],
+      },
+    );
 
     if (!deletionRequest) {
       throw new NotFoundException('Account deletion request not found');
@@ -129,9 +135,7 @@ export class AccountDeletionRequestService {
 
     // Check if the request is still pending
     if (deletionRequest.status !== DeletionStatus.PENDING) {
-      throw new BadRequestException(
-        'Only pending requests can be cancelled',
-      );
+      throw new BadRequestException('Only pending requests can be cancelled');
     }
 
     // Remove the request instead of updating status

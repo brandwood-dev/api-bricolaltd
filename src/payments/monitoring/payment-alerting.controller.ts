@@ -39,24 +39,23 @@ export class PaymentAlertingController {
    * Get all alert rules
    */
   @Get('rules')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get all alert rules',
-    description: 'Get all payment alert rules with their current configuration'
+    description: 'Get all payment alert rules with their current configuration',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert rules retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert rules retrieved successfully',
   })
   async getAlertRules() {
     try {
       const rules = this.paymentAlertingService.getAlertRules();
-      
+
       return {
         success: true,
         data: rules,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error('Failed to get alert rules:', error);
       throw new InternalServerErrorException('Failed to retrieve alert rules');
@@ -67,30 +66,30 @@ export class PaymentAlertingController {
    * Update alert rule
    */
   @Put('rules/:ruleId')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Update alert rule',
-    description: 'Update an existing alert rule configuration'
+    description: 'Update an existing alert rule configuration',
   })
-  @ApiParam({ 
-    name: 'ruleId', 
+  @ApiParam({
+    name: 'ruleId',
     type: String,
-    description: 'Alert rule ID'
+    description: 'Alert rule ID',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert rule updated successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert rule updated successfully',
   })
-  async updateAlertRule(
-    @Param('ruleId') ruleId: string,
-    @Body() updates: any,
-  ) {
+  async updateAlertRule(@Param('ruleId') ruleId: string, @Body() updates: any) {
     try {
       if (!ruleId) {
         throw new BadRequestException('Rule ID is required');
       }
 
-      const updatedRule = await this.paymentAlertingService.updateAlertRule(ruleId, updates);
-      
+      const updatedRule = await this.paymentAlertingService.updateAlertRule(
+        ruleId,
+        updates,
+      );
+
       if (!updatedRule) {
         throw new BadRequestException('Alert rule not found');
       }
@@ -100,10 +99,9 @@ export class PaymentAlertingController {
         data: updatedRule,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error(`Failed to update alert rule ${ruleId}:`, error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -117,18 +115,18 @@ export class PaymentAlertingController {
    */
   @Post('rules/:ruleId/toggle')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Toggle alert rule',
-    description: 'Enable or disable an alert rule'
+    description: 'Enable or disable an alert rule',
   })
-  @ApiParam({ 
-    name: 'ruleId', 
+  @ApiParam({
+    name: 'ruleId',
     type: String,
-    description: 'Alert rule ID'
+    description: 'Alert rule ID',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert rule toggled successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert rule toggled successfully',
   })
   async toggleAlertRule(
     @Param('ruleId') ruleId: string,
@@ -143,8 +141,11 @@ export class PaymentAlertingController {
         throw new BadRequestException('Enabled must be a boolean value');
       }
 
-      const success = await this.paymentAlertingService.toggleAlertRule(ruleId, enabled);
-      
+      const success = await this.paymentAlertingService.toggleAlertRule(
+        ruleId,
+        enabled,
+      );
+
       if (!success) {
         throw new BadRequestException('Alert rule not found');
       }
@@ -154,10 +155,9 @@ export class PaymentAlertingController {
         message: `Alert rule ${enabled ? 'enabled' : 'disabled'} successfully`,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error(`Failed to toggle alert rule ${ruleId}:`, error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -170,38 +170,38 @@ export class PaymentAlertingController {
    * Get alert history
    */
   @Get('history')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get alert history',
-    description: 'Get historical alert data with filtering options'
+    description: 'Get historical alert data with filtering options',
   })
-  @ApiQuery({ 
-    name: 'startDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
     type: String,
-    description: 'Start date (ISO format)'
+    description: 'Start date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'endDate', 
-    required: false, 
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
     type: String,
-    description: 'End date (ISO format)'
+    description: 'End date (ISO format)',
   })
-  @ApiQuery({ 
-    name: 'severity', 
-    required: false, 
+  @ApiQuery({
+    name: 'severity',
+    required: false,
     enum: ['critical', 'warning', 'info'],
-    description: 'Filter by severity level'
+    description: 'Filter by severity level',
   })
-  @ApiQuery({ 
-    name: 'limit', 
-    required: false, 
+  @ApiQuery({
+    name: 'limit',
+    required: false,
     type: Number,
     description: 'Maximum number of alerts to return',
-    default: 100
+    default: 100,
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert history retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert history retrieved successfully',
   })
   async getAlertHistory(
     @Query('startDate') startDate?: string,
@@ -247,15 +247,16 @@ export class PaymentAlertingController {
           limit: limit || 100,
         },
       };
-
     } catch (error) {
       this.logger.error('Failed to get alert history:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      throw new InternalServerErrorException('Failed to retrieve alert history');
+      throw new InternalServerErrorException(
+        'Failed to retrieve alert history',
+      );
     }
   }
 
@@ -264,18 +265,18 @@ export class PaymentAlertingController {
    */
   @Post('rules/:ruleId/test')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Test alert rule',
-    description: 'Trigger a test alert for the specified rule'
+    description: 'Trigger a test alert for the specified rule',
   })
-  @ApiParam({ 
-    name: 'ruleId', 
+  @ApiParam({
+    name: 'ruleId',
     type: String,
-    description: 'Alert rule ID'
+    description: 'Alert rule ID',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert rule test triggered successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert rule test triggered successfully',
   })
   async testAlertRule(@Param('ruleId') ruleId: string) {
     try {
@@ -284,7 +285,7 @@ export class PaymentAlertingController {
       }
 
       const success = await this.paymentAlertingService.testAlertRule(ruleId);
-      
+
       if (!success) {
         throw new BadRequestException('Alert rule not found');
       }
@@ -294,10 +295,9 @@ export class PaymentAlertingController {
         message: 'Alert rule test triggered successfully',
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error(`Failed to test alert rule ${ruleId}:`, error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -310,27 +310,29 @@ export class PaymentAlertingController {
    * Get system health
    */
   @Get('health')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get payment system health',
-    description: 'Get comprehensive health status of the payment system with alert status'
+    description:
+      'Get comprehensive health status of the payment system with alert status',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'System health retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'System health retrieved successfully',
   })
   async getSystemHealth() {
     try {
       const health = await this.paymentAlertingService.getSystemHealth();
-      
+
       return {
         success: true,
         data: health,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error('Failed to get system health:', error);
-      throw new InternalServerErrorException('Failed to retrieve system health');
+      throw new InternalServerErrorException(
+        'Failed to retrieve system health',
+      );
     }
   }
 
@@ -338,13 +340,13 @@ export class PaymentAlertingController {
    * Get current system metrics
    */
   @Get('metrics/current')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Get current system metrics',
-    description: 'Get current payment system metrics for alerting purposes'
+    description: 'Get current payment system metrics for alerting purposes',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Current metrics retrieved successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Current metrics retrieved successfully',
   })
   async getCurrentMetrics() {
     try {
@@ -362,16 +364,17 @@ export class PaymentAlertingController {
         fraudScore: 25,
         currencyVolatility: 2.1,
       };
-      
+
       return {
         success: true,
         data: metrics,
         timestamp: new Date().toISOString(),
       };
-
     } catch (error) {
       this.logger.error('Failed to get current metrics:', error);
-      throw new InternalServerErrorException('Failed to retrieve current metrics');
+      throw new InternalServerErrorException(
+        'Failed to retrieve current metrics',
+      );
     }
   }
 
@@ -380,20 +383,22 @@ export class PaymentAlertingController {
    */
   @Post('trigger')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Manually trigger alert',
-    description: 'Manually trigger a payment system alert for testing purposes'
+    description: 'Manually trigger a payment system alert for testing purposes',
   })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Alert triggered successfully'
+  @ApiResponse({
+    status: 200,
+    description: 'Alert triggered successfully',
   })
   async triggerAlert(@Body() alertData: any) {
     try {
       const { ruleId, severity, message } = alertData;
 
       if (!ruleId || !severity || !message) {
-        throw new BadRequestException('ruleId, severity, and message are required');
+        throw new BadRequestException(
+          'ruleId, severity, and message are required',
+        );
       }
 
       // This would create a manual alert
@@ -408,10 +413,9 @@ export class PaymentAlertingController {
           message,
         },
       };
-
     } catch (error) {
       this.logger.error('Failed to trigger manual alert:', error);
-      
+
       if (error instanceof BadRequestException) {
         throw error;
       }

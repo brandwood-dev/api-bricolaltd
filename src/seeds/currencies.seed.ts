@@ -3,9 +3,9 @@ import { Currency } from '../users/entities/currency.entity';
 
 export async function seedCurrencies(dataSource: DataSource) {
   console.log('💱 Seeding currencies...');
-  
+
   const currencyRepository = dataSource.getRepository(Currency);
-  
+
   const currencies = [
     {
       code: 'GBP',
@@ -77,9 +77,11 @@ export async function seedCurrencies(dataSource: DataSource) {
     const existingCurrency = await currencyRepository.findOne({
       where: { code: currencyData.code },
     });
-    
+
     if (!existingCurrency) {
-      console.log(`Creating currency: ${currencyData.code} - ${currencyData.name}`);
+      console.log(
+        `Creating currency: ${currencyData.code} - ${currencyData.name}`,
+      );
       const currency = currencyRepository.create(currencyData);
       await currencyRepository.save(currency);
       seedCount++;
@@ -87,6 +89,8 @@ export async function seedCurrencies(dataSource: DataSource) {
       console.log(`Currency already exists: ${currencyData.code}`);
     }
   }
-  
-  console.log(`✅ Currencies seeded successfully (${seedCount} new currencies added)`);
+
+  console.log(
+    `✅ Currencies seeded successfully (${seedCount} new currencies added)`,
+  );
 }

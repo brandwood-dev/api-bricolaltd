@@ -8,10 +8,7 @@ import { EmailSenderService } from './email-sender.service';
 import { SendGridService } from './sendgrid.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Email]),
-    ConfigModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Email]), ConfigModule],
   controllers: [EmailsController],
   providers: [EmailsService, EmailSenderService, SendGridService],
   exports: [EmailsService, EmailSenderService, SendGridService],

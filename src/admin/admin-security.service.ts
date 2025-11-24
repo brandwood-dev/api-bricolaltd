@@ -2,7 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThan } from 'typeorm';
 import { UserSession } from '../users/entities/user-session.entity';
-import { SecurityLog, SecurityEventType, SecuritySeverity } from './entities/security-log.entity';
+import {
+  SecurityLog,
+  SecurityEventType,
+  SecuritySeverity,
+} from './entities/security-log.entity';
 import { BlockedIp, BlockReason } from './entities/blocked-ip.entity';
 import { User } from '../users/entities/user.entity';
 
@@ -48,7 +52,7 @@ export class AdminSecurityService {
 
   async getActiveSessionsCount(): Promise<number> {
     return this.userSessionRepository.count({
-      where: { 
+      where: {
         isActive: true,
         expiresAt: MoreThan(new Date()),
       },
@@ -89,7 +93,7 @@ export class AdminSecurityService {
   async terminateAllUserSessions(userId: string): Promise<void> {
     await this.userSessionRepository.update(
       { userId, isActive: true },
-      { isActive: false }
+      { isActive: false },
     );
 
     await this.logSecurityEvent({
@@ -101,22 +105,31 @@ export class AdminSecurityService {
   }
 
   // Security Logs
-  async getSecurityLogs(filters: SecurityLogFilters = {}, page = 1, limit = 50): Promise<{
+  async getSecurityLogs(
+    filters: SecurityLogFilters = {},
+    page = 1,
+    limit = 50,
+  ): Promise<{
     logs: SecurityLog[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const queryBuilder = this.securityLogRepository.createQueryBuilder('log')
+    const queryBuilder = this.securityLogRepository
+      .createQueryBuilder('log')
       .leftJoinAndSelect('log.user', 'user')
       .orderBy('log.createdAt', 'DESC');
 
     if (filters.eventType) {
-      queryBuilder.andWhere('log.eventType = :eventType', { eventType: filters.eventType });
+      queryBuilder.andWhere('log.eventType = :eventType', {
+        eventType: filters.eventType,
+      });
     }
 
     if (filters.severity) {
-      queryBuilder.andWhere('log.severity = :severity', { severity: filters.severity });
+      queryBuilder.andWhere('log.severity = :severity', {
+        severity: filters.severity,
+      });
     }
 
     if (filters.userId) {
@@ -124,7 +137,9 @@ export class AdminSecurityService {
     }
 
     if (filters.ipAddress) {
-      queryBuilder.andWhere('log.ipAddress = :ipAddress', { ipAddress: filters.ipAddress });
+      queryBuilder.andWhere('log.ipAddress = :ipAddress', {
+        ipAddress: filters.ipAddress,
+      });
     }
 
     if (filters.startDate && filters.endDate) {
@@ -135,7 +150,9 @@ export class AdminSecurityService {
     }
 
     if (filters.isResolved !== undefined) {
-      queryBuilder.andWhere('log.isResolved = :isResolved', { isResolved: filters.isResolved });
+      queryBuilder.andWhere('log.isResolved = :isResolved', {
+        isResolved: filters.isResolved,
+      });
     }
 
     const total = await queryBuilder.getCount();
@@ -171,9 +188,15 @@ export class AdminSecurityService {
     return this.securityLogRepository.save(securityLog);
   }
 
-  async resolveSecurityIncident(logId: string, resolvedBy: string, notes?: string): Promise<SecurityLog> {
-    const log = await this.securityLogRepository.findOne({ where: { id: logId } });
-    
+  async resolveSecurityIncident(
+    logId: string,
+    resolvedBy: string,
+    notes?: string,
+  ): Promise<SecurityLog> {
+    const log = await this.securityLogRepository.findOne({
+      where: { id: logId },
+    });
+
     if (!log) {
       throw new NotFoundException('Security log not found');
     }
@@ -214,7 +237,10 @@ export class AdminSecurityService {
       severity: SecuritySeverity.MEDIUM,
       description: `IP ${blockData.ipAddress} blocked for reason: ${blockData.reason}`,
       ipAddress: blockData.ipAddress,
-      metadata: JSON.stringify({ action: 'block_ip', reason: blockData.reason }),
+      metadata: JSON.stringify({
+        action: 'block_ip',
+        reason: blockData.reason,
+      }),
     });
 
     return saved;
@@ -244,8 +270,8 @@ export class AdminSecurityService {
 
   async isIpBlocked(ipAddress: string): Promise<boolean> {
     const blockedIp = await this.blockedIpRepository.findOne({
-      where: { 
-        ipAddress, 
+      where: {
+        ipAddress,
         isActive: true,
       },
     });
@@ -282,18 +308,24 @@ export class AdminSecurityService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const [totalLogs, criticalIncidents, resolvedIncidents, blockedIps, activeSessions] = await Promise.all([
+    const [
+      totalLogs,
+      criticalIncidents,
+      resolvedIncidents,
+      blockedIps,
+      activeSessions,
+    ] = await Promise.all([
       this.securityLogRepository.count({
         where: { createdAt: MoreThan(startDate) },
       }),
       this.securityLogRepository.count({
-        where: { 
+        where: {
           severity: SecuritySeverity.CRITICAL,
           createdAt: MoreThan(startDate),
         },
       }),
       this.securityLogRepository.count({
-        where: { 
+        where: {
           isResolved: true,
           createdAt: MoreThan(startDate),
         },
@@ -341,7 +373,10 @@ export class AdminSecurityService {
     };
   }
 
-  async getActiveSessions(page = 1, limit = 50): Promise<{
+  async getActiveSessions(
+    page = 1,
+    limit = 50,
+  ): Promise<{
     sessions: UserSession[];
     total: number;
     page: number;
@@ -384,7 +419,11 @@ export class AdminSecurityService {
     });
   }
 
-  async getAdminActivities(adminId?: string, page = 1, limit = 50): Promise<{
+  async getAdminActivities(
+    adminId?: string,
+    page = 1,
+    limit = 50,
+  ): Promise<{
     activities: SecurityLog[];
     total: number;
     page: number;
@@ -414,19 +453,24 @@ export class AdminSecurityService {
     };
   }
 
-  async getFailedLogins(page = 1, limit = 50): Promise<{
+  async getFailedLogins(
+    page = 1,
+    limit = 50,
+  ): Promise<{
     failedLogins: SecurityLog[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const [failedLogins, total] = await this.securityLogRepository.findAndCount({
-      where: { eventType: SecurityEventType.LOGIN_FAILED },
-      relations: ['user'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [failedLogins, total] = await this.securityLogRepository.findAndCount(
+      {
+        where: { eventType: SecurityEventType.LOGIN_FAILED },
+        relations: ['user'],
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      },
+    );
 
     return {
       failedLogins,

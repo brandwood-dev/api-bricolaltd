@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Country } from './entities/country.entity';
@@ -19,7 +23,9 @@ export class CountryService {
     });
 
     if (existingCountry) {
-      throw new ConflictException('Country with this ID or code already exists');
+      throw new ConflictException(
+        'Country with this ID or code already exists',
+      );
     }
 
     const country = this.countryRepository.create(createCountryDto);
@@ -70,9 +76,12 @@ export class CountryService {
     return country;
   }
 
-  async update(id: string, updateCountryDto: UpdateCountryDto): Promise<Country> {
+  async update(
+    id: string,
+    updateCountryDto: UpdateCountryDto,
+  ): Promise<Country> {
     const country = await this.findOne(id);
-    
+
     // Check for conflicts if updating code
     if (updateCountryDto.code && updateCountryDto.code !== country.code) {
       const existingCountry = await this.countryRepository.findOne({
@@ -82,7 +91,7 @@ export class CountryService {
         throw new ConflictException('Country with this code already exists');
       }
     }
-    
+
     Object.assign(country, updateCountryDto);
     return await this.countryRepository.save(country);
   }
@@ -107,34 +116,40 @@ export class CountryService {
   async getCurrencies(): Promise<{ currency: string; countries: string[] }[]> {
     const countries = await this.findActive();
     const currencyMap = new Map<string, string[]>();
-    
-    countries.forEach(country => {
+
+    countries.forEach((country) => {
       if (!currencyMap.has(country.currency)) {
         currencyMap.set(country.currency, []);
       }
       currencyMap.get(country.currency)!.push(country.name);
     });
-    
-    return Array.from(currencyMap.entries()).map(([currency, countryNames]) => ({
-      currency,
-      countries: countryNames,
-    }));
+
+    return Array.from(currencyMap.entries()).map(
+      ([currency, countryNames]) => ({
+        currency,
+        countries: countryNames,
+      }),
+    );
   }
 
-  async getPhonePrefixes(): Promise<{ phonePrefix: string; countries: string[] }[]> {
+  async getPhonePrefixes(): Promise<
+    { phonePrefix: string; countries: string[] }[]
+  > {
     const countries = await this.findActive();
     const prefixMap = new Map<string, string[]>();
-    
-    countries.forEach(country => {
+
+    countries.forEach((country) => {
       if (!prefixMap.has(country.phonePrefix)) {
         prefixMap.set(country.phonePrefix, []);
       }
       prefixMap.get(country.phonePrefix)!.push(country.name);
     });
-    
-    return Array.from(prefixMap.entries()).map(([phonePrefix, countryNames]) => ({
-      phonePrefix,
-      countries: countryNames,
-    }));
+
+    return Array.from(prefixMap.entries()).map(
+      ([phonePrefix, countryNames]) => ({
+        phonePrefix,
+        countries: countryNames,
+      }),
+    );
   }
 }

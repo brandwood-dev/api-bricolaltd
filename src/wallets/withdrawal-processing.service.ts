@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from '../transactions/entities/transaction.entity';
@@ -41,11 +46,11 @@ export class WithdrawalProcessingService {
     transactionId: string,
     stripeAccountId?: string,
     bankAccountDetails?: any,
-    method?: 'wise' | 'stripe_connect' | 'stripe_payout'
+    method?: 'wise' | 'stripe_connect' | 'stripe_payout',
   ): Promise<Transaction> {
     const transaction = await this.transactionsRepository.findOne({
       where: { id: transactionId },
-      relations: ['sender']
+      relations: ['sender'],
     });
 
     if (!transaction) {
@@ -53,7 +58,7 @@ export class WithdrawalProcessingService {
     }
 
     if (transaction.type !== TransactionType.WITHDRAWAL) {
-      throw new BadRequestException('Cette transaction n\'est pas un retrait');
+      throw new BadRequestException("Cette transaction n'est pas un retrait");
     }
 
     if (transaction.status !== TransactionStatus.PENDING) {
@@ -62,19 +67,36 @@ export class WithdrawalProcessingService {
 
     try {
       let providerResult: any;
-      const useMethod: 'wise' | 'stripe_connect' | 'stripe_payout' = method
-        || (bankAccountDetails ? 'wise' : (stripeAccountId ? 'stripe_connect' : 'stripe_payout'));
+      const useMethod: 'wise' | 'stripe_connect' | 'stripe_payout' =
+        method ||
+        (bankAccountDetails
+          ? 'wise'
+          : stripeAccountId
+            ? 'stripe_connect'
+            : 'stripe_payout');
 
       if (useMethod === 'stripe_connect' && stripeAccountId) {
         // Try Wise first using connected account bank details
         try {
           const account = await this.stripe.accounts.retrieve(stripeAccountId);
-          const externalAccounts = await this.stripe.accounts.listExternalAccounts(stripeAccountId, { object: 'bank_account' });
-          const bankAccount = (externalAccounts?.data || []).find((ba: any) => ba.object === 'bank_account');
+          const externalAccounts =
+            await this.stripe.accounts.listExternalAccounts(stripeAccountId, {
+              object: 'bank_account',
+            });
+          const bankAccount = (externalAccounts?.data || []).find(
+            (ba: any) => ba.object === 'bank_account',
+          );
           if (bankAccount) {
             const bank = bankAccount as Stripe.BankAccount;
-            const targetCurrency = bank.currency ? bank.currency.toUpperCase() : this.deriveCurrencyFromCountry(bank.country || undefined);
-            const accountHolderName = (account as any)?.business_profile?.name || (account as any)?.individual?.first_name + ' ' + (account as any)?.individual?.last_name || 'Account Holder';
+            const targetCurrency = bank.currency
+              ? bank.currency.toUpperCase()
+              : this.deriveCurrencyFromCountry(bank.country || undefined);
+            const accountHolderName =
+              (account as any)?.business_profile?.name ||
+              (account as any)?.individual?.first_name +
+                ' ' +
+                (account as any)?.individual?.last_name ||
+              'Account Holder';
             const ibanCandidate: string | undefined = (bank as any)?.iban;
             if (ibanCandidate) {
               const quote = await this.wiseService.createQuote({
@@ -105,19 +127,25 @@ export class WithdrawalProcessingService {
               });
 
               providerResult = transfer;
-              transaction.externalReference = String(transfer.transfer?.id || transfer.id);
-              (transaction as any).wizeTransferId = String(transfer.transfer?.id || transfer.id);
-              (transaction as any).wizeStatus = transfer.transfer?.status || transfer.status;
+              transaction.externalReference = String(
+                transfer.transfer?.id || transfer.id,
+              );
+              (transaction as any).wizeTransferId = String(
+                transfer.transfer?.id || transfer.id,
+              );
+              (transaction as any).wizeStatus =
+                transfer.transfer?.status || transfer.status;
             } else {
               providerResult = await this.createStripeConnectTransfer(
                 transaction.amount,
                 stripeAccountId,
-                transaction.id
+                transaction.id,
               );
               if (providerResult?.id) {
                 transaction.externalReference = providerResult.id;
                 (transaction as any).stripeTransferId = providerResult.id;
-                (transaction as any).stripeTransferStatus = providerResult.status;
+                (transaction as any).stripeTransferStatus =
+                  providerResult.status;
               }
             }
           } else {
@@ -125,7 +153,7 @@ export class WithdrawalProcessingService {
             providerResult = await this.createStripeConnectTransfer(
               transaction.amount,
               stripeAccountId,
-              transaction.id
+              transaction.id,
             );
             if (providerResult?.id) {
               transaction.externalReference = providerResult.id;
@@ -138,7 +166,7 @@ export class WithdrawalProcessingService {
           providerResult = await this.createStripeConnectTransfer(
             transaction.amount,
             stripeAccountId,
-            transaction.id
+            transaction.id,
           );
           if (providerResult?.id) {
             transaction.externalReference = providerResult.id;
@@ -150,7 +178,7 @@ export class WithdrawalProcessingService {
         providerResult = await this.createStripePayout(
           transaction.amount,
           bankAccountDetails,
-          transaction.id
+          transaction.id,
         );
         // Update transaction with real payout data
         if (providerResult?.id) {
@@ -160,12 +188,19 @@ export class WithdrawalProcessingService {
         }
       } else if (useMethod === 'wise' && bankAccountDetails) {
         if (!this.validateBankDetails(bankAccountDetails)) {
-          throw new BadRequestException('Détails bancaires invalides (IBAN/BIC)');
+          throw new BadRequestException(
+            'Détails bancaires invalides (IBAN/BIC)',
+          );
         }
-        const currency = bankAccountDetails.currency || this.detectCurrencyFromIban(bankAccountDetails.iban);
+        const currency =
+          bankAccountDetails.currency ||
+          this.detectCurrencyFromIban(bankAccountDetails.iban);
         const profileId = this.getWiseProfileId();
-        const autoFundEnabled = this.configService.get<boolean>('WISE_AUTO_FUND', true);
-        
+        const autoFundEnabled = this.configService.get<boolean>(
+          'WISE_AUTO_FUND',
+          true,
+        );
+
         this.logger.log(`Creating quote with profile: ${profileId}`);
         const quote = await this.wiseService.createQuote({
           sourceCurrency: 'GBP',
@@ -174,7 +209,10 @@ export class WithdrawalProcessingService {
           profile: profileId,
           payOut: 'BALANCE',
         });
-        this.logger.log('Wise quote created', { transactionId: transaction.id, quoteId: quote.id })
+        this.logger.log('Wise quote created', {
+          transactionId: transaction.id,
+          quoteId: quote.id,
+        });
 
         const recipientAccount = await this.wiseService.createRecipientAccount({
           currency,
@@ -188,14 +226,19 @@ export class WithdrawalProcessingService {
             routingNumber: bankAccountDetails.routingNumber,
           },
         });
-        this.logger.log('Wise recipient created', { transactionId: transaction.id, recipientId: recipientAccount.id })
+        this.logger.log('Wise recipient created', {
+          transactionId: transaction.id,
+          recipientId: recipientAccount.id,
+        });
 
         let transfer: any;
         let payment: any;
-        
+
         if (autoFundEnabled) {
           // Try auto-funding first
-          this.logger.log(`Attempting auto-funding for transfer with quote ID: ${quote.id}, profile: ${profileId}`);
+          this.logger.log(
+            `Attempting auto-funding for transfer with quote ID: ${quote.id}, profile: ${profileId}`,
+          );
           try {
             const result = await this.wiseService.createAndFundTransfer({
               targetAccount: recipientAccount.id,
@@ -207,17 +250,20 @@ export class WithdrawalProcessingService {
             });
             transfer = result.transfer;
             payment = result.payment;
-            this.logger.log('Wise transfer auto-funded successfully', { 
-              transactionId: transaction.id, 
+            this.logger.log('Wise transfer auto-funded successfully', {
+              transactionId: transaction.id,
               transferId: transfer.id,
-              paymentId: payment?.id 
+              paymentId: payment?.id,
             });
           } catch (error) {
-            this.logger.warn(`Auto-funding failed, creating transfer for manual funding: ${error.message}`, {
-              transactionId: transaction.id,
-              error: error.message
-            });
-            
+            this.logger.warn(
+              `Auto-funding failed, creating transfer for manual funding: ${error.message}`,
+              {
+                transactionId: transaction.id,
+                error: error.message,
+              },
+            );
+
             // Create transfer without funding for manual processing
             transfer = await this.wiseService.createTransfer({
               targetAccount: recipientAccount.id,
@@ -227,7 +273,7 @@ export class WithdrawalProcessingService {
               transferPurpose: 'verification.transfers.purpose.pay.bills',
               sourceOfFunds: 'verification.source.of.funds.other',
             });
-            
+
             // Create admin notification for manual funding required
             await this.adminNotificationsService.createAdminNotification({
               title: 'Manual Funding Required for Wise Transfer',
@@ -236,16 +282,18 @@ export class WithdrawalProcessingService {
               priority: AdminNotificationPriority.HIGH,
               category: AdminNotificationCategory.PAYMENT,
             });
-            
-            this.logger.log('Wise transfer created for manual funding', { 
-              transactionId: transaction.id, 
+
+            this.logger.log('Wise transfer created for manual funding', {
+              transactionId: transaction.id,
               transferId: transfer.id,
-              requiresManualFunding: true 
+              requiresManualFunding: true,
             });
           }
         } else {
           // Manual funding mode - create transfer without funding
-          this.logger.log(`Creating transfer for manual funding with quote ID: ${quote.id}, profile: ${profileId}`);
+          this.logger.log(
+            `Creating transfer for manual funding with quote ID: ${quote.id}, profile: ${profileId}`,
+          );
           transfer = await this.wiseService.createTransfer({
             targetAccount: recipientAccount.id,
             quoteUuid: quote.id,
@@ -254,7 +302,7 @@ export class WithdrawalProcessingService {
             transferPurpose: 'verification.transfers.purpose.pay.bills',
             sourceOfFunds: 'verification.source.of.funds.other',
           });
-          
+
           // Create admin notification for manual funding required
           await this.adminNotificationsService.createAdminNotification({
             title: 'Manual Funding Required for Wise Transfer',
@@ -263,33 +311,37 @@ export class WithdrawalProcessingService {
             priority: AdminNotificationPriority.MEDIUM,
             category: AdminNotificationCategory.PAYMENT,
           });
-          
-          this.logger.log('Wise transfer created for manual funding (auto-funding disabled)', { 
-            transactionId: transaction.id, 
-            transferId: transfer.id 
-          });
+
+          this.logger.log(
+            'Wise transfer created for manual funding (auto-funding disabled)',
+            {
+              transactionId: transaction.id,
+              transferId: transfer.id,
+            },
+          );
         }
-        
+
         providerResult = transfer;
         transaction.externalReference = String(transfer.id);
-        
+
         // Debug log before assignment
         this.logger.log('Assigning Wise transfer data to transaction', {
           transferId: transfer.id,
           transferStatus: transfer.status,
           autoFundEnabled: autoFundEnabled,
-          paymentExists: !!payment
+          paymentExists: !!payment,
         });
-        
+
         (transaction as any).wizeTransferId = String(transfer.id);
         (transaction as any).wizeStatus = transfer.status;
-        (transaction as any).requiresManualFunding = !autoFundEnabled || !payment;
-        
+        (transaction as any).requiresManualFunding =
+          !autoFundEnabled || !payment;
+
         // Debug log after assignment
         this.logger.log('Wise transfer data assigned to transaction', {
           wizeTransferId: (transaction as any).wizeTransferId,
           wizeStatus: (transaction as any).wizeStatus,
-          requiresManualFunding: (transaction as any).requiresManualFunding
+          requiresManualFunding: (transaction as any).requiresManualFunding,
         });
       } else {
         throw new BadRequestException('Aucune méthode de paiement spécifiée');
@@ -299,8 +351,10 @@ export class WithdrawalProcessingService {
       const requiresManualFunding = (transaction as any).requiresManualFunding;
       if (requiresManualFunding) {
         transaction.status = TransactionStatus.PENDING;
-        this.logger.log(`Withdrawal created successfully but requires manual funding: ${transaction.id}`);
-        
+        this.logger.log(
+          `Withdrawal created successfully but requires manual funding: ${transaction.id}`,
+        );
+
         // Create admin notification for manual funding required
         await this.adminNotificationsService.createAdminNotification({
           title: 'Withdrawal Requires Manual Funding',
@@ -313,7 +367,7 @@ export class WithdrawalProcessingService {
         transaction.status = TransactionStatus.COMPLETED;
         transaction.processedAt = new Date();
         this.logger.log(`Retrait traité avec succès: ${transaction.id}`);
-        
+
         // Create admin notification for successful withdrawal
         await this.adminNotificationsService.createAdminNotification({
           title: 'Withdrawal Processed Successfully',
@@ -323,7 +377,7 @@ export class WithdrawalProcessingService {
           category: AdminNotificationCategory.PAYMENT,
         });
       }
-      
+
       if (providerResult?.id && !transaction.externalReference) {
         transaction.externalReference = providerResult.id;
       }
@@ -335,38 +389,38 @@ export class WithdrawalProcessingService {
         wizeTransferId: (transaction as any).wizeTransferId,
         wizeStatus: (transaction as any).wizeStatus,
         requiresManualFunding: (transaction as any).requiresManualFunding,
-        status: transaction.status
+        status: transaction.status,
       });
 
-      const savedTransaction = await this.transactionsRepository.save(transaction);
-      
+      const savedTransaction =
+        await this.transactionsRepository.save(transaction);
+
       // Debug log after saving transaction
       this.logger.log('Transaction saved successfully', {
         transactionId: savedTransaction.id,
         externalReference: savedTransaction.externalReference,
         wizeTransferId: savedTransaction.wizeTransferId,
         wizeStatus: savedTransaction.wizeStatus,
-        status: savedTransaction.status
+        status: savedTransaction.status,
       });
-      
-      return savedTransaction;
 
+      return savedTransaction;
     } catch (error) {
       this.logger.error(`Failed to process withdrawal ${transaction.id}:`, {
         error: error.message,
         transactionId: transaction.id,
         amount: transaction.amount,
         method: method,
-        stack: error.stack
+        stack: error.stack,
       });
-      
+
       // Mark transaction as failed with detailed error information
       transaction.status = TransactionStatus.FAILED;
       transaction.description = `${transaction.description} - Transfer failed: ${error.message}`;
       transaction.processedAt = new Date();
-      
+
       await this.transactionsRepository.save(transaction);
-      
+
       // Create admin notification for failed withdrawal
       await this.adminNotificationsService.createAdminNotification({
         title: 'Withdrawal Processing Failed',
@@ -375,10 +429,12 @@ export class WithdrawalProcessingService {
         priority: AdminNotificationPriority.HIGH,
         category: AdminNotificationCategory.PAYMENT,
       });
-      
+
       // Throw sanitized error message for API consumers
       if (error.message.includes('Stripe') || error.message.includes('Wise')) {
-        throw new BadRequestException('Transfer processing failed. Please contact support if the issue persists.');
+        throw new BadRequestException(
+          'Transfer processing failed. Please contact support if the issue persists.',
+        );
       }
       throw new BadRequestException(`Transfer failed: ${error.message}`);
     }
@@ -387,8 +443,22 @@ export class WithdrawalProcessingService {
   private detectCurrencyFromIban(iban?: string): string {
     const cc = (iban || '').trim().slice(0, 2).toUpperCase();
     const map: Record<string, string> = {
-      GB: 'GBP', FR: 'EUR', DE: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR', IE: 'EUR', AT: 'EUR',
-      AE: 'AED', SA: 'SAR', QA: 'QAR', KW: 'KWD', BH: 'BHD', OM: 'OMR'
+      GB: 'GBP',
+      FR: 'EUR',
+      DE: 'EUR',
+      ES: 'EUR',
+      IT: 'EUR',
+      NL: 'EUR',
+      BE: 'EUR',
+      PT: 'EUR',
+      IE: 'EUR',
+      AT: 'EUR',
+      AE: 'AED',
+      SA: 'SAR',
+      QA: 'QAR',
+      KW: 'KWD',
+      BH: 'BHD',
+      OM: 'OMR',
     };
     return map[cc] || 'GBP';
   }
@@ -396,8 +466,22 @@ export class WithdrawalProcessingService {
   private deriveCurrencyFromCountry(country?: string): string {
     const cc = (country || '').trim().toUpperCase();
     const map: Record<string, string> = {
-      GB: 'GBP', FR: 'EUR', DE: 'EUR', ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', PT: 'EUR', IE: 'EUR', AT: 'EUR',
-      AE: 'AED', SA: 'SAR', QA: 'QAR', KW: 'KWD', BH: 'BHD', OM: 'OMR'
+      GB: 'GBP',
+      FR: 'EUR',
+      DE: 'EUR',
+      ES: 'EUR',
+      IT: 'EUR',
+      NL: 'EUR',
+      BE: 'EUR',
+      PT: 'EUR',
+      IE: 'EUR',
+      AT: 'EUR',
+      AE: 'AED',
+      SA: 'SAR',
+      QA: 'QAR',
+      KW: 'KWD',
+      BH: 'BHD',
+      OM: 'OMR',
     };
     return map[cc] || 'GBP';
   }
@@ -435,7 +519,9 @@ export class WithdrawalProcessingService {
     const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/;
     if (!ibanRegex.test(trimmed)) return false;
     const rearranged = trimmed.slice(4) + trimmed.slice(0, 4);
-    const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+    const numeric = rearranged.replace(/[A-Z]/g, (c) =>
+      String(c.charCodeAt(0) - 55),
+    );
     let remainder = 0;
     for (let i = 0; i < numeric.length; i += 7) {
       const block = String(remainder) + numeric.substr(i, 7);
@@ -456,14 +542,16 @@ export class WithdrawalProcessingService {
   private async createStripeConnectTransfer(
     amount: number,
     stripeAccountId: string,
-    transactionId: string
+    transactionId: string,
   ): Promise<Stripe.Transfer> {
     try {
-      this.logger.log(`Creating real Stripe Connect transfer: ${amount}€ to account ${stripeAccountId}`);
-      
+      this.logger.log(
+        `Creating real Stripe Connect transfer: ${amount}€ to account ${stripeAccountId}`,
+      );
+
       // Validate amount before processing
       this.validateTransferAmount(amount);
-      
+
       // Create real Stripe Connect transfer
       const transfer = await this.stripe.transfers.create({
         amount: Math.round(amount * 100), // Stripe uses cents
@@ -473,16 +561,19 @@ export class WithdrawalProcessingService {
           transaction_id: transactionId,
           type: 'withdrawal',
           platform: 'bricola',
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
 
-      this.logger.log(`Real Stripe Connect transfer created successfully: ${transfer.id}`);
+      this.logger.log(
+        `Real Stripe Connect transfer created successfully: ${transfer.id}`,
+      );
       return transfer;
-      
     } catch (error) {
       this.logger.error(`Failed to create Stripe Connect transfer:`, error);
-      throw new BadRequestException(`Stripe Connect transfer failed: ${error.message}`);
+      throw new BadRequestException(
+        `Stripe Connect transfer failed: ${error.message}`,
+      );
     }
   }
 
@@ -492,14 +583,16 @@ export class WithdrawalProcessingService {
   private async createStripePayout(
     amount: number,
     bankAccountDetails: any,
-    transactionId: string
+    transactionId: string,
   ): Promise<Stripe.Payout> {
     try {
-      this.logger.log(`Creating real Stripe payout: ${amount}€ to bank account`);
-      
+      this.logger.log(
+        `Creating real Stripe payout: ${amount}€ to bank account`,
+      );
+
       // Validate amount before processing
       this.validateTransferAmount(amount);
-      
+
       // Create real Stripe payout to external bank account
       const payout = await this.stripe.payouts.create({
         amount: Math.round(amount * 100), // Stripe uses cents
@@ -509,13 +602,12 @@ export class WithdrawalProcessingService {
           transaction_id: transactionId,
           type: 'withdrawal',
           platform: 'bricola',
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       });
 
       this.logger.log(`Real Stripe payout created successfully: ${payout.id}`);
       return payout;
-      
     } catch (error) {
       this.logger.error(`Failed to create Stripe payout:`, error);
       throw new BadRequestException(`Stripe payout failed: ${error.message}`);
@@ -529,13 +621,19 @@ export class WithdrawalProcessingService {
     if (isNaN(amount) || amount <= 0) {
       throw new BadRequestException('Invalid transfer amount');
     }
-    
-    if (amount > 10000) { // Maximum £10,000 per transfer
-      throw new BadRequestException('Transfer amount exceeds maximum limit of £10,000');
+
+    if (amount > 10000) {
+      // Maximum £10,000 per transfer
+      throw new BadRequestException(
+        'Transfer amount exceeds maximum limit of £10,000',
+      );
     }
-    
-    if (amount < 0.50) { // Minimum £0.50 per transfer
-      throw new BadRequestException('Transfer amount below minimum threshold of £0.50');
+
+    if (amount < 0.5) {
+      // Minimum £0.50 per transfer
+      throw new BadRequestException(
+        'Transfer amount below minimum threshold of £0.50',
+      );
     }
   }
 
@@ -546,19 +644,22 @@ export class WithdrawalProcessingService {
     return this.transactionsRepository.find({
       where: {
         type: TransactionType.WITHDRAWAL,
-        status: TransactionStatus.PENDING
+        status: TransactionStatus.PENDING,
       },
       relations: ['sender'],
-      order: { createdAt: 'ASC' }
+      order: { createdAt: 'ASC' },
     });
   }
 
   /**
    * Annule une demande de retrait
    */
-  async cancelWithdrawal(transactionId: string, reason: string): Promise<Transaction> {
+  async cancelWithdrawal(
+    transactionId: string,
+    reason: string,
+  ): Promise<Transaction> {
     const transaction = await this.transactionsRepository.findOne({
-      where: { id: transactionId }
+      where: { id: transactionId },
     });
 
     if (!transaction) {
@@ -566,14 +667,17 @@ export class WithdrawalProcessingService {
     }
 
     if (transaction.status !== TransactionStatus.PENDING) {
-      throw new BadRequestException('Seules les transactions en attente peuvent être annulées');
+      throw new BadRequestException(
+        'Seules les transactions en attente peuvent être annulées',
+      );
     }
 
     transaction.status = TransactionStatus.CANCELLED;
     transaction.description = `${transaction.description} - Annulé: ${reason}`;
-    
-    const savedTransaction = await this.transactionsRepository.save(transaction);
-    
+
+    const savedTransaction =
+      await this.transactionsRepository.save(transaction);
+
     // Create admin notification for cancelled withdrawal
     await this.adminNotificationsService.createAdminNotification({
       title: 'Withdrawal Cancelled',
@@ -582,7 +686,7 @@ export class WithdrawalProcessingService {
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
     });
-    
+
     return savedTransaction;
   }
 }

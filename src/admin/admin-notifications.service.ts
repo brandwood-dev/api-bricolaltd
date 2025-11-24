@@ -1,13 +1,19 @@
-import { Injectable, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { AdminNotification } from './entities/admin-notification.entity';
-import { 
-  CreateAdminNotificationDto, 
+import {
+  CreateAdminNotificationDto,
   AdminNotificationFilterDto,
   NotificationType,
   NotificationPriority,
-  NotificationCategory
+  NotificationCategory,
 } from './dto/admin-notifications.dto';
 import { AdminNotificationsGateway } from '../notifications/admin-notifications.gateway';
 import { SendGridService } from '../emails/sendgrid.service';
@@ -66,7 +72,7 @@ export class AdminNotificationsService {
     if (search) {
       queryBuilder.andWhere(
         '(LOWER(notification.title) LIKE LOWER(:search) OR LOWER(notification.message) LIKE LOWER(:search) OR LOWER(notification.userName) LIKE LOWER(:search))',
-        { search: `%${search}%` }
+        { search: `%${search}%` },
       );
     }
 
@@ -102,7 +108,8 @@ export class AdminNotificationsService {
       createdAt: new Date(),
     });
 
-    const savedNotification = await this.adminNotificationRepository.save(notification);
+    const savedNotification =
+      await this.adminNotificationRepository.save(notification);
 
     // Broadcast to connected admins via WebSocket
     try {
@@ -114,9 +121,12 @@ export class AdminNotificationsService {
 
     // Auto-read functionality
     if (createNotificationDto.autoReadAfter) {
-      setTimeout(async () => {
-        await this.markNotificationsAsRead([savedNotification.id]);
-      }, createNotificationDto.autoReadAfter * 60 * 1000); // Convert minutes to milliseconds
+      setTimeout(
+        async () => {
+          await this.markNotificationsAsRead([savedNotification.id]);
+        },
+        createNotificationDto.autoReadAfter * 60 * 1000,
+      ); // Convert minutes to milliseconds
     }
 
     // Email on critical notifications
@@ -130,7 +140,9 @@ export class AdminNotificationsService {
         await this.sendCriticalEmail(savedNotification, adminEmails);
       }
     } catch (e) {
-      this.logger.warn(`Failed to send critical email for admin notification ${savedNotification.id}: ${e?.message || e}`);
+      this.logger.warn(
+        `Failed to send critical email for admin notification ${savedNotification.id}: ${e?.message || e}`,
+      );
     }
 
     return savedNotification;
@@ -139,10 +151,10 @@ export class AdminNotificationsService {
   async markNotificationsAsRead(notificationIds: string[]): Promise<void> {
     await this.adminNotificationRepository.update(
       { id: In(notificationIds) },
-      { 
+      {
         isRead: true,
         readAt: new Date(),
-      }
+      },
     );
 
     try {
@@ -153,10 +165,10 @@ export class AdminNotificationsService {
   async markAllAsRead(): Promise<void> {
     await this.adminNotificationRepository.update(
       { isRead: false },
-      { 
+      {
         isRead: true,
         readAt: new Date(),
-      }
+      },
     );
 
     try {
@@ -359,15 +371,20 @@ export class AdminNotificationsService {
   // --- Email integration helpers ---
   private async getAdminEmailRecipients(): Promise<string[]> {
     try {
-      const admins = await this.usersRepository.find({ where: { isAdmin: true, isActive: true } });
-      return admins.map(a => a.email).filter(Boolean);
+      const admins = await this.usersRepository.find({
+        where: { isAdmin: true, isActive: true },
+      });
+      return admins.map((a) => a.email).filter(Boolean);
     } catch (e) {
       this.logger.warn(`Failed to load admin recipients: ${e?.message || e}`);
       return [];
     }
   }
 
-  private async sendCriticalEmail(notification: AdminNotification, recipients: string[]): Promise<void> {
+  private async sendCriticalEmail(
+    notification: AdminNotification,
+    recipients: string[],
+  ): Promise<void> {
     if (!Array.isArray(recipients) || recipients.length === 0) return;
 
     const subject = this.buildEmailSubject(notification);
@@ -376,28 +393,48 @@ export class AdminNotificationsService {
     // Send individually to avoid SendGrid rate issues with arrays
     await Promise.all(
       recipients.map((to) =>
-        this.sendGridService.sendEmail({ to, subject, html, text }).catch((e) => {
-          this.logger.warn(`SendGrid failed for ${to}: ${e?.message || e}`);
-          return false;
-        })
-      )
+        this.sendGridService
+          .sendEmail({ to, subject, html, text })
+          .catch((e) => {
+            this.logger.warn(`SendGrid failed for ${to}: ${e?.message || e}`);
+            return false;
+          }),
+      ),
     );
   }
 
   private buildEmailSubject(notification: AdminNotification): string {
-    const prefix = notification.category === NotificationCategory.SECURITY ? 'ALERTE SÉCURITÉ' :
-      notification.category === NotificationCategory.DISPUTE ? 'NOUVEAU LITIGE' :
-      notification.category === NotificationCategory.PAYMENT ? 'PAIEMENT' : 'SYSTÈME';
+    const prefix =
+      notification.category === NotificationCategory.SECURITY
+        ? 'ALERTE SÉCURITÉ'
+        : notification.category === NotificationCategory.DISPUTE
+          ? 'NOUVEAU LITIGE'
+          : notification.category === NotificationCategory.PAYMENT
+            ? 'PAIEMENT'
+            : 'SYSTÈME';
     const priority = notification.priority?.toUpperCase() || 'INFO';
     return `[${prefix} - ${priority}] ${notification.title || 'Notification Admin'}`;
   }
 
-  private buildEmailTemplate(notification: AdminNotification): { html: string; text: string } {
-    const createdAt = notification.createdAt ? new Date(notification.createdAt).toLocaleString('fr-FR') : new Date().toLocaleString('fr-FR');
-    const headerColor = notification.category === NotificationCategory.SECURITY ? '#dc3545' : '#0d6efd';
-    const priorityBadge = notification.priority === NotificationPriority.URGENT ? 'Urgent' :
-      notification.priority === NotificationPriority.HIGH ? 'Élevé' :
-      notification.priority === NotificationPriority.MEDIUM ? 'Moyen' : 'Faible';
+  private buildEmailTemplate(notification: AdminNotification): {
+    html: string;
+    text: string;
+  } {
+    const createdAt = notification.createdAt
+      ? new Date(notification.createdAt).toLocaleString('fr-FR')
+      : new Date().toLocaleString('fr-FR');
+    const headerColor =
+      notification.category === NotificationCategory.SECURITY
+        ? '#dc3545'
+        : '#0d6efd';
+    const priorityBadge =
+      notification.priority === NotificationPriority.URGENT
+        ? 'Urgent'
+        : notification.priority === NotificationPriority.HIGH
+          ? 'Élevé'
+          : notification.priority === NotificationPriority.MEDIUM
+            ? 'Moyen'
+            : 'Faible';
 
     const html = `
       <!DOCTYPE html>

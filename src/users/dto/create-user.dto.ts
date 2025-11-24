@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsBoolean, IsNumber } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+} from 'class-validator';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -129,14 +137,17 @@ export class CreateUserDto {
   @IsOptional()
   resetPasswordToken?: string;
 
-  @ApiProperty({ description: 'The reset password token expiration date', required: false })
+  @ApiProperty({
+    description: 'The reset password token expiration date',
+    required: false,
+  })
   @IsOptional()
   resetPasswordExpires?: Date;
 
-  @ApiProperty({ 
-    description: 'The default currency code for the user (3-letter ISO code)', 
+  @ApiProperty({
+    description: 'The default currency code for the user (3-letter ISO code)',
     example: 'EUR',
-    required: false 
+    required: false,
   })
   @IsString()
   @IsOptional()

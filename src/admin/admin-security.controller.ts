@@ -17,8 +17,14 @@ import {
 } from '@nestjs/swagger';
 import { EnhancedAdminGuard } from '../auth/guards/enhanced-admin.guard';
 import { AdminPermissions } from '../auth/decorators/admin-permissions.decorator';
-import { AdminSecurityService, SecurityLogFilters } from './admin-security.service';
-import { SecurityEventType, SecuritySeverity } from './entities/security-log.entity';
+import {
+  AdminSecurityService,
+  SecurityLogFilters,
+} from './admin-security.service';
+import {
+  SecurityEventType,
+  SecuritySeverity,
+} from './entities/security-log.entity';
 
 @ApiTags('admin-security')
 @Controller('admin/security')
@@ -33,10 +39,7 @@ export class AdminSecurityController {
   @ApiResponse({ status: 200, description: 'Active sessions' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  async getActiveSessions(
-    @Query('page') page = 1,
-    @Query('limit') limit = 50,
-  ) {
+  async getActiveSessions(@Query('page') page = 1, @Query('limit') limit = 50) {
     return this.adminSecurityService.getActiveSessions(page, limit);
   }
 
@@ -122,13 +125,19 @@ export class AdminSecurityController {
   @ApiOperation({ summary: 'Block IP address' })
   @ApiResponse({ status: 200, description: 'IP address blocked successfully' })
   async blockIpAddress(@Body() body: { ipAddress: string; reason: string }) {
-    return this.adminSecurityService.blockIpAddress(body.ipAddress, body.reason);
+    return this.adminSecurityService.blockIpAddress(
+      body.ipAddress,
+      body.reason,
+    );
   }
 
   @Delete('block-ip/:ipAddress')
   @AdminPermissions('manage_security')
   @ApiOperation({ summary: 'Unblock IP address' })
-  @ApiResponse({ status: 200, description: 'IP address unblocked successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'IP address unblocked successfully',
+  })
   async unblockIpAddress(@Param('ipAddress') ipAddress: string) {
     return this.adminSecurityService.unblockIpAddress(ipAddress);
   }

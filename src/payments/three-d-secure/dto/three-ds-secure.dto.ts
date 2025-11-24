@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsObject, ValidateNested, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsObject,
+  ValidateNested,
+  IsNotEmpty,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -79,7 +87,10 @@ export class CompleteThreeDSecureChallengeDto {
   @IsNotEmpty()
   paymentIntentId: string;
 
-  @ApiProperty({ description: 'Redirect result from 3DS challenge', required: false })
+  @ApiProperty({
+    description: 'Redirect result from 3DS challenge',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   redirectResult?: string;
@@ -108,7 +119,10 @@ export class ThreeDSecureResultDto {
   @IsOptional()
   clientSecret?: string;
 
-  @ApiProperty({ description: 'Redirect URL for 3DS challenge', required: false })
+  @ApiProperty({
+    description: 'Redirect URL for 3DS challenge',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   redirectUrl?: string;
@@ -145,7 +159,10 @@ export class ThreeDSecureResultDto {
 }
 
 export class ThreeDSecureStatsDto {
-  @ApiProperty({ description: 'Time range for statistics', enum: ['24h', '7d', '30d'] })
+  @ApiProperty({
+    description: 'Time range for statistics',
+    enum: ['24h', '7d', '30d'],
+  })
   @IsEnum(['24h', '7d', '30d'])
   @IsOptional()
   timeRange?: '24h' | '7d' | '30d' = '24h';

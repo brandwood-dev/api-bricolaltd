@@ -30,7 +30,10 @@ export class BookmarksController {
   @ApiResponse({ status: 200, description: 'Return the bookmarks.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   findByUser(@Param('userId') userId: string) {
-    console.log('🎯 BookmarksController.findByUser - Requête GET reçue pour userId:', userId);
+    console.log(
+      '🎯 BookmarksController.findByUser - Requête GET reçue pour userId:',
+      userId,
+    );
     return this.bookmarksService.findByUser(userId);
   }
 
@@ -47,7 +50,12 @@ export class BookmarksController {
     @Param('userId') userId: string,
     @Param('toolId') toolId: string,
   ) {
-    console.log('🎯 BookmarksController.removeByUserAndTool - Requête DELETE reçue userId:', userId, 'toolId:', toolId);
+    console.log(
+      '🎯 BookmarksController.removeByUserAndTool - Requête DELETE reçue userId:',
+      userId,
+      'toolId:',
+      toolId,
+    );
     return this.bookmarksService.removeByUserAndTool(userId, toolId);
   }
 
@@ -62,7 +70,10 @@ export class BookmarksController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   async create(@Body() createBookmarkDto: CreateBookmarkDto) {
-    console.log('🎯 BookmarksController.create - Requête POST reçue avec body:', createBookmarkDto);
+    console.log(
+      '🎯 BookmarksController.create - Requête POST reçue avec body:',
+      createBookmarkDto,
+    );
     const result = await this.bookmarksService.create(createBookmarkDto);
     console.log('🎯 BookmarksController.create - Résultat retourné:', result);
     return result;

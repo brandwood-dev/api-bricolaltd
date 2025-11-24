@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Transaction } from '../../transactions/entities/transaction.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 
@@ -57,19 +66,19 @@ export class Refund {
   @Column({ name: 'currency', type: 'varchar', length: 3, default: 'gbp' })
   currency: string;
 
-  @Column({ 
-    name: 'status', 
-    type: 'enum', 
-    enum: RefundStatus, 
-    default: RefundStatus.PENDING 
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: RefundStatus,
+    default: RefundStatus.PENDING,
   })
   status: RefundStatus;
 
-  @Column({ 
-    name: 'reason', 
-    type: 'enum', 
+  @Column({
+    name: 'reason',
+    type: 'enum',
     enum: RefundReason,
-    default: RefundReason.OTHER 
+    default: RefundReason.OTHER,
   })
   reason: RefundReason;
 

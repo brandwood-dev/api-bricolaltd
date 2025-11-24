@@ -6,7 +6,10 @@ import {
   IsBoolean,
   IsUrl,
   IsArray,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateSectionDto } from './create-section.dto';
 
 export class CreateNewsDto {
   @ApiProperty({
@@ -18,13 +21,25 @@ export class CreateNewsDto {
   title: string;
 
   @ApiProperty({
-    description: 'The content of the news article',
+    description: 'The content of the news article (legacy field)',
     example:
       'We are excited to announce that we have added 20 new tools to our rental inventory...',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  content: string;
+  content?: string;
+
+  @ApiProperty({
+    description: 'Sections of the article with structured content',
+    type: [CreateSectionDto],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateSectionDto)
+  sections?: CreateSectionDto[];
 
   @ApiProperty({
     description: 'URL to the main image for the news article',
@@ -34,8 +49,6 @@ export class CreateNewsDto {
   @IsOptional()
   @IsUrl({ require_tld: false }, { message: 'imageUrl must be a valid URL' })
   imageUrl?: string;
-
-
 
   @ApiProperty({
     description: 'Whether this news article is public',
@@ -75,4 +88,13 @@ export class CreateNewsDto {
   @IsString()
   category?: string;
 
+  // Pour le traitement des images inline
+  @ApiProperty({
+    description: 'Whether to replace the main image',
+    example: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  replaceMainImage?: boolean;
 }

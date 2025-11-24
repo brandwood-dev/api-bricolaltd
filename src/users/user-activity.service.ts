@@ -13,7 +13,9 @@ export class UserActivityService {
     private userActivityRepository: Repository<UserActivity>,
   ) {}
 
-  async create(createUserActivityDto: CreateUserActivityDto): Promise<UserActivity> {
+  async create(
+    createUserActivityDto: CreateUserActivityDto,
+  ): Promise<UserActivity> {
     const activity = this.userActivityRepository.create(createUserActivityDto);
     return this.userActivityRepository.save(activity);
   }
@@ -30,11 +32,11 @@ export class UserActivityService {
       where: { id },
       relations: ['user'],
     });
-    
+
     if (!activity) {
       throw new NotFoundException(`User activity with ID ${id} not found`);
     }
-    
+
     return activity;
   }
 
@@ -46,7 +48,9 @@ export class UserActivityService {
     });
   }
 
-  async findByActivityType(activityType: ActivityType): Promise<UserActivity[]> {
+  async findByActivityType(
+    activityType: ActivityType,
+  ): Promise<UserActivity[]> {
     return this.userActivityRepository.find({
       where: { activityType },
       relations: ['user'],
@@ -54,7 +58,10 @@ export class UserActivityService {
     });
   }
 
-  async update(id: string, updateUserActivityDto: UpdateUserActivityDto): Promise<UserActivity> {
+  async update(
+    id: string,
+    updateUserActivityDto: UpdateUserActivityDto,
+  ): Promise<UserActivity> {
     const activity = await this.findOne(id);
     Object.assign(activity, updateUserActivityDto);
     return this.userActivityRepository.save(activity);
@@ -74,7 +81,7 @@ export class UserActivityService {
     userAgent?: string,
     relatedId?: string,
     relatedType?: string,
-    metadata?: string
+    metadata?: string,
   ): Promise<UserActivity> {
     const createDto: CreateUserActivityDto = {
       userId,
@@ -86,38 +93,43 @@ export class UserActivityService {
       relatedType,
       metadata,
     };
-    
+
     return this.create(createDto);
   }
 
   // Get activity statistics
   async getActivityStats(userId?: string): Promise<any> {
-    const queryBuilder = this.userActivityRepository.createQueryBuilder('activity');
-    
+    const queryBuilder =
+      this.userActivityRepository.createQueryBuilder('activity');
+
     if (userId) {
       queryBuilder.where('activity.userId = :userId', { userId });
     }
-    
+
     const stats = await queryBuilder
       .select('activity.activityType', 'activityType')
       .addSelect('COUNT(*)', 'count')
       .groupBy('activity.activityType')
       .getRawMany();
-    
+
     return stats;
   }
 
   // Get recent activities
-  async getRecentActivities(limit: number = 50, userId?: string): Promise<UserActivity[]> {
-    const queryBuilder = this.userActivityRepository.createQueryBuilder('activity')
+  async getRecentActivities(
+    limit: number = 50,
+    userId?: string,
+  ): Promise<UserActivity[]> {
+    const queryBuilder = this.userActivityRepository
+      .createQueryBuilder('activity')
       .leftJoinAndSelect('activity.user', 'user')
       .orderBy('activity.createdAt', 'DESC')
       .limit(limit);
-    
+
     if (userId) {
       queryBuilder.where('activity.userId = :userId', { userId });
     }
-    
+
     return queryBuilder.getMany();
   }
 }

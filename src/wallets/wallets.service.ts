@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
@@ -9,7 +14,11 @@ import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { WithdrawalProcessingService } from './withdrawal-processing.service';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
-import { NotificationPriority, NotificationCategory, NotificationType } from '../admin/dto/admin-notifications.dto';
+import {
+  NotificationPriority,
+  NotificationCategory,
+  NotificationType,
+} from '../admin/dto/admin-notifications.dto';
 
 @Injectable()
 export class WalletsService {
@@ -51,7 +60,9 @@ export class WalletsService {
   async findByUserId(userId: string): Promise<Wallet> {
     const wallet = await this.walletsRepository.findOne({ where: { userId } });
     if (!wallet) {
-      throw new NotFoundException(`Wallet for user with ID ${userId} not found`);
+      throw new NotFoundException(
+        `Wallet for user with ID ${userId} not found`,
+      );
     }
     return wallet;
   }
@@ -93,10 +104,14 @@ export class WalletsService {
     wallet.balance = Number(wallet.balance) + amount;
     // Mettre à jour le solde disponible pour retrait
     wallet.reservedBalance = Number(wallet.reservedBalance) + amount;
-    
-    console.log(`[WALLET_UPDATE] Adding available funds to wallet ${id}: +${amount}€`);
-    console.log(`[WALLET_UPDATE] New balance: ${wallet.balance}€, New available: ${wallet.reservedBalance}€`);
-    
+
+    console.log(
+      `[WALLET_UPDATE] Adding available funds to wallet ${id}: +${amount}€`,
+    );
+    console.log(
+      `[WALLET_UPDATE] New balance: ${wallet.balance}€, New available: ${wallet.reservedBalance}€`,
+    );
+
     return this.walletsRepository.save(wallet);
   }
 
@@ -116,25 +131,31 @@ export class WalletsService {
 
   async calculateBalance(userId: string): Promise<{ balance: number }> {
     // Calcul du solde selon la formule :
-    // SUM(transactions.amount WHERE type in ('rental_income','deposit') AND status='completed') 
+    // SUM(transactions.amount WHERE type in ('rental_income','deposit') AND status='completed')
     // - SUM(transactions.amount WHERE type in ('withdrawal','payment') AND status='completed')
-    
+
     const incomeResult = await this.transactionsRepository
       .createQueryBuilder('transaction')
       .select('COALESCE(SUM(transaction.amount), 0)', 'total')
       .where('transaction.recipientId = :userId', { userId })
-      .andWhere('transaction.type IN (:...types)', { 
-        types: [TransactionType.RENTAL_INCOME, TransactionType.DEPOSIT] 
+      .andWhere('transaction.type IN (:...types)', {
+        types: [TransactionType.RENTAL_INCOME, TransactionType.DEPOSIT],
       })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.COMPLETED,
+      })
       .getRawOne();
 
     const outgoingResult = await this.transactionsRepository
       .createQueryBuilder('transaction')
       .select('COALESCE(SUM(transaction.amount), 0)', 'total')
       .where('transaction.senderId = :userId', { userId })
-      .andWhere('transaction.type IN (:...types)', { types: [TransactionType.WITHDRAWAL, TransactionType.PAYMENT] })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .andWhere('transaction.type IN (:...types)', {
+        types: [TransactionType.WITHDRAWAL, TransactionType.PAYMENT],
+      })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.COMPLETED,
+      })
       .getRawOne();
 
     const income = parseFloat(incomeResult.total) || 0;
@@ -157,37 +178,56 @@ export class WalletsService {
     const successfulTransactionsResult = await this.transactionsRepository
       .createQueryBuilder('transaction')
       .select('COUNT(*)', 'count')
-      .where('(transaction.senderId = :userId OR transaction.recipientId = :userId)', { userId })
-      .andWhere('transaction.type IN (:...types)', { 
-        types: [TransactionType.PAYMENT, TransactionType.WITHDRAWAL, TransactionType.RENTAL_INCOME] 
+      .where('(transaction.recipientId = :userId)', { userId })
+      .andWhere('transaction.type IN (:...types)', {
+        types: [
+          TransactionType.PAYMENT,
+          TransactionType.WITHDRAWAL,
+          TransactionType.RENTAL_INCOME,
+        ],
       })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.COMPLETED,
+      })
       .getRawOne();
 
-    const successfulTransactionsCount = parseInt(successfulTransactionsResult.count) || 0;
+    const successfulTransactionsCount =
+      parseInt(successfulTransactionsResult.count) || 0;
 
     // Utiliser directement les champs de la base de données
     return {
       cumulativeBalance: parseFloat(wallet.balance.toString()) || 0, // balance = total des gains cumulés
       availableBalance: parseFloat(wallet.reservedBalance.toString()) || 0, // reserved_balance = solde disponible pour retrait
       pendingBalance: parseFloat(wallet.pendingBalance.toString()) || 0, // pending_balance = solde en attente
-      successfulTransactionsCount
+      successfulTransactionsCount,
     };
   }
 
-  async createWithdrawal(userId: string, amount: number, accountDetails?: any): Promise<Transaction> {
-    this.logger.log(`Start createWithdrawal`, { userId, amount, method: accountDetails?.method })
+  async createWithdrawal(
+    userId: string,
+    amount: number,
+    accountDetails?: any,
+  ): Promise<Transaction> {
+    this.logger.log(`Start createWithdrawal`, {
+      userId,
+      amount,
+      method: accountDetails?.method,
+    });
     // Vérifier le seuil minimum (50 GBP)
     const minimumThreshold = 50;
     if (amount < minimumThreshold) {
-      throw new BadRequestException(`Le montant minimum de retrait est de £${minimumThreshold}`);
+      throw new BadRequestException(
+        `Le montant minimum de retrait est de £${minimumThreshold}`,
+      );
     }
 
     // Vérifier le solde disponible
     const { balance } = await this.calculateBalance(userId);
-    this.logger.log(`Calculated balance`, { userId, balance })
+    this.logger.log(`Calculated balance`, { userId, balance });
     if (balance < amount) {
-      throw new BadRequestException('Solde insuffisant pour effectuer ce retrait');
+      throw new BadRequestException(
+        'Solde insuffisant pour effectuer ce retrait',
+      );
     }
 
     // Récupérer le wallet de l'utilisateur
@@ -202,11 +242,16 @@ export class WalletsService {
       recipientId: userId, // Pour les retraits, sender et recipient sont le même utilisateur
       walletId: wallet.id,
       description: `Demande de retrait de £${Number(amount).toFixed(2)}`,
-      externalReference: accountDetails ? JSON.stringify(accountDetails) : undefined,
+      externalReference: accountDetails
+        ? JSON.stringify(accountDetails)
+        : undefined,
     });
 
     const saved = await this.transactionsRepository.save(withdrawalTransaction);
-    this.logger.log(`Withdrawal transaction created`, { transactionId: saved.id, amount: saved.amount })
+    this.logger.log(`Withdrawal transaction created`, {
+      transactionId: saved.id,
+      amount: saved.amount,
+    });
 
     try {
       await this.adminNotificationsService.createPaymentNotification(
@@ -222,7 +267,8 @@ export class WalletsService {
     // Règle d'approbation admin: > 500 GBP nécessite approbation
     const approvalThresholdGbp = 500;
     if (amount <= approvalThresholdGbp) {
-      const method: 'wise' | 'stripe_connect' | 'stripe_payout' = accountDetails?.method || 'wise';
+      const method: 'wise' | 'stripe_connect' | 'stripe_payout' =
+        accountDetails?.method || 'wise';
       const stripeAccountId = accountDetails?.stripeAccountId;
       const bankAccountDetails = accountDetails?.bankDetails || {
         iban: accountDetails?.iban,
@@ -231,7 +277,10 @@ export class WalletsService {
         currency: 'GBP',
       };
       try {
-        this.logger.log(`Auto-processing withdrawal`, { transactionId: saved.id, method })
+        this.logger.log(`Auto-processing withdrawal`, {
+          transactionId: saved.id,
+          method,
+        });
         await this.withdrawalProcessingService.processWithdrawal(
           saved.id,
           stripeAccountId,
@@ -239,7 +288,10 @@ export class WalletsService {
           method,
         );
       } catch (e) {
-        this.logger.error(`Auto-processing withdrawal failed`, { transactionId: saved.id, error: e?.message })
+        this.logger.error(`Auto-processing withdrawal failed`, {
+          transactionId: saved.id,
+          error: e?.message,
+        });
       }
     }
 
@@ -254,15 +306,17 @@ export class WalletsService {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than 0');
     }
-  
+
     const wallet = await this.findOne(walletId);
-  
+
     // Ajouter uniquement au solde en attente (pending)
     wallet.pendingBalance = Number(wallet.pendingBalance) + amount;
-  
-    console.log(`[WALLET_PENDING] Adding pending funds to wallet ${walletId}: +${amount}€`);
+
+    console.log(
+      `[WALLET_PENDING] Adding pending funds to wallet ${walletId}: +${amount}€`,
+    );
     console.log(`[WALLET_PENDING] New pending: ${wallet.pendingBalance}€`);
-  
+
     return this.walletsRepository.save(wallet);
   }
 
@@ -270,82 +324,114 @@ export class WalletsService {
    * Transfère les fonds en attente vers les fonds disponibles
    * Utilisé lors de la validation du code de réservation
    */
-  async transferPendingToAvailable(walletId: string, bookingId: string): Promise<Wallet> {
+  async transferPendingToAvailable(
+    walletId: string,
+    bookingId: string,
+  ): Promise<Wallet> {
     const wallet = await this.findOne(walletId);
-    
+
     // Trouver les transactions de revenu pour cette réservation
     const revenueTransactions = await this.transactionsRepository.find({
       where: {
         walletId: walletId,
         bookingId: bookingId,
         type: TransactionType.RENTAL_INCOME,
-        status: TransactionStatus.COMPLETED
-      }
+        status: TransactionStatus.COMPLETED,
+      },
     });
-    
+
     if (revenueTransactions.length === 0) {
-      console.log(`[WALLET_TRANSFER] No revenue transactions found for booking ${bookingId} on wallet ${walletId}`);
-      console.log(`[WALLET_TRANSFER] Wallet state -> pending: ${wallet.pendingBalance}€, available: ${wallet.reservedBalance}€, cumulative: ${wallet.balance}€`);
+      console.log(
+        `[WALLET_TRANSFER] No revenue transactions found for booking ${bookingId} on wallet ${walletId}`,
+      );
+      console.log(
+        `[WALLET_TRANSFER] Wallet state -> pending: ${wallet.pendingBalance}€, available: ${wallet.reservedBalance}€, cumulative: ${wallet.balance}€`,
+      );
       return wallet;
     }
-    
-    const totalRevenue = revenueTransactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
-    console.log(`[WALLET_TRANSFER] Revenue tx count: ${revenueTransactions.length}, totalRevenue: ${totalRevenue}€ for booking ${bookingId} on wallet ${walletId}`);
+
+    const totalRevenue = revenueTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.amount),
+      0,
+    );
+    console.log(
+      `[WALLET_TRANSFER] Revenue tx count: ${revenueTransactions.length}, totalRevenue: ${totalRevenue}€ for booking ${bookingId} on wallet ${walletId}`,
+    );
 
     const transferable = Math.min(Number(wallet.pendingBalance), totalRevenue);
     if (transferable <= 0) {
-      console.warn(`[WALLET_TRANSFER] Nothing transferable. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€`);
+      console.warn(
+        `[WALLET_TRANSFER] Nothing transferable. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€`,
+      );
       return wallet;
     }
     if (Number(wallet.pendingBalance) < totalRevenue) {
-      console.warn(`[WALLET_TRANSFER] Adjusting to pending. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€ -> will transfer ${transferable}€`);
+      console.warn(
+        `[WALLET_TRANSFER] Adjusting to pending. pending=${wallet.pendingBalance}€, revenue=${totalRevenue}€ -> will transfer ${transferable}€`,
+      );
     }
-    
+
     // Transférer du pending vers available ET augmenter le cumulatif
     wallet.pendingBalance = Number(wallet.pendingBalance) - transferable;
     wallet.reservedBalance = Number(wallet.reservedBalance) + transferable;
     wallet.balance = Number(wallet.balance) + transferable;
-    
-    console.log(`[WALLET_TRANSFER] Transferring ${transferable}€ from pending to available+cumulative for booking ${bookingId} (wallet ${walletId})`);
-    console.log(`[WALLET_TRANSFER] New pending: ${wallet.pendingBalance}€, New available: ${wallet.reservedBalance}€, New cumulative: ${wallet.balance}€`);
-    
+
+    console.log(
+      `[WALLET_TRANSFER] Transferring ${transferable}€ from pending to available+cumulative for booking ${bookingId} (wallet ${walletId})`,
+    );
+    console.log(
+      `[WALLET_TRANSFER] New pending: ${wallet.pendingBalance}€, New available: ${wallet.reservedBalance}€, New cumulative: ${wallet.balance}€`,
+    );
+
     return this.walletsRepository.save(wallet);
   }
 
   /**
    * Retire les fonds en attente lors de l'annulation d'une réservation
    */
-  async withdrawPendingFunds(walletId: string, bookingId: string): Promise<Wallet> {
+  async withdrawPendingFunds(
+    walletId: string,
+    bookingId: string,
+  ): Promise<Wallet> {
     const wallet = await this.findOne(walletId);
-    
+
     // Trouver les transactions de revenu pour cette réservation
     const revenueTransactions = await this.transactionsRepository.find({
       where: {
         walletId: walletId,
         bookingId: bookingId,
         type: TransactionType.RENTAL_INCOME,
-        status: TransactionStatus.COMPLETED
-      }
+        status: TransactionStatus.COMPLETED,
+      },
     });
-    
+
     if (revenueTransactions.length === 0) {
-      console.log(`[WALLET_WITHDRAW] No revenue transactions found for booking ${bookingId}`);
+      console.log(
+        `[WALLET_WITHDRAW] No revenue transactions found for booking ${bookingId}`,
+      );
       return wallet;
     }
-    
-    const totalRevenue = revenueTransactions.reduce((sum, transaction) => sum + Number(transaction.amount), 0);
-    
+
+    const totalRevenue = revenueTransactions.reduce(
+      (sum, transaction) => sum + Number(transaction.amount),
+      0,
+    );
+
     if (Number(wallet.pendingBalance) < totalRevenue) {
-      console.warn(`[WALLET_WITHDRAW] Insufficient pending balance: ${wallet.pendingBalance}€ < ${totalRevenue}€`);
+      console.warn(
+        `[WALLET_WITHDRAW] Insufficient pending balance: ${wallet.pendingBalance}€ < ${totalRevenue}€`,
+      );
       return wallet;
     }
-    
+
     // Retirer UNIQUEMENT du solde en attente (pending)
     wallet.pendingBalance = Number(wallet.pendingBalance) - totalRevenue;
-    
-    console.log(`[WALLET_WITHDRAW] Withdrawing ${totalRevenue}€ from pending for cancelled booking ${bookingId}`);
+
+    console.log(
+      `[WALLET_WITHDRAW] Withdrawing ${totalRevenue}€ from pending for cancelled booking ${bookingId}`,
+    );
     console.log(`[WALLET_WITHDRAW] New pending: ${wallet.pendingBalance}€`);
-    
+
     return this.walletsRepository.save(wallet);
   }
 }

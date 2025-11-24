@@ -6,7 +6,7 @@ export class ValidateCodeDto {
     description: 'The validation code to verify',
     example: '1234',
     minLength: 4,
-    maxLength: 6
+    maxLength: 6,
   })
   @IsString()
   @IsNotEmpty()
@@ -17,12 +17,12 @@ export class ValidateCodeDto {
 export class ValidateCodeResponseDto {
   @ApiProperty({
     description: 'Success message',
-    example: 'Validation code verified successfully'
+    example: 'Validation code verified successfully',
   })
   message: string;
 
   @ApiProperty({
-    description: 'Updated booking data'
+    description: 'Updated booking data',
   })
   data: any;
 }

@@ -149,15 +149,29 @@ export class Booking {
   })
   paymentIntentId?: string;
 
-  @Column({ 
-    name: 'payment_status', 
+  @Column({
+    name: 'payment_status',
     type: 'enum',
-    enum: ['pending', 'authorized', 'captured', 'failed', 'cancelled', 'refunded'],
-    default: 'pending'
+    enum: [
+      'pending',
+      'authorized',
+      'captured',
+      'failed',
+      'cancelled',
+      'refunded',
+    ],
+    default: 'pending',
   })
   @ApiProperty({
     description: 'Payment status for this booking',
-    enum: ['pending', 'authorized', 'captured', 'failed', 'cancelled', 'refunded'],
+    enum: [
+      'pending',
+      'authorized',
+      'captured',
+      'failed',
+      'cancelled',
+      'refunded',
+    ],
     default: 'pending',
   })
   paymentStatus: string;
@@ -183,7 +197,13 @@ export class Booking {
   })
   paymentCapturedAt?: Date;
 
-  @Column({ name: 'refund_amount', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'refund_amount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   @ApiProperty({
     description: 'Amount refunded for this booking',
     required: false,
@@ -226,14 +246,22 @@ export class Booking {
   })
   depositPaymentMethodId?: string;
 
-  @Column({ name: 'deposit_capture_scheduled_at', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'deposit_capture_scheduled_at',
+    type: 'timestamp',
+    nullable: true,
+  })
   @ApiProperty({
     description: 'When the deposit capture is scheduled',
     required: false,
   })
   depositCaptureScheduledAt?: Date;
 
-  @Column({ name: 'deposit_notification_sent_at', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'deposit_notification_sent_at',
+    type: 'timestamp',
+    nullable: true,
+  })
   @ApiProperty({
     description: 'When the deposit notification was sent',
     required: false,

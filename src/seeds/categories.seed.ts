@@ -4,10 +4,10 @@ import { Subcategory } from '../categories/entities/subcategory.entity';
 
 export async function seedCategories(dataSource: DataSource) {
   console.log('🏷️ Seeding categories and subcategories...');
-  
+
   const categoryRepository = dataSource.getRepository(Category);
   const subcategoryRepository = dataSource.getRepository(Subcategory);
-  
+
   const categoriesData = [
     {
       name: 'gardening',
@@ -74,7 +74,7 @@ export async function seedCategories(dataSource: DataSource) {
       description: 'Équipement de nettoyage et entretien',
       subcategories: [
         {
-          name: 'indoor-cleaning',  
+          name: 'indoor-cleaning',
           displayName: 'Indoor Cleaning',
           description: 'Outils pour nettoyage intérieur',
         },
@@ -135,8 +135,10 @@ export async function seedCategories(dataSource: DataSource) {
   ];
 
   for (const categoryData of categoriesData) {
-    let category = await categoryRepository.findOne({ where: { name: categoryData.name } });
-    
+    let category = await categoryRepository.findOne({
+      where: { name: categoryData.name },
+    });
+
     if (!category) {
       category = categoryRepository.create({
         name: categoryData.name,
@@ -147,10 +149,10 @@ export async function seedCategories(dataSource: DataSource) {
     }
 
     for (const subcategoryData of categoryData.subcategories) {
-      const existingSubcategory = await subcategoryRepository.findOne({ 
-        where: { name: subcategoryData.name, categoryId: category.id } 
+      const existingSubcategory = await subcategoryRepository.findOne({
+        where: { name: subcategoryData.name, categoryId: category.id },
       });
-      
+
       if (!existingSubcategory) {
         const subcategory = subcategoryRepository.create({
           name: subcategoryData.name,
@@ -163,6 +165,6 @@ export async function seedCategories(dataSource: DataSource) {
       }
     }
   }
-  
+
   console.log('✅ Categories and subcategories seeded successfully');
 }

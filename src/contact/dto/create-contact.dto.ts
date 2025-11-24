@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsEnum,
+} from 'class-validator';
 import { ContactCategory } from '../entities/contact.entity';
 
 export class CreateContactDto {

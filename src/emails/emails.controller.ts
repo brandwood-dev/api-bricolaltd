@@ -1,10 +1,28 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+  Logger,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { EmailsService } from './emails.service';
 import { CreateEmailDto } from './dto/create-email.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { SendGridService } from './sendgrid.service';
 
 @ApiTags('emails')
@@ -14,14 +32,17 @@ export class EmailsController {
 
   constructor(
     private readonly emailsService: EmailsService,
-    private readonly sendGridService: SendGridService
+    private readonly sendGridService: SendGridService,
   ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new email' })
-  @ApiResponse({ status: 201, description: 'The email has been successfully created.' })
+  @ApiResponse({
+    status: 201,
+    description: 'The email has been successfully created.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -75,7 +96,10 @@ export class EmailsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update an email' })
-  @ApiResponse({ status: 200, description: 'The email has been successfully updated.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The email has been successfully updated.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
@@ -88,7 +112,10 @@ export class EmailsController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an email' })
-  @ApiResponse({ status: 200, description: 'The email has been successfully deleted.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The email has been successfully deleted.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
@@ -100,7 +127,10 @@ export class EmailsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark an email as read' })
-  @ApiResponse({ status: 200, description: 'The email has been successfully marked as read.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The email has been successfully marked as read.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   markAsRead(@Param('id') id: string) {
@@ -111,7 +141,10 @@ export class EmailsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark an email as unread' })
-  @ApiResponse({ status: 200, description: 'The email has been successfully marked as unread.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The email has been successfully marked as unread.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
   markAsUnread(@Param('id') id: string) {
@@ -127,117 +160,237 @@ export class EmailsController {
         return {
           success: true,
           message: 'Test email sent successfully',
-          data: { email: body.email }
+          data: { email: body.email },
         };
       } else {
         return {
           success: false,
-          message: 'Failed to send test email'
+          message: 'Failed to send test email',
         };
       }
     } catch (error) {
       this.logger.error('Error sending test email:', error);
       throw new HttpException(
         'Failed to send test email',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Post('send-contact-response')
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async sendContactResponse(@Body() body: { 
-    email: string; 
-    name: string; 
-    subject: string; 
-    response: string; 
-  }) {
+  async sendContactResponse(
+    @Body()
+    body: {
+      email: string;
+      name: string;
+      subject: string;
+      response: string;
+    },
+  ) {
     try {
       const html = `
         <!DOCTYPE html>
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Réponse de Bricola</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Réponse de BRICOLA-LTD</title>
           <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 30px 20px; text-align: center; border-radius: 8px 8px 0 0; }
-            .content { padding: 30px 20px; background: #ffffff; border: 1px solid #e9ecef; }
-            .response-box { margin: 20px 0; padding: 20px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 0 8px 8px 0; }
-            .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              line-height: 1.6; 
+              color: #333; 
+              margin: 0; 
+              padding: 0; 
+              background-color: #f5f5f5;
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              background: #ffffff;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+              border-radius: 12px;
+              overflow: hidden;
+            }
+            .header { 
+              background: linear-gradient(135deg, #007bff, #0056b3); 
+              color: white; 
+              padding: 40px 30px; 
+              text-align: center;
+            }
+            .logo {
+              font-size: 32px;
+              font-weight: bold;
+              margin: 0 0 10px 0;
+              text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+            .subtitle {
+              font-size: 18px;
+              opacity: 0.9;
+              margin: 0;
+              font-weight: 300;
+            }
+            .content { 
+              padding: 40px 30px; 
+              background: #ffffff;
+            }
+            .greeting {
+              color: #007bff;
+              font-size: 24px;
+              margin-top: 0;
+              margin-bottom: 20px;
+              font-weight: 600;
+            }
+            .intro-text {
+              font-size: 16px;
+              margin-bottom: 25px;
+              color: #555;
+            }
+            .response-box { 
+              margin: 30px 0; 
+              padding: 25px; 
+              background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+              border-left: 5px solid #007bff; 
+              border-radius: 8px;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            .response-title {
+              margin-top: 0;
+              color: #007bff;
+              font-size: 20px;
+              margin-bottom: 15px;
+              font-weight: 600;
+            }
+            .response-content {
+              margin-bottom: 0;
+              font-size: 16px;
+              line-height: 1.8;
+              color: #444;
+            }
+            .closing {
+              margin-top: 30px;
+              font-size: 16px;
+              color: #555;
+            }
+            .signature {
+              margin-top: 20px;
+              font-weight: 600;
+              color: #007bff;
+            }
+            .divider {
+              border: none;
+              height: 1px;
+              background: linear-gradient(90deg, transparent, #007bff, transparent);
+              margin: 30px 0;
+            }
+            .footer { 
+              text-align: center; 
+              padding: 30px 20px; 
+              color: #666; 
+              font-size: 14px; 
+              background: #f8f9fa;
+              border-top: 1px solid #e9ecef;
+            }
+            .footer-text {
+              margin: 5px 0;
+            }
+            .highlight {
+              color: #007bff;
+              font-weight: 500;
+            }
+            @media (max-width: 600px) {
+              .container {
+                margin: 10px;
+                border-radius: 8px;
+              }
+              .header, .content {
+                padding: 25px 20px;
+              }
+              .logo {
+                font-size: 28px;
+              }
+              .greeting {
+                font-size: 20px;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0; font-size: 28px;">🏠 Bricola</h1>
-              <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Réponse à votre demande</p>
+              <h1 class="logo">🏠 BRICOLA-LTD</h1>
+              <p class="subtitle">Réponse à votre demande</p>
             </div>
+            
             <div class="content">
-              <h2 style="color: #007bff; margin-top: 0;">Bonjour ${body.name},</h2>
-              <p>Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés.</p>
+              <h2 class="greeting">Bonjour ${body.name},</h2>
+              
+              <p class="intro-text">
+                Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés. 
+                Veuillez trouver ci-dessous notre réponse détaillée à votre demande.
+              </p>
               
               <div class="response-box">
-                <h3 style="margin-top: 0; color: #007bff;">Notre réponse :</h3>
-                <p style="margin-bottom: 0;">${body.response.replace(/\n/g, '<br>')}</p>
+                <h3 class="response-title">Notre réponse :</h3>
+                <p class="response-content">${body.response.replace(/\n/g, '<br>')}</p>
               </div>
               
-              <p>Si vous avez d'autres questions, n'hésitez pas à nous recontacter.</p>
-              <p>Cordialement,<br><strong>L'équipe Bricola</strong></p>
+              <p class="closing">
+                Si vous avez d'autres questions ou besoin d'informations complémentaires, 
+                n'hésitez pas à nous recontacter. Notre équipe reste à votre disposition.
+              </p>
+              
+              <div class="signature">
+                <p>Cordialement,<br>
+                <span class="highlight">L'équipe BRICOLA-LTD</span></p>
+              </div>
+              
+              <hr class="divider">
+              
+              <p style="font-size: 12px; color: #888; text-align: center;">
+                Référence: ${body.subject} | Date: ${new Date().toLocaleDateString('fr-FR')}
+              </p>
             </div>
+            
             <div class="footer">
-              <p>© 2024 Bricola. Tous droits réservés.</p>
-              <p>Email : admin@bricola.com | Téléphone : +33 1 23 45 67 89</p>
+              <p class="footer-text highlight">© 2025 BRICOLA-LTD. Tous droits réservés.</p>
+              <p class="footer-text">
+                <span class="highlight">Email:</span> contact@bricolaltd.com | 
+                <span class="highlight">Téléphone:</span> +33 1 23 45 67 89
+              </p>
+              <p class="footer-text" style="font-size: 12px; margin-top: 10px;">
+                Cet email a été envoyé automatiquement - Merci de ne pas y répondre
+              </p>
             </div>
           </div>
         </body>
         </html>
       `;
 
-      const text = `
-Réponse de Bricola
-
-Bonjour ${body.name},
-
-Nous avons bien reçu votre message et nous vous remercions de nous avoir contactés.
-
-Notre réponse :
-${body.response}
-
-Si vous avez d'autres questions, n'hésitez pas à nous recontacter.
-
-Cordialement,
-L'équipe Bricola
-
-© 2024 Bricola. Tous droits réservés.
-Email : admin@bricola.com | Téléphone : +33 1 23 45 67 89
-      `;
-
       const result = await this.sendGridService.sendEmail({
         to: body.email,
-        subject: `Re: ${body.subject}`,
+        subject: `[BRICOLA-LTD] Réponse à votre demande: ${body.subject}`,
         html,
-        text
       });
 
       if (result) {
         return {
           success: true,
           message: 'Contact response sent successfully',
-          data: { email: body.email, subject: body.subject }
+          data: { email: body.email, subject: body.subject },
         };
       } else {
         return {
           success: false,
-          message: 'Failed to send contact response'
+          message: 'Failed to send contact response',
         };
       }
     } catch (error) {
       this.logger.error('Error sending contact response:', error);
       throw new HttpException(
         'Failed to send contact response',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

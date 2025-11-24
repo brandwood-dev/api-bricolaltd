@@ -98,7 +98,11 @@ export class BookingNotificationService {
     );
   }
 
-  async notifyBookingCancelled(booking: Booking, cancelledBy: 'renter' | 'owner', reason?: string): Promise<void> {
+  async notifyBookingCancelled(
+    booking: Booking,
+    cancelledBy: 'renter' | 'owner',
+    reason?: string,
+  ): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
     const owner = await this.usersService.findOne(tool.ownerId);
@@ -128,7 +132,10 @@ export class BookingNotificationService {
     }
   }
 
-  async notifyBookingRejected(booking: Booking, refusalReason?: string): Promise<void> {
+  async notifyBookingRejected(
+    booking: Booking,
+    refusalReason?: string,
+  ): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
     const owner = await this.usersService.findOne(tool.ownerId);
@@ -212,7 +219,10 @@ export class BookingNotificationService {
     );
   }
 
-  async notifyBookingReminder(booking: Booking, type: 'start' | 'end'): Promise<void> {
+  async notifyBookingReminder(
+    booking: Booking,
+    type: 'start' | 'end',
+  ): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
     const owner = await this.usersService.findOne(tool.ownerId);
@@ -372,7 +382,7 @@ export class BookingNotificationService {
     await this.notificationsService.createSystemNotification(
       booking.renterId,
       NotificationType.PAYMENT_REMINDER,
-      'Paiement d\'acompte requis',
+      "Paiement d'acompte requis",
       `Votre réservation pour "${tool.title}" nécessite un paiement d'acompte. Veuillez effectuer le paiement pour confirmer votre réservation.`,
       booking.id,
       'booking',
@@ -436,7 +446,10 @@ export class BookingNotificationService {
     );
   }
 
-  async sendBookingCancelledNotification(booking: Booking, reason?: string): Promise<void> {
+  async sendBookingCancelledNotification(
+    booking: Booking,
+    reason?: string,
+  ): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
     const owner = await this.usersService.findOne(tool.ownerId);

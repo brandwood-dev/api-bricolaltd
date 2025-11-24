@@ -21,9 +21,9 @@ export class WebhookCronService {
   async handleWebhookRetries(): Promise<void> {
     try {
       this.logger.log('Starting webhook retry processing');
-      
+
       await this.webhookRetryService.processUnprocessedEvents();
-      
+
       this.logger.log('Webhook retry processing completed');
     } catch (error) {
       this.logger.error('Error during webhook retry processing:', error);
@@ -37,9 +37,9 @@ export class WebhookCronService {
   async cleanupRateLimits(): Promise<void> {
     try {
       this.logger.log('Starting rate limit cleanup');
-      
+
       this.webhookRateLimitService.cleanupExpiredEntries();
-      
+
       this.logger.log('Rate limit cleanup completed');
     } catch (error) {
       this.logger.error('Error during rate limit cleanup:', error);
@@ -53,10 +53,12 @@ export class WebhookCronService {
   async cleanupOldEvents(): Promise<void> {
     try {
       this.logger.log('Starting old webhook events cleanup');
-      
+
       const deletedCount = await this.webhookEventService.cleanupOldEvents();
-      
-      this.logger.log(`Old webhook events cleanup completed. Deleted ${deletedCount} events`);
+
+      this.logger.log(
+        `Old webhook events cleanup completed. Deleted ${deletedCount} events`,
+      );
     } catch (error) {
       this.logger.error('Error during old webhook events cleanup:', error);
     }
@@ -69,20 +71,27 @@ export class WebhookCronService {
   async webhookHealthCheck(): Promise<void> {
     try {
       this.logger.log('Starting webhook health check');
-      
+
       // Get count of unprocessed events older than 1 hour
-      const unprocessedEvents = await this.webhookEventService.getUnprocessedEvents(1000);
+      const unprocessedEvents =
+        await this.webhookEventService.getUnprocessedEvents(1000);
       const oldUnprocessedEvents = unprocessedEvents.filter(
-        event => new Date().getTime() - event.createdAt.getTime() > 60 * 60 * 1000 // 1 hour
+        (event) =>
+          new Date().getTime() - event.createdAt.getTime() > 60 * 60 * 1000, // 1 hour
       );
 
       if (oldUnprocessedEvents.length > 0) {
-        this.logger.warn(`Found ${oldUnprocessedEvents.length} unprocessed webhook events older than 1 hour`, {
-          eventIds: oldUnprocessedEvents.map(e => e.eventId),
-          eventTypes: oldUnprocessedEvents.map(e => e.eventType),
-        });
+        this.logger.warn(
+          `Found ${oldUnprocessedEvents.length} unprocessed webhook events older than 1 hour`,
+          {
+            eventIds: oldUnprocessedEvents.map((e) => e.eventId),
+            eventTypes: oldUnprocessedEvents.map((e) => e.eventType),
+          },
+        );
       } else {
-        this.logger.log('Webhook health check passed - no old unprocessed events');
+        this.logger.log(
+          'Webhook health check passed - no old unprocessed events',
+        );
       }
     } catch (error) {
       this.logger.error('Error during webhook health check:', error);

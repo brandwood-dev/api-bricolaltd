@@ -23,16 +23,20 @@ export class EmailSenderService {
     const sesSmtpHost = this.configService.get('SES_SMTP_HOST');
     const sesFromEmail = this.configService.get('SES_FROM_EMAIL');
     const sesFromName = this.configService.get('SES_FROM_NAME');
-    
+
     // Utiliser les credentials SMTP AWS SES (pas les credentials IAM)
-    const sesSmtpUser = this.configService.get('SES_SMTP_USERNAME') || this.configService.get('AWS_ACCESS_KEY_ID');
-    const sesSmtpPass = this.configService.get('SES_SMTP_PASSWORD') || this.configService.get('AWS_SECRET_ACCESS_KEY');
+    const sesSmtpUser =
+      this.configService.get('SES_SMTP_USERNAME') ||
+      this.configService.get('AWS_ACCESS_KEY_ID');
+    const sesSmtpPass =
+      this.configService.get('SES_SMTP_PASSWORD') ||
+      this.configService.get('AWS_SECRET_ACCESS_KEY');
 
     if (sesSmtpHost && sesSmtpUser && sesSmtpPass) {
       this.logger.log('Using AWS SES SMTP for email delivery');
       this.logger.log(`SES Host: ${sesSmtpHost}`);
       this.logger.log(`From Email: ${sesFromEmail}`);
-      
+
       this.transporter = nodemailer.createTransport({
         host: sesSmtpHost,
         port: 587,
@@ -42,8 +46,8 @@ export class EmailSenderService {
           pass: sesSmtpPass,
         },
         tls: {
-          rejectUnauthorized: false
-        }
+          rejectUnauthorized: false,
+        },
       });
       return;
     }
@@ -88,9 +92,11 @@ export class EmailSenderService {
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
-      const fromEmail = this.configService.get('SES_FROM_EMAIL') || this.configService.get('SMTP_FROM', 'noreply@bricola.com');
-      const fromName = this.configService.get('SES_FROM_NAME', 'Bricola');
-      
+      const fromEmail =
+        this.configService.get('SES_FROM_EMAIL') ||
+        this.configService.get('SMTP_FROM', 'noreply@bricola.com');
+      const fromName = this.configService.get('SES_FROM_NAME', 'BRICOLA-LTD');
+
       const mailOptions = {
         from: `${fromName} <${fromEmail}>`,
         to: options.to,
@@ -100,12 +106,12 @@ export class EmailSenderService {
       };
 
       const info = await this.transporter.sendMail(mailOptions);
-      
+
       // Si c'est un compte de test, afficher l'URL de prévisualisation
       if (info.messageId && nodemailer.getTestMessageUrl(info)) {
         this.logger.log(`Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
       }
-      
+
       this.logger.log(`Email sent successfully to ${options.to}`);
       return true;
     } catch (error) {
@@ -114,9 +120,13 @@ export class EmailSenderService {
     }
   }
 
-  async sendVerificationEmail(email: string, verificationToken: string, verificationCode?: string): Promise<boolean> {
+  async sendVerificationEmail(
+    email: string,
+    verificationToken: string,
+    verificationCode?: string,
+  ): Promise<boolean> {
     const verificationUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/verify-email?token=${verificationToken}`;
-    
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -135,12 +145,12 @@ export class EmailSenderService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Bricola</h1>
+            <h1>BRICOLA-LTD</h1>
           </div>
           <div class="content">
             <h2>Vérifiez votre adresse email</h2>
             <p>Bonjour,</p>
-            <p>Merci de vous être inscrit sur Bricola ! Pour finaliser votre inscription, vous avez deux options :</p>
+            <p>Merci de vous être inscrit sur BRICOLA-LTD ! Pour finaliser votre inscription, vous avez deux options :</p>
             
             <div style="margin: 30px 0; padding: 20px; background: #fff; border-radius: 8px; border-left: 4px solid #007bff;">
               <h3 style="margin-top: 0; color: #007bff;">Option 1 : Cliquez sur le lien</h3>
@@ -151,7 +161,9 @@ export class EmailSenderService {
               <p style="word-break: break-all; font-size: 12px; color: #666;">${verificationUrl}</p>
             </div>
             
-            ${verificationCode ? `
+            ${
+              verificationCode
+                ? `
             <div style="margin: 30px 0; padding: 20px; background: #fff; border-radius: 8px; border-left: 4px solid #28a745;">
               <h3 style="margin-top: 0; color: #28a745;">Option 2 : Utilisez ce code</h3>
               <p>Entrez ce code de vérification sur la page de vérification :</p>
@@ -160,13 +172,15 @@ export class EmailSenderService {
               </div>
               <p style="font-size: 14px; color: #666;">Ce code expire dans 15 minutes.</p>
             </div>
-            ` : ''}
+            `
+                : ''
+            }
             
             <p style="margin-top: 30px;">Le lien expirera dans 24 heures.</p>
-            <p>Si vous n'avez pas créé de compte sur Bricola, vous pouvez ignorer cet email.</p>
+            <p>Si vous n'avez pas créé de compte sur BRICOLA-LTD, vous pouvez ignorer cet email.</p>
           </div>
           <div class="footer">
-            <p>© 2024 Bricola. Tous droits réservés.</p>
+            <p>© 2025 BRICOLA-LTD. Tous droits réservés.</p>
           </div>
         </div>
       </body>
@@ -178,31 +192,38 @@ export class EmailSenderService {
       
       Bonjour,
       
-      Merci de vous être inscrit sur Bricola ! Pour finaliser votre inscription, vous avez deux options :
+      Merci de vous être inscrit sur BRICOLA-LTD ! Pour finaliser votre inscription, vous avez deux options :
       
       Option 1 : Cliquez sur ce lien
       ${verificationUrl}
       
-      ${verificationCode ? `Option 2 : Utilisez ce code de vérification
+      ${
+        verificationCode
+          ? `Option 2 : Utilisez ce code de vérification
       Code : ${verificationCode}
       (Ce code expire dans 15 minutes)
       
-      ` : ''}Le lien expirera dans 24 heures.
+      `
+          : ''
+      }Le lien expirera dans 24 heures.
       
-      Si vous n'avez pas créé de compte sur Bricola, vous pouvez ignorer cet email.
+      Si vous n'avez pas créé de compte sur BRICOLA-LTD, vous pouvez ignorer cet email.
       
-      © 2024 Bricola. Tous droits réservés.
+      © 2025 BRICOLA-LTD. Tous droits réservés.
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Vérifiez votre adresse email - Bricola',
+      subject: 'Vérifiez votre adresse email - BRICOLA-LTD',
       html,
       text,
     });
   }
 
-  async sendPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
+  async sendPasswordResetEmail(
+    email: string,
+    resetCode: string,
+  ): Promise<boolean> {
     const html = `
       <!DOCTYPE html>
       <html>
@@ -222,7 +243,7 @@ export class EmailSenderService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Bricola</h1>
+            <h1>BRICOLA-LTD</h1>
           </div>
           <div class="content">
             <h2>Réinitialisation de votre mot de passe</h2>
@@ -237,7 +258,7 @@ export class EmailSenderService {
             <p>Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.</p>
           </div>
           <div class="footer">
-            <p>© 2024 Bricola. Tous droits réservés.</p>
+            <p>© 2025 BRICOLA-LTD. Tous droits réservés.</p>
           </div>
         </div>
       </body>
@@ -260,12 +281,12 @@ Ce code expire dans 15 minutes.
 
 Si vous n'avez pas demandé cette réinitialisation, vous pouvez ignorer cet email.
 
-© 2024 Bricola. Tous droits réservés.
+© 2025 BRICOLA-LTD. Tous droits réservés.
     `;
 
     return this.sendEmail({
       to: email,
-      subject: 'Réinitialisation de votre mot de passe - Bricola',
+      subject: 'Réinitialisation de votre mot de passe - BRICOLA-LTD',
       html,
       text,
     });

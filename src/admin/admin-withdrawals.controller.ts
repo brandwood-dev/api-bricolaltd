@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { WithdrawalProcessingService } from '../wallets/withdrawal-processing.service';
@@ -10,7 +25,11 @@ import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { WalletsService } from '../wallets/wallets.service';
 import { AdminNotificationsService } from './admin-notifications.service';
-import { NotificationPriority, NotificationCategory, NotificationType } from './dto/admin-notifications.dto';
+import {
+  NotificationPriority,
+  NotificationCategory,
+  NotificationType,
+} from './dto/admin-notifications.dto';
 import { CreateWalletDto } from '../wallets/dto/create-wallet.dto';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
@@ -33,7 +52,10 @@ export class AdminWithdrawalsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all withdrawal requests (paginated)' })
-  @ApiResponse({ status: 200, description: 'Return paginated withdrawal requests.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated withdrawal requests.',
+  })
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -74,7 +96,9 @@ export class AdminWithdrawalsController {
       amount: Number(t.amount),
       fees: 0,
       netAmount: Number(t.amount),
-      paymentMethod: (t as any).paymentMethod || ((t as any).wizeTransferId ? 'bank_transfer' : 'stripe_connect'),
+      paymentMethod:
+        (t as any).paymentMethod ||
+        ((t as any).wizeTransferId ? 'bank_transfer' : 'stripe_connect'),
       status: statusMap[String(t.status)] || 'pending',
       type: 'user',
       createdAt: t.createdAt,
@@ -88,7 +112,8 @@ export class AdminWithdrawalsController {
             phoneNumber: (t.sender as any).phoneNumber,
           }
         : undefined,
-      bankDetails: (t as any).wizeResponse || (t as any).providerMetadata || undefined,
+      bankDetails:
+        (t as any).wizeResponse || (t as any).providerMetadata || undefined,
     }));
 
     return {
@@ -105,7 +130,10 @@ export class AdminWithdrawalsController {
 
   @Get('pending')
   @ApiOperation({ summary: 'Get pending withdrawal requests (paginated)' })
-  @ApiResponse({ status: 200, description: 'Return paginated pending withdrawal requests.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return paginated pending withdrawal requests.',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   async getPendingWithdrawals(
@@ -117,7 +145,9 @@ export class AdminWithdrawalsController {
       .leftJoinAndSelect('transaction.sender', 'sender')
       .leftJoinAndSelect('transaction.recipient', 'recipient')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.PENDING })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.PENDING,
+      })
       .orderBy('transaction.createdAt', 'DESC');
 
     const [rows, total] = await qb
@@ -130,7 +160,9 @@ export class AdminWithdrawalsController {
       amount: Number(t.amount),
       fees: 0,
       netAmount: Number(t.amount),
-      paymentMethod: (t as any).paymentMethod || ((t as any).wizeTransferId ? 'bank_transfer' : 'stripe_connect'),
+      paymentMethod:
+        (t as any).paymentMethod ||
+        ((t as any).wizeTransferId ? 'bank_transfer' : 'stripe_connect'),
       status: 'pending',
       type: 'user',
       createdAt: t.createdAt,
@@ -144,7 +176,8 @@ export class AdminWithdrawalsController {
             phoneNumber: (t.sender as any).phoneNumber,
           }
         : undefined,
-      bankDetails: (t as any).wizeResponse || (t as any).providerMetadata || undefined,
+      bankDetails:
+        (t as any).wizeResponse || (t as any).providerMetadata || undefined,
     }));
 
     return {
@@ -167,13 +200,36 @@ export class AdminWithdrawalsController {
       .createQueryBuilder('transaction')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL });
 
-    const pendingCount = await baseQB.clone().andWhere('transaction.status = :s', { s: TransactionStatus.PENDING }).getCount();
-    const approvedCount = await baseQB.clone().andWhere('transaction.status IN (:...s)', { s: [TransactionStatus.PROCESSING, TransactionStatus.CONFIRMED] }).getCount();
-    const completedCount = await baseQB.clone().andWhere('transaction.status = :s', { s: TransactionStatus.COMPLETED }).getCount();
-    const rejectedCount = await baseQB.clone().andWhere('transaction.status IN (:...s)', { s: [TransactionStatus.FAILED, TransactionStatus.CANCELLED] }).getCount();
+    const pendingCount = await baseQB
+      .clone()
+      .andWhere('transaction.status = :s', { s: TransactionStatus.PENDING })
+      .getCount();
+    const approvedCount = await baseQB
+      .clone()
+      .andWhere('transaction.status IN (:...s)', {
+        s: [TransactionStatus.PROCESSING, TransactionStatus.CONFIRMED],
+      })
+      .getCount();
+    const completedCount = await baseQB
+      .clone()
+      .andWhere('transaction.status = :s', { s: TransactionStatus.COMPLETED })
+      .getCount();
+    const rejectedCount = await baseQB
+      .clone()
+      .andWhere('transaction.status IN (:...s)', {
+        s: [TransactionStatus.FAILED, TransactionStatus.CANCELLED],
+      })
+      .getCount();
 
-    const totalAmountResult = await baseQB.clone().select('SUM(transaction.amount)', 'sum').getRawOne();
-    const completedAmountResult = await baseQB.clone().select('SUM(transaction.amount)', 'sum').andWhere('transaction.status = :s', { s: TransactionStatus.COMPLETED }).getRawOne();
+    const totalAmountResult = await baseQB
+      .clone()
+      .select('SUM(transaction.amount)', 'sum')
+      .getRawOne();
+    const completedAmountResult = await baseQB
+      .clone()
+      .select('SUM(transaction.amount)', 'sum')
+      .andWhere('transaction.status = :s', { s: TransactionStatus.COMPLETED })
+      .getRawOne();
 
     const stats = {
       pendingCount,
@@ -190,11 +246,15 @@ export class AdminWithdrawalsController {
 
   @Post(':id/approve')
   @ApiOperation({ summary: 'Approve and process a withdrawal request' })
-  @ApiResponse({ status: 200, description: 'Withdrawal approved and processed.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Withdrawal approved and processed.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request or processing error.' })
   async approveWithdrawal(
     @Param('id') transactionId: string,
-    @Body() approvalData: {
+    @Body()
+    approvalData: {
       stripeAccountId?: string;
       bankAccountDetails?: {
         iban?: string;
@@ -205,13 +265,13 @@ export class AdminWithdrawalsController {
         currency?: string;
       };
       method?: 'wise' | 'stripe_connect' | 'stripe_payout';
-    }
+    },
   ) {
     return this.withdrawalProcessingService.processWithdrawal(
       transactionId,
       approvalData.stripeAccountId,
       approvalData.bankAccountDetails,
-      approvalData.method
+      approvalData.method,
     );
   }
 
@@ -221,11 +281,11 @@ export class AdminWithdrawalsController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   async rejectWithdrawal(
     @Param('id') transactionId: string,
-    @Body() rejectionData: { reason: string }
+    @Body() rejectionData: { reason: string },
   ) {
     return this.withdrawalProcessingService.cancelWithdrawal(
       transactionId,
-      rejectionData.reason
+      rejectionData.reason,
     );
   }
 
@@ -235,21 +295,21 @@ export class AdminWithdrawalsController {
   @ApiResponse({ status: 400, description: 'Bad request.' })
   async cancelWithdrawal(
     @Param('id') transactionId: string,
-    @Body() cancellationData: { reason: string }
+    @Body() cancellationData: { reason: string },
   ) {
     return this.withdrawalProcessingService.cancelWithdrawal(
       transactionId,
-      cancellationData.reason
+      cancellationData.reason,
     );
   }
 
   @Post('test')
   @ApiOperation({ summary: 'Create a test withdrawal for a user by email' })
   @ApiResponse({ status: 201, description: 'Test withdrawal created.' })
-  async createTestWithdrawal(
-    @Body() body: { email: string; amount?: number }
-  ) {
-    const user = await this.usersRepository.findOne({ where: { email: body.email } });
+  async createTestWithdrawal(@Body() body: { email: string; amount?: number }) {
+    const user = await this.usersRepository.findOne({
+      where: { email: body.email },
+    });
     if (!user) {
       throw new Error('User not found');
     }
@@ -283,7 +343,9 @@ export class AdminWithdrawalsController {
       return {
         success: true,
         connected: isConnected,
-        message: isConnected ? 'Wise API connection successful' : 'Wise API connection failed',
+        message: isConnected
+          ? 'Wise API connection successful'
+          : 'Wise API connection failed',
       };
     } catch (error) {
       return {
@@ -296,7 +358,10 @@ export class AdminWithdrawalsController {
 
   @Post('wise/create-test-recipient')
   @ApiOperation({ summary: 'Create test recipient with test bank details' })
-  @ApiResponse({ status: 201, description: 'Test recipient created successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'Test recipient created successfully',
+  })
   async createTestRecipient(): Promise<any> {
     try {
       const recipient = await this.wiseService.createTestRecipient();
@@ -340,7 +405,10 @@ export class AdminWithdrawalsController {
 
   @Get('wise/recipients')
   @ApiOperation({ summary: 'List all Wise recipients' })
-  @ApiResponse({ status: 200, description: 'Recipients retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Recipients retrieved successfully',
+  })
   async listWiseRecipients(): Promise<any> {
     try {
       const recipients = await this.wiseService.listRecipientAccounts();

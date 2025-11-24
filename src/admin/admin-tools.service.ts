@@ -242,32 +242,39 @@ export class AdminToolsService {
     try {
       const ownerId = saved.owner?.id;
       const ownerEmail = saved.owner?.email;
-      const ownerName = saved.owner ? `${saved.owner.firstName} ${saved.owner.lastName}` : undefined;
+      const ownerName = saved.owner
+        ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        : undefined;
 
       if (ownerId) {
         // In-app notification
-        const userNotification = await this.notificationsService.createSystemNotification(
-          ownerId,
-          NotificationType.TOOL_REJECTED,
-          'Outil rejeté',
-          `Votre outil "${saved.title}" a été rejeté. Raison: ${saved.rejectionReason}.`,
-          saved.id,
-          'tool',
-          `/tools/${saved.id}`,
-        );
+        const userNotification =
+          await this.notificationsService.createSystemNotification(
+            ownerId,
+            NotificationType.TOOL_REJECTED,
+            'Outil rejeté',
+            `Votre outil "${saved.title}" a été rejeté. Raison: ${saved.rejectionReason}.`,
+            saved.id,
+            'tool',
+            `/tools/${saved.id}`,
+          );
 
         // WebSocket push to user
-        await this.notificationsGateway.sendNotificationToUser(ownerId, userNotification);
+        await this.notificationsGateway.sendNotificationToUser(
+          ownerId,
+          userNotification,
+        );
       }
 
       // Email notification (if email present)
       if (ownerEmail) {
-        const template = this.toolRejectionEmailService.getRejectionEmailTemplate(
-          saved.rejectionReason || '',
-          saved.owner?.firstName,
-          saved.title,
-          process.env.FRONTEND_URL,
-        );
+        const template =
+          this.toolRejectionEmailService.getRejectionEmailTemplate(
+            saved.rejectionReason || '',
+            saved.owner?.firstName,
+            saved.title,
+            process.env.FRONTEND_URL,
+          );
 
         await this.sendGridService.sendEmail({
           to: ownerEmail,
@@ -285,7 +292,9 @@ export class AdminToolsService {
   async runRejectionTemplatesTest(ownerEmail: string, ownerId?: string) {
     const results: any[] = [];
     // Ensure owner exists
-    let owner = ownerId ? await this.userRepository.findOne({ where: { id: ownerId } }) : await this.userRepository.findOne({ where: { email: ownerEmail } });
+    const owner = ownerId
+      ? await this.userRepository.findOne({ where: { id: ownerId } })
+      : await this.userRepository.findOne({ where: { email: ownerEmail } });
     if (!owner) {
       throw new NotFoundException('Owner user not found for provided email');
     }
@@ -294,7 +303,9 @@ export class AdminToolsService {
     const category = await this.categoryRepository.findOne({});
     const subcategory = await this.subcategoryRepository.findOne({});
     if (!category || !subcategory) {
-      throw new NotFoundException('Category/Subcategory not found to create test tool');
+      throw new NotFoundException(
+        'Category/Subcategory not found to create test tool',
+      );
     }
 
     const reasons = [
@@ -319,25 +330,46 @@ export class AdminToolsService {
         subcategoryId: subcategory.id,
         ownerId: owner.id,
       } as any;
-      const tool = await this.toolRepository.save(this.toolRepository.create(createDto));
+      const tool = await this.toolRepository.save(
+        this.toolRepository.create(createDto),
+      );
 
       const rejected = await this.rejectTool(tool.id, reason);
-      const inAppNotification = await this.notificationsService.findByUserId(owner.id, 1, 10);
-      const lastWsNotification = this.notificationsGateway.getLastNotificationForUser(owner.id);
-      const template = this.toolRejectionEmailService.getRejectionEmailTemplate(reason, owner.firstName, rejected.title, process.env.FRONTEND_URL);
+      const inAppNotification = await this.notificationsService.findByUserId(
+        owner.id,
+        1,
+        10,
+      );
+      const lastWsNotification =
+        this.notificationsGateway.getLastNotificationForUser(owner.id);
+      const template = this.toolRejectionEmailService.getRejectionEmailTemplate(
+        reason,
+        owner.firstName,
+        rejected.title,
+        process.env.FRONTEND_URL,
+      );
       // verify persisted email log for owner
       const emailsForUser = await this.emailsService.findByUser(owner.id);
       const latestEmail = emailsForUser[0];
-      const emailMatchesTemplate = latestEmail ? latestEmail.subject === template.subject : false;
+      const emailMatchesTemplate = latestEmail
+        ? latestEmail.subject === template.subject
+        : false;
 
       results.push({
         reason,
         emailSubject: template.subject,
         emailLogged: !!latestEmail,
         emailMatchesTemplate,
-        linkUsesFrontendUrl: (template.html.includes((process.env.FRONTEND_URL || 'http://localhost:3000') + '/tools')),
+        linkUsesFrontendUrl: template.html.includes(
+          (process.env.FRONTEND_URL || 'http://localhost:3000') + '/tools',
+        ),
         inAppCount: inAppNotification.total,
-        lastWsNotification: lastWsNotification ? { title: lastWsNotification?.title, message: lastWsNotification?.message } : null,
+        lastWsNotification: lastWsNotification
+          ? {
+              title: lastWsNotification?.title,
+              message: lastWsNotification?.message,
+            }
+          : null,
       });
     }
 
@@ -378,7 +410,7 @@ export class AdminToolsService {
     return saved;
   }
 
-  async deleteTool(id: string): Promise<{ message: string }> {
+  async deleteTool(id: string, reason?: string): Promise<{ message: string }> {
     const tool = await this.findOneForAdmin(id);
 
     // Check if tool has active bookings
@@ -395,7 +427,19 @@ export class AdminToolsService {
       throw new BadRequestException('Cannot delete tool with active bookings');
     }
 
+    // Send email notification to tool owner before deletion
+    if (tool.owner && tool.owner.email) {
+      console.log(`📧 Sending tool removal email to tool owner: ${tool.owner.email}`);
+      try {
+        await this.sendToolRemovalEmail(tool.owner, tool.title, reason);
+      } catch (error) {
+        console.error('Failed to send tool removal email:', error);
+        // Don't throw error to avoid blocking deletion if email fails
+      }
+    }
+
     await this.toolRepository.remove(tool);
+    
     // Notify admins of deletion
     try {
       await this.adminNotificationsService.createUserNotification(
@@ -408,6 +452,7 @@ export class AdminToolsService {
         NotificationPriority.HIGH,
       );
     } catch {}
+    
     return { message: 'Tool deleted successfully' };
   }
 
@@ -516,5 +561,79 @@ export class AdminToolsService {
     }
 
     return queryBuilder;
+  }
+
+  private async sendToolRemovalEmail(
+    owner: User,
+    toolName: string,
+    reason?: string,
+  ): Promise<void> {
+    console.log(`📧 Preparing tool removal email for ${owner.email} - Tool: ${toolName}`);
+    
+    const subject = 'Tool Removal Notification';
+    
+    // Use provided reason or default message
+    const deletionReason = reason || 'Violation of platform terms and conditions';
+    
+    console.log(`📧 Deletion reason: ${deletionReason}`);
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Tool Removal Notification</title>
+          <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+              .content { background-color: #ffffff; padding: 30px; border: 1px solid #dee2e6; border-radius: 0 0 8px 8px; }
+              .highlight { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0; }
+              .reason { background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0; }
+              .footer { text-align: center; margin-top: 30px; padding: 20px; color: #6c757d; font-size: 14px; }
+              .company-name { color: #007bff; font-weight: bold; }
+          </style>
+      </head>
+      <body>
+          <div class="header">
+              <h1>Tool Removal Notification</h1>
+          </div>
+          <div class="content">
+              <p>Dear <strong>${owner.firstName} ${owner.lastName}</strong>,</p>
+              
+              <p>We would like to inform you that your tool <strong>${toolName}</strong> has been removed from our platform by the administration team.</p>
+              
+              <div class="reason">
+                  <strong>Reason for Removal:</strong><br>
+                  ${deletionReason}
+              </div>
+              
+              <div class="highlight">
+                  <strong>Please note that this action is permanent and irreversible.</strong> The tool cannot be restored once deleted.
+              </div>
+              
+              <p>This decision was taken in accordance with our platform's quality, security, and compliance standards.</p>
+              
+              <p>If you believe this removal was made in error or if you need further clarification, please feel free to contact our support team.</p>
+              
+              <p>Thank you for your understanding and cooperation.</p>
+              
+              <p>Kind regards,<br>
+              <span class="company-name">BRICOLA-LTD</span> Support Team</p>
+          </div>
+          <div class="footer">
+              <p>&copy; 2025 <span class="company-name">BRICOLA-LTD</span>. All rights reserved.</p>
+          </div>
+      </body>
+      </html>
+    `;
+
+    await this.sendGridService.sendEmail({
+      to: owner.email,
+      subject,
+      html: htmlContent,
+    });
+    
+    console.log(`✅ Tool removal email sent successfully to ${owner.email}`);
   }
 }

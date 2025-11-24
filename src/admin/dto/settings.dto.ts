@@ -1,4 +1,10 @@
-import { IsEnum, IsString, IsBoolean, IsOptional, IsNotEmpty } from 'class-validator';
+import {
+  IsEnum,
+  IsString,
+  IsBoolean,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { SettingCategory, SettingType } from '../entities/setting.entity';
 

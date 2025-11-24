@@ -14,22 +14,35 @@ import { CreatePaymentProviderDto } from './dto/create-payment-provider.dto';
 import { UpdatePaymentProviderDto } from './dto/update-payment-provider.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 @ApiTags('payment-providers')
 @Controller('payment-providers')
 export class PaymentProviderController {
-  constructor(private readonly paymentProviderService: PaymentProviderService) {}
+  constructor(
+    private readonly paymentProviderService: PaymentProviderService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new payment provider' })
-  @ApiResponse({ status: 201, description: 'The payment provider has been successfully created.' })
+  @ApiResponse({
+    status: 201,
+    description: 'The payment provider has been successfully created.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 409, description: 'Payment provider with this name already exists.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Payment provider with this name already exists.',
+  })
   create(@Body() createPaymentProviderDto: CreatePaymentProviderDto) {
     return this.paymentProviderService.create(createPaymentProviderDto);
   }
@@ -48,7 +61,10 @@ export class PaymentProviderController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all active payment providers' })
-  @ApiResponse({ status: 200, description: 'Return all active payment providers.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return all active payment providers.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   findActive() {
     return this.paymentProviderService.findActive();
@@ -80,13 +96,22 @@ export class PaymentProviderController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a payment provider' })
-  @ApiResponse({ status: 200, description: 'The payment provider has been successfully updated.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The payment provider has been successfully updated.',
+  })
   @ApiResponse({ status: 400, description: 'Bad request.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
-  @ApiResponse({ status: 409, description: 'Payment provider with this name already exists.' })
-  update(@Param('id', ParseIntPipe) id: number, @Body() updatePaymentProviderDto: UpdatePaymentProviderDto) {
+  @ApiResponse({
+    status: 409,
+    description: 'Payment provider with this name already exists.',
+  })
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePaymentProviderDto: UpdatePaymentProviderDto,
+  ) {
     return this.paymentProviderService.update(id, updatePaymentProviderDto);
   }
 
@@ -94,7 +119,10 @@ export class PaymentProviderController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle active status of a payment provider' })
-  @ApiResponse({ status: 200, description: 'The payment provider status has been successfully toggled.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The payment provider status has been successfully toggled.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })
@@ -106,7 +134,10 @@ export class PaymentProviderController {
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a payment provider' })
-  @ApiResponse({ status: 200, description: 'The payment provider has been successfully deleted.' })
+  @ApiResponse({
+    status: 200,
+    description: 'The payment provider has been successfully deleted.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Not found.' })

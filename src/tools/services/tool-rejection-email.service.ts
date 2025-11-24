@@ -23,7 +23,8 @@ export class ToolRejectionEmailService {
     frontendUrlEnv?: string,
   ): ToolRejectionEmailTemplate {
     const key = this.normalizeReason(reason);
-    const frontendUrl = frontendUrlEnv || process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl =
+      frontendUrlEnv || process.env.FRONTEND_URL || 'http://localhost:3000';
     const namePart = firstName ? ` ${firstName}` : '';
     const baseTextFooter = `\n\nWe remain available should you need any assistance.\nSincerely,\nThe BricolaLTD Team\n\n© ${new Date().getFullYear()} BricolaLTD. All rights reserved.`;
 
@@ -92,22 +93,57 @@ export class ToolRejectionEmailService {
     const r = (reason || '').toLowerCase();
     // French keywords
     if (r.includes('incomplet')) return 'incomplete_information';
-    if (r.includes('prix') || r.includes('tarif') || r.includes('non conforme')) return 'non_compliant_price';
-    if (r.includes('photo') || r.includes('image')) return 'poor_quality_photos';
-    if (r.includes('description') || r.includes('insuffisant')) return 'insufficient_description';
-    if (r.includes('inapproprié') || r.includes('inapproprie') || r.includes('contenu')) return 'inappropriate_content';
-    if (r.includes('fausse') || r.includes('trompeuse') || r.includes('mensong') || r.includes('faux')) return 'false_or_misleading_information';
+    if (r.includes('prix') || r.includes('tarif') || r.includes('non conforme'))
+      return 'non_compliant_price';
+    if (r.includes('photo') || r.includes('image'))
+      return 'poor_quality_photos';
+    if (r.includes('description') || r.includes('insuffisant'))
+      return 'insufficient_description';
+    if (
+      r.includes('inapproprié') ||
+      r.includes('inapproprie') ||
+      r.includes('contenu')
+    )
+      return 'inappropriate_content';
+    if (
+      r.includes('fausse') ||
+      r.includes('trompeuse') ||
+      r.includes('mensong') ||
+      r.includes('faux')
+    )
+      return 'false_or_misleading_information';
     // English keywords
     if (r.includes('incomplete information')) return 'incomplete_information';
-    if (r.includes('non-compliant price') || (r.includes('price') && r.includes('non-compliant'))) return 'non_compliant_price';
-    if (r.includes('poor quality photo') || r.includes('poor quality photos') || r.includes('photo quality')) return 'poor_quality_photos';
-    if (r.includes('insufficient description')) return 'insufficient_description';
+    if (
+      r.includes('non-compliant price') ||
+      (r.includes('price') && r.includes('non-compliant'))
+    )
+      return 'non_compliant_price';
+    if (
+      r.includes('poor quality photo') ||
+      r.includes('poor quality photos') ||
+      r.includes('photo quality')
+    )
+      return 'poor_quality_photos';
+    if (r.includes('insufficient description'))
+      return 'insufficient_description';
     if (r.includes('inappropriate content')) return 'inappropriate_content';
-    if (r.includes('false or misleading') || r.includes('misleading information') || r.includes('false information')) return 'false_or_misleading_information';
+    if (
+      r.includes('false or misleading') ||
+      r.includes('misleading information') ||
+      r.includes('false information')
+    )
+      return 'false_or_misleading_information';
     return 'other';
   }
 
-  private buildTemplate(subject: string, textBody: string, textAlt: string, namePart: string, frontendUrl: string): ToolRejectionEmailTemplate {
+  private buildTemplate(
+    subject: string,
+    textBody: string,
+    textAlt: string,
+    namePart: string,
+    frontendUrl: string,
+  ): ToolRejectionEmailTemplate {
     const html = `
       <!DOCTYPE html>
       <html>

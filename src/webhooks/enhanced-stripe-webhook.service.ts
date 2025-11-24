@@ -46,7 +46,7 @@ export class EnhancedStripeWebhookService {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2025-02-24.acacia',
     });
   }
 
@@ -56,10 +56,10 @@ export class EnhancedStripeWebhookService {
   async processWebhook(
     event: Stripe.Event,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<WebhookProcessingResult> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.log(`Processing webhook: ${event.type} - ${event.id}`, {
         eventId: event.id,
@@ -74,7 +74,9 @@ export class EnhancedStripeWebhookService {
       }
 
       // Check for duplicate events
-      const isDuplicate = await this.webhookEventService.isEventProcessed(event.id);
+      const isDuplicate = await this.webhookEventService.isEventProcessed(
+        event.id,
+      );
       if (isDuplicate) {
         this.logger.warn(`Duplicate event received: ${event.id}`);
         return {
@@ -87,7 +89,11 @@ export class EnhancedStripeWebhookService {
       }
 
       // Store the event for deduplication
-      await this.webhookEventService.storeWebhookEvent(event, ipAddress, userAgent);
+      await this.webhookEventService.storeWebhookEvent(
+        event,
+        ipAddress,
+        userAgent,
+      );
 
       // Process the event based on its type
       await this.processWebhookEvent(event);
@@ -96,7 +102,9 @@ export class EnhancedStripeWebhookService {
       await this.webhookEventService.markEventAsProcessed(event.id);
 
       const processingTime = Date.now() - startTime;
-      this.logger.log(`Webhook processed successfully in ${processingTime}ms: ${event.type} - ${event.id}`);
+      this.logger.log(
+        `Webhook processed successfully in ${processingTime}ms: ${event.type} - ${event.id}`,
+      );
 
       return {
         success: true,
@@ -104,22 +112,27 @@ export class EnhancedStripeWebhookService {
         eventId: event.id,
         message: 'Event processed successfully',
       };
-
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      
-      this.logger.error(`Webhook processing failed after ${processingTime}ms:`, {
-        eventId: event.id,
-        eventType: event.type,
-        error: error.message,
-        stack: error.stack,
-        ipAddress,
-        userAgent,
-      });
+
+      this.logger.error(
+        `Webhook processing failed after ${processingTime}ms:`,
+        {
+          eventId: event.id,
+          eventType: event.type,
+          error: error.message,
+          stack: error.stack,
+          ipAddress,
+          userAgent,
+        },
+      );
 
       // Mark event as processed with error
       if (event.id) {
-        await this.webhookEventService.markEventAsProcessed(event.id, error.message);
+        await this.webhookEventService.markEventAsProcessed(
+          event.id,
+          error.message,
+        );
       }
 
       // Re-throw for proper HTTP response
@@ -140,7 +153,9 @@ export class EnhancedStripeWebhookService {
       switch (type) {
         // Critical Payment Intent Events
         case 'payment_intent.succeeded':
-          await this.handlePaymentIntentSucceeded(object as Stripe.PaymentIntent);
+          await this.handlePaymentIntentSucceeded(
+            object as Stripe.PaymentIntent,
+          );
           break;
 
         case 'payment_intent.payment_failed':
@@ -148,11 +163,15 @@ export class EnhancedStripeWebhookService {
           break;
 
         case 'payment_intent.canceled':
-          await this.handlePaymentIntentCanceled(object as Stripe.PaymentIntent);
+          await this.handlePaymentIntentCanceled(
+            object as Stripe.PaymentIntent,
+          );
           break;
 
         case 'payment_intent.requires_action':
-          await this.handlePaymentIntentRequiresAction(object as Stripe.PaymentIntent);
+          await this.handlePaymentIntentRequiresAction(
+            object as Stripe.PaymentIntent,
+          );
           break;
 
         // Critical Charge Events
@@ -215,7 +234,7 @@ export class EnhancedStripeWebhookService {
       }
     } catch (error) {
       this.logger.error(`Error processing event ${type} - ${event.id}:`, error);
-      
+
       // Create admin notification for processing errors
       await this.adminNotificationsService.createAdminNotification({
         title: 'Webhook Processing Error',
@@ -224,33 +243,48 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.HIGH,
         category: AdminNotificationCategory.PAYMENT,
       });
-      
+
       throw error;
     }
   }
 
   // Enhanced Event Handlers
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    this.logger.log(`Processing successful payment intent: ${paymentIntent.id}`);
-    
+  private async handlePaymentIntentSucceeded(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    this.logger.log(
+      `Processing successful payment intent: ${paymentIntent.id}`,
+    );
+
     try {
       // Update transaction status
-      await this.updateTransactionFromPaymentIntent(paymentIntent.id, TransactionStatus.COMPLETED);
+      await this.updateTransactionFromPaymentIntent(
+        paymentIntent.id,
+        TransactionStatus.COMPLETED,
+      );
 
       // Update booking status
-      await this.updateBookingFromPaymentIntent(paymentIntent, 'payment_confirmed');
+      await this.updateBookingFromPaymentIntent(
+        paymentIntent,
+        'payment_confirmed',
+      );
 
       // Update wallet balance for recipient
       if (paymentIntent.metadata?.booking_id) {
         const booking = await this.bookingsRepository.findOne({
-          where: { id: paymentIntent.metadata.booking_id }
+          where: { id: paymentIntent.metadata.booking_id },
         });
 
         if (booking && booking.ownerId) {
           // Update wallet balance using existing method
-          const wallet = await this.walletsService.findByUserId(booking.ownerId);
+          const wallet = await this.walletsService.findByUserId(
+            booking.ownerId,
+          );
           if (wallet) {
-            await this.walletsService.addAvailableFunds(wallet.id, paymentIntent.amount / 100);
+            await this.walletsService.addAvailableFunds(
+              wallet.id,
+              paymentIntent.amount / 100,
+            );
           }
         }
       }
@@ -263,25 +297,33 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.MEDIUM,
         category: AdminNotificationCategory.PAYMENT,
       });
-
     } catch (error) {
       this.logger.error(`Error processing payment intent succeeded:`, error);
       throw error;
     }
   }
 
-  private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+  private async handlePaymentIntentFailed(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
     this.logger.log(`Processing failed payment intent: ${paymentIntent.id}`);
-    
+
     try {
       // Update transaction status
-      await this.updateTransactionFromPaymentIntent(paymentIntent.id, TransactionStatus.FAILED);
+      await this.updateTransactionFromPaymentIntent(
+        paymentIntent.id,
+        TransactionStatus.FAILED,
+      );
 
       // Update booking status
-      await this.updateBookingFromPaymentIntent(paymentIntent, 'payment_failed');
+      await this.updateBookingFromPaymentIntent(
+        paymentIntent,
+        'payment_failed',
+      );
 
       // Create admin notification
-      const failureReason = paymentIntent.last_payment_error?.message || 'Unknown reason';
+      const failureReason =
+        paymentIntent.last_payment_error?.message || 'Unknown reason';
       await this.adminNotificationsService.createAdminNotification({
         title: 'Payment Failed',
         message: `Payment Intent ${paymentIntent.id} failed. Reason: ${failureReason}`,
@@ -289,21 +331,22 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.HIGH,
         category: AdminNotificationCategory.PAYMENT,
       });
-
     } catch (error) {
       this.logger.error(`Error processing payment intent failed:`, error);
       throw error;
     }
   }
 
-  private async handleTransferCreated(transfer: Stripe.Transfer): Promise<void> {
+  private async handleTransferCreated(
+    transfer: Stripe.Transfer,
+  ): Promise<void> {
     this.logger.log(`Processing transfer created: ${transfer.id}`);
-    
+
     try {
       // Update withdrawal transaction if it exists
       if (transfer.metadata?.transaction_id) {
         const transaction = await this.transactionsRepository.findOne({
-          where: { id: transfer.metadata.transaction_id }
+          where: { id: transfer.metadata.transaction_id },
         });
 
         if (transaction && transaction.type === TransactionType.WITHDRAWAL) {
@@ -321,7 +364,6 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.MEDIUM,
         category: AdminNotificationCategory.PAYMENT,
       });
-
     } catch (error) {
       this.logger.error(`Error processing transfer created:`, error);
       throw error;
@@ -330,12 +372,12 @@ export class EnhancedStripeWebhookService {
 
   private async handleTransferFailed(transfer: Stripe.Transfer): Promise<void> {
     this.logger.log(`Processing transfer failed: ${transfer.id}`);
-    
+
     try {
       // Update withdrawal transaction if it exists
       if (transfer.metadata?.transaction_id) {
         const transaction = await this.transactionsRepository.findOne({
-          where: { id: transfer.metadata.transaction_id }
+          where: { id: transfer.metadata.transaction_id },
         });
 
         if (transaction && transaction.type === TransactionType.WITHDRAWAL) {
@@ -353,7 +395,6 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.URGENT,
         category: AdminNotificationCategory.PAYMENT,
       });
-
     } catch (error) {
       this.logger.error(`Error processing transfer failed:`, error);
       throw error;
@@ -362,12 +403,12 @@ export class EnhancedStripeWebhookService {
 
   private async handleTransferPaid(transfer: Stripe.Transfer): Promise<void> {
     this.logger.log(`Processing transfer paid: ${transfer.id}`);
-    
+
     try {
       // Update withdrawal transaction if it exists
       if (transfer.metadata?.transaction_id) {
         const transaction = await this.transactionsRepository.findOne({
-          where: { id: transfer.metadata.transaction_id }
+          where: { id: transfer.metadata.transaction_id },
         });
 
         if (transaction && transaction.type === TransactionType.WITHDRAWAL) {
@@ -385,7 +426,6 @@ export class EnhancedStripeWebhookService {
         priority: AdminNotificationPriority.MEDIUM,
         category: AdminNotificationCategory.PAYMENT,
       });
-
     } catch (error) {
       this.logger.error(`Error processing transfer paid:`, error);
       throw error;
@@ -393,9 +433,14 @@ export class EnhancedStripeWebhookService {
   }
 
   // Additional event handlers (implementations similar to above)
-  private async handlePaymentIntentCanceled(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    await this.updateTransactionFromPaymentIntent(paymentIntent.id, TransactionStatus.CANCELLED);
-    
+  private async handlePaymentIntentCanceled(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    await this.updateTransactionFromPaymentIntent(
+      paymentIntent.id,
+      TransactionStatus.CANCELLED,
+    );
+
     await this.adminNotificationsService.createAdminNotification({
       title: 'Payment Canceled',
       message: `Payment Intent ${paymentIntent.id} was canceled`,
@@ -405,9 +450,14 @@ export class EnhancedStripeWebhookService {
     });
   }
 
-  private async handlePaymentIntentRequiresAction(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    await this.updateTransactionFromPaymentIntent(paymentIntent.id, TransactionStatus.PENDING);
-    
+  private async handlePaymentIntentRequiresAction(
+    paymentIntent: Stripe.PaymentIntent,
+  ): Promise<void> {
+    await this.updateTransactionFromPaymentIntent(
+      paymentIntent.id,
+      TransactionStatus.PENDING,
+    );
+
     await this.adminNotificationsService.createAdminNotification({
       title: 'Payment Requires Action',
       message: `Payment Intent ${paymentIntent.id} requires additional action (3D Secure)`,
@@ -487,7 +537,9 @@ export class EnhancedStripeWebhookService {
     });
   }
 
-  private async handleInvoicePaymentSucceeded(invoice: Stripe.Invoice): Promise<void> {
+  private async handleInvoicePaymentSucceeded(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
     await this.adminNotificationsService.createAdminNotification({
       title: 'Invoice Payment Successful',
       message: `Invoice ${invoice.id} payment succeeded. Amount: £${((invoice.amount_paid || 0) / 100).toFixed(2)}`,
@@ -497,7 +549,9 @@ export class EnhancedStripeWebhookService {
     });
   }
 
-  private async handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+  private async handleInvoicePaymentFailed(
+    invoice: Stripe.Invoice,
+  ): Promise<void> {
     await this.adminNotificationsService.createAdminNotification({
       title: 'Invoice Payment Failed',
       message: `Invoice ${invoice.id} payment failed`,
@@ -510,44 +564,49 @@ export class EnhancedStripeWebhookService {
   // Utility methods
   private async updateTransactionFromPaymentIntent(
     paymentIntentId: string,
-    status: TransactionStatus
+    status: TransactionStatus,
   ): Promise<void> {
     try {
       const transaction = await this.transactionsRepository.findOne({
-        where: { externalReference: paymentIntentId }
+        where: { externalReference: paymentIntentId },
       });
 
       if (transaction) {
         transaction.status = status;
         transaction.processedAt = new Date();
         await this.transactionsRepository.save(transaction);
-        
+
         this.logger.log(`Transaction ${transaction.id} updated to ${status}`);
       } else {
-        this.logger.warn(`Transaction not found for Payment Intent: ${paymentIntentId}`);
+        this.logger.warn(
+          `Transaction not found for Payment Intent: ${paymentIntentId}`,
+        );
       }
     } catch (error) {
-      this.logger.error(`Error updating transaction for Payment Intent ${paymentIntentId}:`, error);
+      this.logger.error(
+        `Error updating transaction for Payment Intent ${paymentIntentId}:`,
+        error,
+      );
       throw error;
     }
   }
 
   private async updateBookingFromPaymentIntent(
     paymentIntent: Stripe.PaymentIntent,
-    paymentStatus: string
+    paymentStatus: string,
   ): Promise<void> {
     try {
       const bookingId = paymentIntent.metadata?.booking_id;
-      
+
       if (bookingId) {
         const booking = await this.bookingsRepository.findOne({
-          where: { id: bookingId }
+          where: { id: bookingId },
         });
 
         if (booking) {
           (booking as any).paymentStatus = paymentStatus;
           await this.bookingsRepository.save(booking);
-          
+
           this.logger.log(`Booking ${bookingId} updated to ${paymentStatus}`);
         } else {
           this.logger.warn(`Booking not found: ${bookingId}`);

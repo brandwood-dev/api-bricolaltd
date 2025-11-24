@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Req, Res, SetMetadata, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Req,
+  Res,
+  SetMetadata,
+  Logger,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { NewsService } from './news.service';
 
@@ -12,7 +20,11 @@ export class BlogShareController {
   @Get('share/:id')
   @Get('share/:id/')
   @SetMetadata('isPublic', true)
-  async shareHtml(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
+  async shareHtml(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
     try {
       const news = await this.newsService.findOne(id);
 
@@ -24,32 +36,37 @@ export class BlogShareController {
         try {
           return new URL(url, siteBase).href;
         } catch {
-          return url as string;
+          return url;
         }
       };
 
-      const imageUrl = ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
+      const imageUrl =
+        ensureAbsolute(news.imageUrl) || `${siteBase}/placeholder-blog.svg`;
       const title = news.title || 'Article Bricola';
       const sanitizeText = (input: string): string => {
         return input
           .replace(/<[^>]+>/g, ' ') // strip HTML tags if any
           .replace(/\s+/g, ' ') // normalize whitespace
-          .trim()
-      }
+          .trim();
+      };
       const truncate = (input: string, max = 300): string =>
-        input.length > max ? input.slice(0, max - 1) + '…' : input
+        input.length > max ? input.slice(0, max - 1) + '…' : input;
 
-      const rawDescription = ((news as any).summary || '') as string
-      const normalizedDescription = sanitizeText(rawDescription || title)
-      const description = truncate(normalizedDescription, 300)
+      const rawDescription = ((news as any).summary || '') as string;
+      const normalizedDescription = sanitizeText(rawDescription || title);
+      const description = truncate(normalizedDescription, 300);
       const fbAppId = process.env.FACEBOOK_APP_ID;
 
       // Detect social crawlers (serve 200 HTML); otherwise redirect users to canonical URL
       const ua = (req.headers['user-agent'] || '').toLowerCase();
-      const isCrawler = /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|pinterest|embedly|quora|vk\s*share|meta-external|googlebot|bingbot|yandex|duckduckbot|baiduspider|applebot/.test(ua);
+      const isCrawler =
+        /facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|whatsapp|telegrambot|pinterest|embedly|quora|vk\s*share|meta-external|googlebot|bingbot|yandex|duckduckbot|baiduspider|applebot/.test(
+          ua,
+        );
 
       // If this is a user click from Facebook, fbclid is typically present → redirect
-      const isFacebookClick = typeof req.query?.fbclid === 'string' && req.query.fbclid.length > 0;
+      const isFacebookClick =
+        typeof req.query?.fbclid === 'string' && req.query.fbclid.length > 0;
 
       if (!isCrawler || isFacebookClick) {
         res.redirect(302, canonicalUrl);
@@ -95,7 +112,7 @@ export class BlogShareController {
       res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       res.status(200).send(html);
     } catch (err) {
-      this.logger.error('Error generating share HTML', err as any);
+      this.logger.error('Error generating share HTML', err);
       res.status(404).send('<html><body>Article non trouvé</body></html>');
     }
   }

@@ -12,10 +12,7 @@ import { ConfigService } from '@nestjs/config';
     forwardRef(() => AdminModule),
   ],
   controllers: [ThreeDSecureController],
-  providers: [
-    ThreeDSecureService,
-    ConfigService,
-  ],
+  providers: [ThreeDSecureService, ConfigService],
   exports: [ThreeDSecureService],
 })
 export class ThreeDSecureModule {}

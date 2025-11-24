@@ -1,4 +1,9 @@
-import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,10 +13,10 @@ import { ThreeDSStatus } from './enums/three-ds-status.enum';
 import { ThreeDSError } from './enums/three-ds-error.enum';
 import { PaymentService } from '../payment.service';
 import { AdminNotificationsService } from '../../admin/admin-notifications.service';
-import { 
+import {
   NotificationType as AdminNotificationType,
   NotificationPriority as AdminNotificationPriority,
-  NotificationCategory as AdminNotificationCategory
+  NotificationCategory as AdminNotificationCategory,
 } from '../../admin/dto/admin-notifications.dto';
 
 export interface ThreeDSecureResult {
@@ -27,7 +32,10 @@ export interface ThreeDSecureResult {
 
 export interface ThreeDSecureConfig {
   version: string;
-  challengeIndicator: 'no_preference' | 'challenge_requested' | 'challenge_mandated';
+  challengeIndicator:
+    | 'no_preference'
+    | 'challenge_requested'
+    | 'challenge_mandated';
   requestorName: string;
   requestorUrl: string;
   messageCategory: 'payment' | 'non_payment';
@@ -49,9 +57,9 @@ export class ThreeDSecureService {
     if (!stripeSecretKey) {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
-    
+
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-09-30.clover',
+      apiVersion: '2025-02-24.acacia',
     });
 
     this.config = {
@@ -83,18 +91,22 @@ export class ThreeDSecureService {
         postalCode: string;
         country: string;
       };
-    }
+    },
   ): Promise<ThreeDSecureResult> {
     try {
-      this.logger.log(`Initializing 3D Secure for payment intent: ${paymentIntentId}`, {
-        userId,
-        ipAddress,
-        hasBillingDetails: !!billingDetails,
-      });
+      this.logger.log(
+        `Initializing 3D Secure for payment intent: ${paymentIntentId}`,
+        {
+          userId,
+          ipAddress,
+          hasBillingDetails: !!billingDetails,
+        },
+      );
 
       // Get the payment intent
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
-      
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
+
       if (!paymentIntent) {
         throw new BadRequestException('Payment intent not found');
       }
@@ -112,7 +124,7 @@ export class ThreeDSecureService {
         paymentIntentId,
         userId,
         ipAddress,
-        userAgent
+        userAgent,
       );
 
       // Prepare 3D Secure authentication data
@@ -120,7 +132,7 @@ export class ThreeDSecureService {
         paymentIntent,
         billingDetails,
         ipAddress,
-        userAgent
+        userAgent,
       );
 
       // Update payment intent with 3D Secure parameters
@@ -132,14 +144,14 @@ export class ThreeDSecureService {
               request_three_d_secure: 'any',
             },
           },
-        }
+        },
       );
 
       // Handle different 3DS scenarios
       if (updatedPaymentIntent.status === 'requires_action') {
         return await this.handleRequiresAction(
           updatedPaymentIntent,
-          session.id
+          session.id,
         );
       }
 
@@ -159,10 +171,12 @@ export class ThreeDSecureService {
         sessionId: session.id,
         status: ThreeDSStatus.PROCESSING,
       };
-
     } catch (error) {
-      this.logger.error(`3D Secure initialization failed for payment ${paymentIntentId}:`, error);
-      
+      this.logger.error(
+        `3D Secure initialization failed for payment ${paymentIntentId}:`,
+        error,
+      );
+
       await this.adminNotificationsService.createAdminNotification({
         title: '3D Secure Authentication Failed',
         message: `3D Secure initialization failed for payment ${paymentIntentId}. Error: ${error.message}`,
@@ -186,10 +200,12 @@ export class ThreeDSecureService {
   async complete3DSecureChallenge(
     sessionId: string,
     paymentIntentId: string,
-    redirectResult?: string
+    redirectResult?: string,
   ): Promise<ThreeDSecureResult> {
     try {
-      this.logger.log(`Completing 3D Secure challenge for session: ${sessionId}`);
+      this.logger.log(
+        `Completing 3D Secure challenge for session: ${sessionId}`,
+      );
 
       const session = await this.getThreeDSession(sessionId);
       if (!session) {
@@ -220,7 +236,8 @@ export class ThreeDSecureService {
       }
 
       // Retrieve updated payment intent
-      const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent =
+        await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
       if (paymentIntent.status === 'succeeded') {
         await this.completeThreeDSession(sessionId, ThreeDSStatus.COMPLETED);
@@ -250,10 +267,12 @@ export class ThreeDSecureService {
         sessionId,
         status: ThreeDSStatus.PROCESSING,
       };
-
     } catch (error) {
-      this.logger.error(`3D Secure challenge completion failed for session ${sessionId}:`, error);
-      
+      this.logger.error(
+        `3D Secure challenge completion failed for session ${sessionId}:`,
+        error,
+      );
+
       await this.adminNotificationsService.createAdminNotification({
         title: '3D Secure Challenge Failed',
         message: `3D Secure challenge completion failed for session ${sessionId}. Error: ${error.message}`,
@@ -278,20 +297,28 @@ export class ThreeDSecureService {
     amount: number,
     currency: string,
     cardCountry?: string,
-    issuingCountry?: string
+    issuingCountry?: string,
   ): Promise<boolean> {
     try {
       // Apply 3D Secure based on regulatory requirements
-      const requires3DS = this.checkRegulatoryRequirements(amount, currency, cardCountry, issuingCountry);
-      
+      const requires3DS = this.checkRegulatoryRequirements(
+        amount,
+        currency,
+        cardCountry,
+        issuingCountry,
+      );
+
       // Apply business rules
       const businessRequires3DS = this.checkBusinessRules(amount, currency);
-      
+
       // Apply risk-based assessment
-      const riskRequires3DS = await this.performRiskAssessment(amount, currency, cardCountry);
+      const riskRequires3DS = await this.performRiskAssessment(
+        amount,
+        currency,
+        cardCountry,
+      );
 
       return requires3DS || businessRequires3DS || riskRequires3DS;
-
     } catch (error) {
       this.logger.error('Error checking 3D Secure requirements:', error);
       // Default to requiring 3D Secure on error
@@ -306,7 +333,7 @@ export class ThreeDSecureService {
     paymentIntentId: string,
     userId: string,
     ipAddress: string,
-    userAgent: string
+    userAgent: string,
   ): Promise<ThreeDSecureSession> {
     const session = this.threeDSessionRepository.create({
       paymentIntentId,
@@ -328,7 +355,7 @@ export class ThreeDSecureService {
     paymentIntent: Stripe.PaymentIntent,
     billingDetails?: any,
     ipAddress?: string,
-    userAgent?: string
+    userAgent?: string,
   ): Promise<any> {
     const threeDSData: any = {
       version: this.config.version,
@@ -369,7 +396,7 @@ export class ThreeDSecureService {
    */
   private async handleRequiresAction(
     paymentIntent: Stripe.PaymentIntent,
-    sessionId: string
+    sessionId: string,
   ): Promise<ThreeDSecureResult> {
     const nextAction = paymentIntent.next_action;
 
@@ -404,11 +431,15 @@ export class ThreeDSecureService {
   /**
    * Handle redirect result from 3D Secure challenge
    */
-  private async handleRedirectResult(redirectResult: string): Promise<{ success: boolean }> {
+  private async handleRedirectResult(
+    redirectResult: string,
+  ): Promise<{ success: boolean }> {
     try {
       // Parse and validate redirect result
-      const result = JSON.parse(Buffer.from(redirectResult, 'base64').toString());
-      
+      const result = JSON.parse(
+        Buffer.from(redirectResult, 'base64').toString(),
+      );
+
       // Validate the result signature and data
       if (result.success === true) {
         return { success: true };
@@ -428,10 +459,14 @@ export class ThreeDSecureService {
     amount: number,
     currency: string,
     cardCountry?: string,
-    issuingCountry?: string
+    issuingCountry?: string,
   ): boolean {
     // EU PSD2 Strong Customer Authentication requirements
-    if (currency === 'eur' || this.isEEACountry(cardCountry) || this.isEEACountry(issuingCountry)) {
+    if (
+      currency === 'eur' ||
+      this.isEEACountry(cardCountry) ||
+      this.isEEACountry(issuingCountry)
+    ) {
       return amount >= 30; // €30 threshold for PSD2
     }
 
@@ -467,7 +502,7 @@ export class ThreeDSecureService {
   private async performRiskAssessment(
     amount: number,
     currency: string,
-    cardCountry?: string
+    cardCountry?: string,
   ): Promise<boolean> {
     // Simple risk scoring - can be enhanced with ML models
     let riskScore = 0;
@@ -497,11 +532,38 @@ export class ThreeDSecureService {
    */
   private isEEACountry(country?: string): boolean {
     if (!country) return false;
-    
+
     const eeaCountries = [
-      'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR',
-      'DE', 'GR', 'HU', 'IS', 'IE', 'IT', 'LV', 'LI', 'LT', 'LU',
-      'MT', 'NL', 'NO', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'
+      'AT',
+      'BE',
+      'BG',
+      'HR',
+      'CY',
+      'CZ',
+      'DK',
+      'EE',
+      'FI',
+      'FR',
+      'DE',
+      'GR',
+      'HU',
+      'IS',
+      'IE',
+      'IT',
+      'LV',
+      'LI',
+      'LT',
+      'LU',
+      'MT',
+      'NL',
+      'NO',
+      'PL',
+      'PT',
+      'RO',
+      'SK',
+      'SI',
+      'ES',
+      'SE',
     ];
 
     return eeaCountries.includes(country.toUpperCase());
@@ -510,7 +572,9 @@ export class ThreeDSecureService {
   /**
    * Get 3D Secure session by ID
    */
-  private async getThreeDSession(sessionId: string): Promise<ThreeDSecureSession | null> {
+  private async getThreeDSession(
+    sessionId: string,
+  ): Promise<ThreeDSecureSession | null> {
     return this.threeDSessionRepository.findOne({
       where: { id: sessionId },
     });
@@ -522,7 +586,7 @@ export class ThreeDSecureService {
   private async completeThreeDSession(
     sessionId: string,
     status: ThreeDSStatus,
-    metadata?: any
+    metadata?: any,
   ): Promise<void> {
     await this.threeDSessionRepository.update(sessionId, {
       status,
@@ -560,21 +624,33 @@ export class ThreeDSecureService {
       .getMany();
 
     const totalSessions = sessions.length;
-    const completedSessions = sessions.filter(s => s.status === ThreeDSStatus.COMPLETED);
-    const challengeSessions = sessions.filter(s => s.status === ThreeDSStatus.CHALLENGE_REQUIRED);
-    const frictionlessSessions = sessions.filter(s => s.status === ThreeDSStatus.FRICTIONLESS_COMPLETED);
+    const completedSessions = sessions.filter(
+      (s) => s.status === ThreeDSStatus.COMPLETED,
+    );
+    const challengeSessions = sessions.filter(
+      (s) => s.status === ThreeDSStatus.CHALLENGE_REQUIRED,
+    );
+    const frictionlessSessions = sessions.filter(
+      (s) => s.status === ThreeDSStatus.FRICTIONLESS_COMPLETED,
+    );
 
-    const successRate = totalSessions > 0 ? (completedSessions.length / totalSessions) * 100 : 0;
-    const challengeRate = totalSessions > 0 ? (challengeSessions.length / totalSessions) * 100 : 0;
-    const frictionlessRate = totalSessions > 0 ? (frictionlessSessions.length / totalSessions) * 100 : 0;
+    const successRate =
+      totalSessions > 0 ? (completedSessions.length / totalSessions) * 100 : 0;
+    const challengeRate =
+      totalSessions > 0 ? (challengeSessions.length / totalSessions) * 100 : 0;
+    const frictionlessRate =
+      totalSessions > 0
+        ? (frictionlessSessions.length / totalSessions) * 100
+        : 0;
 
     const processingTimes = completedSessions
-      .filter(s => s.completedAt && s.initiatedAt)
-      .map(s => s.completedAt!.getTime() - s.initiatedAt!.getTime());
-    
-    const averageProcessingTime = processingTimes.length > 0 
-      ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length 
-      : 0;
+      .filter((s) => s.completedAt && s.initiatedAt)
+      .map((s) => s.completedAt!.getTime() - s.initiatedAt.getTime());
+
+    const averageProcessingTime =
+      processingTimes.length > 0
+        ? processingTimes.reduce((a, b) => a + b, 0) / processingTimes.length
+        : 0;
 
     return {
       totalSessions,
