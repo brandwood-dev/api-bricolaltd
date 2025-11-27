@@ -31,6 +31,7 @@ export interface AdminToolFilters {
   ownerId?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  moderationStatus?: ModerationStatus;
 }
 
 export interface PaginationOptions {
@@ -527,6 +528,12 @@ export class AdminToolsService {
       });
     }
 
+    if (filters.moderationStatus) {
+      queryBuilder.andWhere('tool.moderationStatus = :moderationStatus', {
+        moderationStatus: filters.moderationStatus,
+      });
+    }
+
     if (filters.categoryId) {
       queryBuilder.andWhere('tool.categoryId = :categoryId', {
         categoryId: filters.categoryId,
@@ -546,17 +553,26 @@ export class AdminToolsService {
     }
 
     if (filters.dateFrom && filters.dateTo) {
-      queryBuilder.andWhere('tool.createdAt BETWEEN :dateFrom AND :dateTo', {
-        dateFrom: filters.dateFrom,
-        dateTo: filters.dateTo,
-      });
+      const dateToExclusive = new Date(filters.dateTo);
+      dateToExclusive.setDate(dateToExclusive.getDate() + 1);
+      dateToExclusive.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere(
+        'tool.createdAt >= :dateFrom AND tool.createdAt < :dateToExclusive',
+        {
+          dateFrom: filters.dateFrom,
+          dateToExclusive,
+        },
+      );
     } else if (filters.dateFrom) {
       queryBuilder.andWhere('tool.createdAt >= :dateFrom', {
         dateFrom: filters.dateFrom,
       });
     } else if (filters.dateTo) {
-      queryBuilder.andWhere('tool.createdAt <= :dateTo', {
-        dateTo: filters.dateTo,
+      const dateToExclusive = new Date(filters.dateTo);
+      dateToExclusive.setDate(dateToExclusive.getDate() + 1);
+      dateToExclusive.setHours(0, 0, 0, 0);
+      queryBuilder.andWhere('tool.createdAt < :dateToExclusive', {
+        dateToExclusive,
       });
     }
 

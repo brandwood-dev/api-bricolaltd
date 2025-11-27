@@ -352,12 +352,22 @@ export class NewsService {
       ? await this.processInlineImages(createNewsDto.content, files)
       : createNewsDto.content;
 
+    // const normalizeBoolean = (val: any, defaultVal: boolean) => {
+    //   if (typeof val === 'boolean') return val;
+    //   if (typeof val === 'string') {
+    //     const v = val.toLowerCase();
+    //     if (v === 'true') return true;
+    //     if (v === 'false') return false;
+    //   }
+    //   return defaultVal;
+    // };
+
     const news = this.newsRepository.create({
       ...createNewsDto,
       content: processedContent,
       imageUrl,
-      isPublic: createNewsDto.isPublic ?? true,
-      isFeatured: createNewsDto.isFeatured ?? false,
+      isPublic: false,
+      isFeatured: false,
       adminId: user?.id ?? undefined,
     });
 
@@ -527,8 +537,31 @@ export class NewsService {
       updatedSections = await this.sectionsService.findByArticle(id);
     }
 
-    // Update the news entity with the new data
-    Object.assign(news, updateNewsDto);
+    const normalizeBoolean = (val: any, defaultVal: boolean) => {
+      if (typeof val === 'boolean') return val;
+      if (typeof val === 'string') {
+        const v = val.toLowerCase();
+        if (v === 'true') return true;
+        if (v === 'false') return false;
+      }
+      return defaultVal;
+    };
+
+    const patchedUpdate: any = { ...updateNewsDto };
+    // if ((updateNewsDto as any).isPublic !== undefined) {
+    //   patchedUpdate.isPublic = normalizeBoolean(
+    //     (updateNewsDto as any).isPublic,
+    //     news.isPublic,
+    //   );
+    // }
+    // if ((updateNewsDto as any).isFeatured !== undefined) {
+    //   patchedUpdate.isFeatured = normalizeBoolean(
+    //     (updateNewsDto as any).isFeatured,
+    //     news.isFeatured,
+    //   );
+    // }
+
+    Object.assign(news, patchedUpdate);
 
     const updatedNews = await this.newsRepository.save(news);
 

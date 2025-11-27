@@ -19,6 +19,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { EnhancedAdminGuard } from '../auth/guards/enhanced-admin.guard';
+import { ModerationStatus } from '../tools/enums/moderation-status.enum';
 import { AdminPermissions } from '../auth/decorators/admin-permissions.decorator';
 import { AdminToolsService } from './admin-tools.service';
 import { UpdateToolStatusDto } from './dto/update-tool-status.dto';
@@ -91,6 +92,12 @@ export class AdminToolsController {
     type: String,
     description: 'Filter by creation date to (YYYY-MM-DD)',
   })
+  @ApiQuery({
+    name: 'moderationStatus',
+    required: false,
+    enum: ['PENDING', 'CONFIRMED', 'REJECTED'],
+    description: 'Filter by moderation status',
+  })
   async findAllForAdmin(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
@@ -101,15 +108,22 @@ export class AdminToolsController {
     @Query('ownerId') ownerId?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('moderationStatus') moderationStatus?: ModerationStatus,
   ) {
+    const parsedFrom = dateFrom
+      ? new Date(`${dateFrom}T00:00:00.000Z`)
+      : undefined;
+    const parsedTo = dateTo ? new Date(`${dateTo}T00:00:00.000Z`) : undefined;
+
     const filters = {
       search,
       status,
       categoryId,
       subcategoryId,
       ownerId,
-      dateFrom: dateFrom ? new Date(dateFrom) : undefined,
-      dateTo: dateTo ? new Date(dateTo) : undefined,
+      dateFrom: parsedFrom,
+      dateTo: parsedTo,
+      moderationStatus,
     };
     const pagination = { page, limit };
     return this.adminToolsService.findAllForAdmin(filters, pagination);

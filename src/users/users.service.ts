@@ -1204,7 +1204,7 @@ export class UsersService {
       
       const emailSent = await this.sendGridService.sendEmail({
         to: user.email,
-        subject: 'Réactivation de votre compte Bricola',
+        subject: 'Your Bricola-ltd Account Has Been Reactivated',
         html: reactivationHtml,
       });
 
@@ -1324,7 +1324,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1359,7 +1359,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1394,7 +1394,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1429,7 +1429,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1464,7 +1464,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1499,7 +1499,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1534,7 +1534,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Request Reactivation</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Request Reactivation</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1569,7 +1569,7 @@ export class UsersService {
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
               </div>
               
               <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1620,7 +1620,7 @@ export class UsersService {
                </p>
                
                <div style="text-align: center; margin: 30px 0;">
-                 <a href="mailto:support@bricola.fr" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
+                 <a href="mailto:contact@bricolaltd.com" style="background-color: #3498db; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Contact Support</a>
                </div>
                
                <p style="color: #666; font-size: 14px; line-height: 1.6; margin-top: 30px;">
@@ -1639,7 +1639,7 @@ export class UsersService {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #27ae60; margin: 0; font-size: 24px;">🎉 Account Reactivated</h1>
+            <h1 style="color: #ed8021; margin: 0; font-size: 24px;">🎉 Account Reactivated</h1>
           </div>
           
           <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Hello ${firstName},</p>
@@ -1648,9 +1648,9 @@ export class UsersService {
             Great news! Your BRICOLA-LTD account has been successfully reactivated.
           </p>
           
-          <div style="background-color: #f0fff4; border-left: 4px solid #27ae60; padding: 15px; margin: 20px 0;">
-            <p style="color: #2d8f47; font-weight: bold; margin: 0;">✅ Your account is now active</p>
-            <p style="color: #2d8f47; margin: 5px 0 0 0;">You can once again access all our services</p>
+          <div style="background-color: #f0fff4; border-left: 4px solid #ed8021; padding: 15px; margin: 20px 0;">
+            <p style="color: #ed8021; font-weight: bold; margin: 0;">✅ Your account is now active</p>
+            <p style="color: #ed8021; margin: 5px 0 0 0;">You can once again access all our services</p>
           </div>
           
           <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
@@ -1665,7 +1665,7 @@ export class UsersService {
           </ul>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://bricola.fr/login" style="background-color: #27ae60; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log in now</a>
+            <a href="https://www.bricolaltd.com/login" style="background-color: #ed8021; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Log in now</a>
           </div>
           
           <p style="color: #333; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">

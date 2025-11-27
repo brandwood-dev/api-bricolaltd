@@ -70,7 +70,7 @@ export class ThreeDSecureSession {
   @Column({ name: 'user_agent', type: 'text', nullable: true })
   userAgent?: string;
 
-  @Column({ name: 'device_info', type: 'jsonb', nullable: true })
+  @Column({ name: 'device_info', type: 'json', nullable: true })
   deviceInfo?: {
     screenResolution?: string;
     timezone?: string;
@@ -82,7 +82,7 @@ export class ThreeDSecureSession {
     userAgent?: string;
   };
 
-  @Column({ name: 'billing_details', type: 'jsonb', nullable: true })
+  @Column({ name: 'billing_details', type: 'json', nullable: true })
   billingDetails?: {
     name: string;
     email: string;
@@ -127,7 +127,7 @@ export class ThreeDSecureSession {
   })
   riskScore?: number;
 
-  @Column({ name: 'risk_factors', type: 'jsonb', nullable: true })
+  @Column({ name: 'risk_factors', type: 'json', nullable: true })
   riskFactors?: {
     amount?: number;
     currency?: string;
@@ -140,7 +140,7 @@ export class ThreeDSecureSession {
     velocity?: number;
   };
 
-  @Column({ name: 'metadata', type: 'jsonb', nullable: true })
+  @Column({ name: 'metadata', type: 'json', nullable: true })
   metadata?: Record<string, any>;
 
   @CreateDateColumn({ name: 'initiated_at' })

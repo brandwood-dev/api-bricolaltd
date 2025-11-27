@@ -328,21 +328,21 @@ export class BookingsService {
         );
       }
 
-      // Schedule deposit reminder for testing (1 minute delay)
-      try {
-        console.log('🔍 [BookingService] Scheduling deposit reminder...');
-        await this.bookingSchedulerService.scheduleDepositReminder(
-          savedBooking.id,
-        );
-        console.log(
-          '🔍 [BookingService] Deposit reminder scheduled successfully',
-        );
-      } catch (error) {
-        console.error(
-          '❌ [BookingService] Failed to schedule deposit reminder:',
-          error,
-        );
-      }
+      // // Schedule deposit reminder for testing (1 minute delay)
+      // try {
+      //   console.log('🔍 [BookingService] Scheduling deposit reminder...');
+      //   await this.bookingSchedulerService.scheduleDepositReminder(
+      //     savedBooking.id,
+      //   );
+      //   console.log(
+      //     '🔍 [BookingService] Deposit reminder scheduled successfully',
+      //   );
+      // } catch (error) {
+      //   console.error(
+      //     '❌ [BookingService] Failed to schedule deposit reminder:',
+      //     error,
+      //   );
+      // }
 
       return savedBooking;
     } catch (error) {

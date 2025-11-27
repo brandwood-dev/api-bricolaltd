@@ -235,8 +235,8 @@ export class BookingSchedulerService {
   // Run every 30 minutes to check for deposit reminders
   @Cron('*/30 * * * *')
   async checkDepositReminders() {
-    this.logger.log('Checking for deposit reminders...');
-
+    // this.logger.log('Checking for deposit reminders...');
+return;
     const now = new Date();
     const oneMinuteFromNow = new Date(now.getTime() + 60 * 1000); // 1 minute for testing
     const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000); // 2 minutes buffer
@@ -319,40 +319,41 @@ export class BookingSchedulerService {
 
   // Manual method to schedule deposit reminder for a specific booking
   async scheduleDepositReminder(bookingId: string): Promise<void> {
-    try {
-      const booking = await this.bookingsRepository.findOne({
-        where: { id: bookingId },
-        relations: ['renter', 'owner', 'tool', 'tool.owner'],
-      });
+    // try {
+    //   const booking = await this.bookingsRepository.findOne({
+    //     where: { id: bookingId },
+    //     relations: ['renter', 'owner', 'tool', 'tool.owner'],
+    //   });
 
-      if (booking && booking.status === BookingStatus.PENDING) {
-        // For testing: send reminder after 1 minute
-        setTimeout(async () => {
-          try {
-            await this.bookingNotificationService.notifyDepositReminder(
-              booking,
-            );
-            this.logger.log(
-              `Sent scheduled deposit reminder for booking ${bookingId}`,
-            );
-          } catch (error) {
-            this.logger.error(
-              `Failed to send scheduled deposit reminder for booking ${bookingId}:`,
-              error,
-            );
-          }
-        }, 60 * 1000); // 1 minute delay for testing
+    //   if (booking && booking.status === BookingStatus.PENDING) {
+    //     // For testing: send reminder after 1 minute
+    //     setTimeout(async () => {
+    //       try {
+    //         await this.bookingNotificationService.notifyDepositReminder(
+    //           booking,
+    //         );
+    //         this.logger.log(
+    //           `Sent scheduled deposit reminder for booking ${bookingId}`,
+    //         );
+    //       } catch (error) {
+    //         this.logger.error(
+    //           `Failed to send scheduled deposit reminder for booking ${bookingId}:`,
+    //           error,
+    //         );
+    //       }
+    //     }, 60 * 1000); // 1 minute delay for testing
 
-        this.logger.log(
-          `Scheduled deposit reminder for booking ${bookingId} in 1 minute`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to schedule deposit reminder for booking ${bookingId}:`,
-        error,
-      );
-      throw error;
-    }
+    //     this.logger.log(
+    //       `Scheduled deposit reminder for booking ${bookingId} in 1 minute`,
+    //     );
+    //   }
+    // } catch (error) {
+    //   this.logger.error(
+    //     `Failed to schedule deposit reminder for booking ${bookingId}:`,
+    //     error,
+    //   );
+    //   throw error;
+    // }
+    return;
   }
 }

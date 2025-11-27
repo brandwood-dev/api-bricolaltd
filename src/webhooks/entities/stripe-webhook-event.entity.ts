@@ -19,7 +19,7 @@ export class StripeWebhookEvent {
   @Column({ name: 'event_type', type: 'varchar', length: 100 })
   eventType: string;
 
-  @Column({ name: 'payload', type: 'jsonb' })
+  @Column({ name: 'payload', type: 'json' })
   payload: any;
 
   @Column({ name: 'processed', type: 'boolean', default: false })

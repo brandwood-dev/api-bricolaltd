@@ -38,7 +38,7 @@ export class News {
 
   @Column({ default: true })
   @ApiProperty({ description: 'Whether the news is published', default: true })
-  isPublic: boolean = true;
+  isPublic: boolean = false;
 
   @Column({ default: false })
   @ApiProperty({

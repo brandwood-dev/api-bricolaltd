@@ -53,7 +53,7 @@ export class CreateNewsDto {
   @ApiProperty({
     description: 'Whether this news article is public',
     example: true,
-    default: true,
+    default: false,
     required: false,
   })
   @IsOptional()

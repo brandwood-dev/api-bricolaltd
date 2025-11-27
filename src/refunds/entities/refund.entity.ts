@@ -94,7 +94,7 @@ export class Refund {
   @Column({ name: 'processed_at', type: 'timestamp', nullable: true })
   processedAt: Date | null;
 
-  @Column({ name: 'stripe_refund_data', type: 'jsonb', nullable: true })
+  @Column({ name: 'stripe_refund_data', type: 'json', nullable: true })
   stripeRefundData: any | null; // Complete Stripe refund response
 
   @Column({ name: 'failure_reason', type: 'text', nullable: true })
@@ -118,6 +118,6 @@ export class Refund {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ name: 'metadata', type: 'jsonb', nullable: true })
+  @Column({ name: 'metadata', type: 'json', nullable: true })
   metadata: Record<string, any> | null;
 }
