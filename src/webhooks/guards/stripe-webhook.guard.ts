@@ -19,7 +19,7 @@ export class StripeWebhookGuard implements CanActivate {
       throw new Error('STRIPE_SECRET_KEY is not configured');
     }
     this.stripe = new Stripe(stripeSecretKey, {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: '2025-09-30.clover',
     });
   }
 
