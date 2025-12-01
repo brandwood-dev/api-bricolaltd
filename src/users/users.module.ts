@@ -21,6 +21,7 @@ import { AccountDeletionRequest } from './entities/account-deletion-request.enti
 import { AccountDeletionRequestController } from './account-deletion-request.controller';
 import { AccountDeletionRequestService } from './account-deletion-request.service';
 import { S3Module } from '../common/services/s3.module';
+import { ReviewTool } from '../reviews/entities/review-tool.entity';
 import { FileUploadMiddleware } from '../common/middlewares/file-upload.middleware';
 import { SecurityLog } from '../admin/entities/security-log.entity';
 import { BlockedIp } from '../admin/entities/blocked-ip.entity';
@@ -63,6 +64,7 @@ import { EmailsModule } from '../emails/emails.module';
       Document,
       Dispute,
       Review,
+      ReviewTool,
       Booking,
       Tool,
       Wallet,

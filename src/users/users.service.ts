@@ -35,6 +35,7 @@ import { Document } from '../documents/entities/document.entity';
 import { Dispute } from '../disputes/entities/dispute.entity';
 import { DisputeStatus } from '../disputes/enums/dispute-status.enum';
 import { Review } from '../reviews/entities/review.entity';
+import { ReviewTool } from '../reviews/entities/review-tool.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { Tool } from '../tools/entities/tool.entity';
@@ -116,6 +117,8 @@ export class UsersService {
     private disputeRepository: Repository<Dispute>,
     @InjectRepository(Review)
     private reviewRepository: Repository<Review>,
+    @InjectRepository(ReviewTool)
+    private reviewToolRepository: Repository<ReviewTool>,
     @InjectRepository(Booking)
     private bookingRepository: Repository<Booking>,
     @InjectRepository(Tool)
@@ -1089,16 +1092,16 @@ export class UsersService {
         totalEarnings = parseFloat(earningsResult?.totalEarnings || '0');
       }
 
-      // Calculer la note moyenne des reviews reçues sur les outils de l'utilisateur
-      const ratingResult = await this.reviewRepository
+      // Calculer la note moyenne des reviews reçues pour les outils de l'utilisateur
+      // Utiliser la table reviews_tools avec reviewee_id = userId
+      const ratingResult = await this.reviewToolRepository
         .createQueryBuilder('review')
-        .innerJoin('review.tool', 'tool')
         .select('AVG(review.rating)', 'averageRating')
-        .where('tool.ownerId = :userId', { userId })
+        .where('review.reviewee_id = :userId', { userId })
         .getRawOne();
 
       const averageRating = parseFloat(ratingResult?.averageRating || '0');
-
+this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRating})`);
       return {
         data: {
           totalEarnings: Math.round(totalEarnings * 100) / 100, // Arrondir à 2 décimales
