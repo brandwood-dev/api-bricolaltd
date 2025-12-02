@@ -106,6 +106,7 @@ export class AdminWithdrawalsController {
       processedDate: t.processedAt,
       user: t.sender
         ? {
+            userId: (t.sender as any).id,
             firstName: (t.sender as any).firstName,
             lastName: (t.sender as any).lastName,
             email: (t.sender as any).email,
