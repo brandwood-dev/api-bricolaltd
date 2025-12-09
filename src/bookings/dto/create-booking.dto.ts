@@ -89,13 +89,13 @@ export class CreateBookingDto {
   @IsString()
   pickupHour?: string;
 
-  @ApiProperty({
-    description: 'The payment status for the booking',
-    required: false,
-    enum: ['pending', 'authorized', 'captured', 'failed'],
-    default: 'pending',
-  })
+  @ApiProperty({ description: 'The payment status for the booking', required: false, enum: ['pending', 'authorized', 'captured', 'failed'], default: 'pending' })
   @IsOptional()
   @IsString()
   paymentStatus?: string;
+
+  @ApiProperty({ description: 'The Stripe Payment Intent ID', required: false })
+  @IsOptional()
+  @IsString()
+  paymentIntentId?: string;
 }

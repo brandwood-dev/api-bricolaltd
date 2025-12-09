@@ -5,6 +5,7 @@ import { Booking } from './entities/booking.entity';
 import { DepositCaptureJob } from './entities/deposit-capture-job.entity';
 import { User } from '../users/entities/user.entity';
 import { Tool } from '../tools/entities/tool.entity';
+import { Transaction } from '../transactions/entities/transaction.entity';
 import { BookingsService } from './bookings.service';
 import { BookingsController } from './bookings.controller';
 import { BookingNotificationsService } from './booking-notifications.service';
@@ -13,6 +14,8 @@ import { BookingSchedulerService } from './booking-scheduler.service';
 import { StripeDepositService } from './services/stripe-deposit.service';
 import { DepositSchedulerService } from './services/deposit-scheduler.service';
 import { DepositNotificationService } from './services/deposit-notification.service';
+import { BookingsCancellationService } from './services/bookings-cancellation.service';
+import { RefundsModule } from '../refunds/refunds.module';
 import { WalletsModule } from '../wallets/wallets.module';
 import { UsersModule } from '../users/users.module';
 import { ToolsModule } from '../tools/tools.module';
@@ -24,7 +27,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, DepositCaptureJob, User, Tool]),
+    TypeOrmModule.forFeature([Booking, DepositCaptureJob, User, Tool, Transaction]),
     ScheduleModule.forRoot(),
     forwardRef(() => WalletsModule),
     forwardRef(() => UsersModule),
@@ -34,10 +37,12 @@ import { TransactionsModule } from '../transactions/transactions.module';
     PaymentModule,
     EmailsModule,
     TransactionsModule,
+    forwardRef(() => RefundsModule),
   ],
   controllers: [BookingsController],
   providers: [
     BookingsService,
+    BookingsCancellationService,
     BookingNotificationsService,
     BookingNotificationService,
     BookingSchedulerService,
@@ -53,6 +58,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
     StripeDepositService,
     DepositSchedulerService,
     DepositNotificationService,
+    BookingsCancellationService,
   ],
 })
 export class BookingsModule {}

@@ -47,6 +47,7 @@ import { BookingSchedulerService } from './booking-scheduler.service';
 import { PaymentService } from '../payments/payment.service';
 import { StripeDepositService } from './services/stripe-deposit.service';
 import { DepositSchedulerService } from './services/deposit-scheduler.service';
+import { BookingsCancellationService } from './services/bookings-cancellation.service';
 import { CreateBookingWithDepositDto } from './dto/create-booking-with-deposit.dto';
 import { ConfirmDepositSetupDto } from './dto/confirm-deposit-setup.dto';
 import { DepositCaptureStatus } from './enums/deposit-capture-status.enum';
@@ -74,6 +75,7 @@ export class BookingsService {
     private paymentService: PaymentService,
     private stripeDepositService: StripeDepositService,
     private depositSchedulerService: DepositSchedulerService,
+    private bookingsCancellationService: BookingsCancellationService,
     private walletsService: WalletsService,
     private transactionsService: TransactionsService,
   ) {}
@@ -604,131 +606,15 @@ export class BookingsService {
     id: string,
     cancelBookingDto: CancelBookingDto,
   ): Promise<Booking> {
-    console.log(`[BOOKING_CANCEL] Starting cancellation for booking ${id}`);
-    console.log(
-      `[BOOKING_CANCEL] Cancellation reason: ${cancelBookingDto.reason}`,
+    console.log(`[BOOKINGS_SERVICE] 🛑 cancelBooking called for ${id} (Delegating to BookingsCancellationService)`);
+    // Delegate to BookingsCancellationService.cancelBookingByAdmin
+    // This ensures refunds are processed correctly for bulk/admin actions
+    // This method is typically called by bulkUpdateBookings or other internal admin processes
+    return this.bookingsCancellationService.cancelBookingByAdmin(
+      id,
+      cancelBookingDto.reason,
+      cancelBookingDto.cancellationMessage,
     );
-    console.log(
-      `[BOOKING_CANCEL] Cancellation message: ${cancelBookingDto.cancellationMessage}`,
-    );
-
-    const booking = await this.findOne(id);
-    if (!booking) {
-      console.log(`[BOOKING_CANCEL] ❌ Rejected - Booking ${id} not found`);
-      throw new NotFoundException('Booking not found');
-    }
-    console.log(
-      `[BOOKING_CANCEL] Found booking ${id} - Status: ${booking.status}`,
-    );
-
-    if (booking.status === BookingStatus.CANCELLED) {
-      console.log(
-        `[BOOKING_CANCEL] ❌ Rejected - Booking ${id} is already cancelled`,
-      );
-      throw new BadRequestException('Booking is already cancelled');
-    }
-
-    if (booking.status === BookingStatus.COMPLETED) {
-      console.log(
-        `[BOOKING_CANCEL] ❌ Rejected - Cannot cancel completed booking ${id}`,
-      );
-      throw new BadRequestException('Cannot cancel a completed booking');
-    }
-
-    console.log(
-      `[BOOKING_CANCEL] ✅ Authorization passed - Proceeding with cancellation`,
-    );
-
-    booking.status = BookingStatus.CANCELLED;
-    booking.cancellationReason = cancelBookingDto.reason;
-    booking.cancellationMessage = cancelBookingDto.cancellationMessage;
-    console.log(`[BOOKING_CANCEL] Updating booking status to CANCELLED`);
-
-    const savedBooking = await this.bookingsRepository.save(booking);
-    console.log(`[BOOKING_CANCEL] Booking status updated and saved`);
-
-    // Withdraw pending funds when booking is cancelled
-    try {
-      console.log(
-        `[BOOKING_CANCEL] Withdrawing pending funds for cancelled booking ${savedBooking.id}`,
-      );
-
-      // Get tool owner for wallet
-      const tool = await this.toolsService.findOne(savedBooking.toolId);
-      const ownerWallet = await this.walletsService.findByUserId(tool.ownerId);
-      console.log(
-        `[BOOKING_CANCEL] Found owner wallet ${ownerWallet.id} for user ${tool.ownerId}`,
-      );
-
-      // Get admin wallet
-      const adminUserId = await this.resolveAdminUserId();
-      let adminWallet: any = null;
-      if (adminUserId) {
-        try {
-          adminWallet = await this.walletsService.findByUserId(adminUserId);
-          console.log(`[BOOKING_CANCEL] Found admin wallet ${adminWallet.id}`);
-        } catch (e) {
-          console.warn(
-            `[BOOKING_CANCEL] Admin wallet not found for user ${adminUserId}; skipping`,
-          );
-        }
-      } else {
-        console.warn(
-          `[BOOKING_CANCEL] No admin user configured; skipping admin pending withdrawal`,
-        );
-      }
-
-      // Withdraw pending funds for both owner and admin
-      console.log(
-        `[BOOKING_CANCEL] Withdrawing pending funds from owner wallet ${ownerWallet.id}`,
-      );
-      await this.walletsService.withdrawPendingFunds(
-        ownerWallet.id,
-        savedBooking.id,
-      );
-
-      if (adminWallet) {
-        console.log(
-          `[BOOKING_CANCEL] Withdrawing pending funds from admin wallet ${adminWallet.id}`,
-        );
-        await this.walletsService.withdrawPendingFunds(
-          adminWallet.id,
-          savedBooking.id,
-        );
-      }
-
-      console.log(
-        `[BOOKING_CANCEL] ✅ Successfully withdrew pending funds for cancelled booking ${savedBooking.id}`,
-      );
-    } catch (error) {
-      console.error(
-        `[BOOKING_CANCEL] ❌ Failed to withdraw pending funds:`,
-        error,
-      );
-      // Don't fail the cancellation, but log the error
-    }
-
-    // Send notification
-    try {
-      console.log(`[BOOKING_CANCEL] Sending booking cancelled notification...`);
-      await this.bookingNotificationService.notifyBookingCancelled(
-        savedBooking,
-        'renter',
-        cancelBookingDto.reason,
-      );
-      console.log(
-        `[BOOKING_CANCEL] Booking cancelled notification sent successfully`,
-      );
-    } catch (error) {
-      console.error(
-        `[BOOKING_CANCEL] Failed to send booking cancelled notification:`,
-        error,
-      );
-    }
-
-    console.log(`[BOOKING_CANCEL] ✅ Booking ${id} cancelled successfully`);
-
-    return savedBooking;
   }
 
   async completeBooking(id: string): Promise<Booking> {
@@ -759,6 +645,7 @@ export class BookingsService {
     id: string,
     rejectBookingDto: RejectBookingDto,
   ): Promise<Booking> {
+    console.log(`[BOOKINGS_SERVICE] 🛑 rejectBooking called for ${id} (Delegating to BookingsCancellationService)`);
     const booking = await this.findOne(id);
 
     if (booking.status !== BookingStatus.PENDING) {
@@ -767,23 +654,13 @@ export class BookingsService {
       );
     }
 
-    booking.status = BookingStatus.REJECTED;
-    booking.refusalReason = rejectBookingDto.refusalReason;
-    booking.refusalMessage = rejectBookingDto.refusalMessage;
-
-    const savedBooking = await this.bookingsRepository.save(booking);
-
-    // Send notification
-    try {
-      await this.bookingNotificationService.notifyBookingRejected(
-        savedBooking,
-        rejectBookingDto.refusalReason,
-      );
-    } catch (error) {
-      console.error('Failed to send booking rejection notification:', error);
-    }
-
-    return savedBooking;
+    // Delegate to BookingsCancellationService for consistent refund logic
+    return this.bookingsCancellationService.cancelBookingByOwner(
+      id,
+      booking.ownerId,
+      rejectBookingDto.refusalReason,
+      rejectBookingDto.refusalMessage,
+    );
   }
 
   /**

@@ -515,7 +515,14 @@ export class RefundsService {
   async getRefundById(refundId: string): Promise<Refund> {
     const refund = await this.refundRepository.findOne({
       where: { id: refundId },
-      relations: ['transaction', 'booking'],
+      relations: [
+        'transaction',
+        'booking',
+        'booking.renter',
+        'booking.owner',
+        'transaction.sender',
+        'transaction.recipient',
+      ],
     });
 
     if (!refund) {
@@ -531,7 +538,7 @@ export class RefundsService {
   async getRefundsByTransactionId(transactionId: string): Promise<Refund[]> {
     return this.refundRepository.find({
       where: { transactionId },
-      relations: ['transaction', 'booking'],
+      relations: ['transaction', 'booking', 'booking.renter', 'booking.owner'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -542,7 +549,7 @@ export class RefundsService {
   async getRefundsByBookingId(bookingId: string): Promise<Refund[]> {
     return this.refundRepository.find({
       where: { bookingId },
-      relations: ['transaction', 'booking'],
+      relations: ['transaction', 'booking', 'booking.renter', 'booking.owner'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -647,7 +654,14 @@ export class RefundsService {
 
     const [refunds, total] = await this.refundRepository.findAndCount({
       where,
-      relations: ['transaction', 'booking'],
+      relations: [
+        'transaction',
+        'booking',
+        'booking.renter',
+        'booking.owner',
+        'transaction.sender',
+        'transaction.recipient',
+      ],
       order: { createdAt: 'DESC' },
       skip,
       take: limit,
@@ -719,7 +733,7 @@ export class RefundsService {
       this.refundRepository.count(),
       this.refundRepository
         .createQueryBuilder('refund')
-        .select('SUM(refund.refund_amount)', 'total')
+        .select('SUM(refund.refundAmount)', 'total')
         .where('refund.status = :status', { status: RefundStatus.COMPLETED })
         .getRawOne(),
       this.refundRepository
@@ -740,7 +754,7 @@ export class RefundsService {
         .getCount(),
       this.refundRepository
         .createQueryBuilder('refund')
-        .select('SUM(refund.refund_amount)', 'total')
+        .select('SUM(refund.refundAmount)', 'total')
         .where('refund.createdAt >= :startDate', { startDate: startOfMonth })
         .andWhere('refund.status = :status', { status: RefundStatus.COMPLETED })
         .getRawOne(),
@@ -748,25 +762,28 @@ export class RefundsService {
 
     const refundsByStatusMap: Record<string, number> = {};
     refundsByStatus.forEach((item) => {
-      refundsByStatusMap[item.status] = parseInt(item.count);
+      refundsByStatusMap[item.status] = parseInt(item.count, 10);
     });
 
     const refundsByReasonMap: Record<string, number> = {};
     refundsByReason.forEach((item) => {
-      refundsByReasonMap[item.reason] = parseInt(item.count);
+      refundsByReasonMap[item.reason] = parseInt(item.count, 10);
     });
 
+    const totalRefundAmountValue = parseFloat(totalRefundAmount?.total || '0');
+    const amountThisMonthValue = parseFloat(amountThisMonth?.total || '0');
+
     const avgRefundAmount =
-      totalRefunds > 0 ? (totalRefundAmount?.total || 0) / totalRefunds : 0;
+      totalRefunds > 0 ? totalRefundAmountValue / totalRefunds : 0;
 
     return {
       totalRefunds,
-      totalRefundAmount: totalRefundAmount?.total || 0,
+      totalRefundAmount: totalRefundAmountValue,
       averageRefundAmount: avgRefundAmount,
       refundsByStatus: refundsByStatusMap,
       refundsByReason: refundsByReasonMap,
       refundsThisMonth,
-      amountThisMonth: amountThisMonth?.total || 0,
+      amountThisMonth: amountThisMonthValue,
     };
   }
 

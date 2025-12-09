@@ -35,6 +35,7 @@ import { BlockedIp } from '../admin/entities/blocked-ip.entity';
 import { Contact } from '../contact/entities/contact.entity';
 import { AdminNotification } from '../admin/entities/admin-notification.entity';
 import { DepositCaptureJob } from '../bookings/entities/deposit-capture-job.entity';
+import { Refund } from '../refunds/entities/refund.entity';
 
 export const databaseConfig = (
   configService: ConfigService,
@@ -82,6 +83,7 @@ export const databaseConfig = (
     Contact,
     AdminNotification,
     DepositCaptureJob,
+    Refund,
   ],
   migrations: ['dist/migrations/*.js'],
   synchronize: false, // Temporarily disable synchronization to avoid row size errors

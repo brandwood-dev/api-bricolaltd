@@ -50,10 +50,15 @@ import {
 } from '@nestjs/swagger';
 import { Booking } from './entities/booking.entity';
 
+import { BookingsCancellationService } from './services/bookings-cancellation.service';
+
 @ApiTags('bookings')
 @Controller('bookings')
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly bookingsCancellationService: BookingsCancellationService,
+  ) {}
 
   // Endpoint de test temporaire sans authentification
   @Get('test-stats')
@@ -261,8 +266,18 @@ export class BookingsController {
   cancelBooking(
     @Param('id') id: string,
     @Body() cancelBookingDto: CancelBookingDto,
+    @Request() req,
   ) {
-    return this.bookingsService.cancelBooking(id, cancelBookingDto);
+    console.log(`[BOOKINGS_CONTROLLER] 🛑 cancelBooking called for ${id}`);
+    console.log(`[BOOKINGS_CONTROLLER] 👉 Delegating to BookingsCancellationService.cancelBookingByRenter`);
+    
+    // Use new cancellation service for enhanced refund logic
+    return this.bookingsCancellationService.cancelBookingByRenter(
+        id, 
+        req.user.id, 
+        cancelBookingDto.reason, 
+        cancelBookingDto.cancellationMessage
+    );
   }
 
   @Patch(':id/complete')
@@ -296,8 +311,15 @@ export class BookingsController {
   rejectBooking(
     @Param('id') id: string,
     @Body() rejectBookingDto: RejectBookingDto,
+    @Request() req,
   ) {
-    return this.bookingsService.rejectBooking(id, rejectBookingDto);
+    // Use new cancellation service for enhanced refund logic (Owner Rejection)
+    return this.bookingsCancellationService.cancelBookingByOwner(
+        id,
+        req.user.id,
+        rejectBookingDto.refusalReason,
+        rejectBookingDto.refusalMessage
+    );
   }
 
   @Patch(':id/accept')

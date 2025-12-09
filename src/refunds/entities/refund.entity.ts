@@ -14,9 +14,11 @@ import { Booking } from '../../bookings/entities/booking.entity';
 export enum RefundStatus {
   PENDING = 'PENDING',
   PROCESSING = 'PROCESSING',
+  CONFIRMED = 'CONFIRMED',
   COMPLETED = 'COMPLETED',
   FAILED = 'FAILED',
   CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED',
 }
 
 export enum RefundReason {

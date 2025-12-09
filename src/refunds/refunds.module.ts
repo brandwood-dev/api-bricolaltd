@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 
@@ -17,8 +17,8 @@ import { AdminModule } from '../admin/admin.module';
   imports: [
     TypeOrmModule.forFeature([Refund, Transaction, Booking, Wallet]),
     ConfigModule,
-    WalletsModule,
-    AdminModule,
+    forwardRef(() => WalletsModule),
+    forwardRef(() => AdminModule),
   ],
   controllers: [RefundsController],
   providers: [RefundsService],
