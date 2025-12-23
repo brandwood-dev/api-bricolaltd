@@ -106,6 +106,13 @@ export class TransactionsService {
     });
   }
 
+  async findByBookingId(bookingId: string): Promise<Transaction[]> {
+    return this.transactionsRepository.find({
+      where: { bookingId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async update(
     id: string,
     updateTransactionDto: UpdateTransactionDto,

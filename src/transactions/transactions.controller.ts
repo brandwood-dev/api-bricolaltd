@@ -72,6 +72,16 @@ export class TransactionsController {
     return this.transactionsService.findByWalletId(walletId);
   }
 
+  @Get('booking/:bookingId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get transactions by booking id' })
+  @ApiResponse({ status: 200, description: 'Return the transactions.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  findByBookingId(@Param('bookingId') bookingId: string) {
+    return this.transactionsService.findByBookingId(bookingId);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()

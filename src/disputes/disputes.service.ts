@@ -218,9 +218,20 @@ export class DisputesService {
 
     // Apply filters if provided
     if (filters?.search) {
+      const search = (filters.search || '').toLowerCase();
       queryBuilder.andWhere(
-        '(dispute.reason LIKE :search OR dispute.description LIKE :search)',
-        { search: `%${filters.search}%` },
+        `(
+          LOWER(dispute.reason) LIKE :search OR
+          LOWER(dispute.description) LIKE :search OR
+          LOWER(tool.title) LIKE :search OR
+          LOWER(initiator.firstName) LIKE :search OR
+          LOWER(initiator.lastName) LIKE :search OR
+          LOWER(respondent.firstName) LIKE :search OR
+          LOWER(respondent.lastName) LIKE :search OR
+          LOWER(CONCAT(initiator.firstName, ' ', initiator.lastName)) LIKE :search OR
+          LOWER(CONCAT(respondent.firstName, ' ', respondent.lastName)) LIKE :search
+        )`,
+        { search: `%${search}%` },
       );
     }
 
@@ -305,7 +316,12 @@ export class DisputesService {
       await this.usersService.findOne(updateDisputeDto.adminId);
     }
 
-    Object.assign(dispute, updateDisputeDto);
+    const mapped: Partial<Dispute> = { ...updateDisputeDto } as any;
+    if ((updateDisputeDto as any).adminNotes) {
+      mapped.resolutionNotes = (updateDisputeDto as any).adminNotes;
+      delete (mapped as any).adminNotes;
+    }
+    Object.assign(dispute, mapped);
     return this.disputesRepository.save(dispute);
   }
 

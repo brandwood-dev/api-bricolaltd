@@ -580,6 +580,16 @@ export class BookingsController {
     return this.bookingsService.cancelBookingForDeposit(id, req.user.id);
   }
 
+  @Patch('admin/:id/payout')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Transfer pending funds to available for booking (admin only)' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({ status: 200, description: 'Funds transferred successfully.' })
+  payoutBooking(@Param('id') id: string) {
+    return this.bookingsService.payoutBookingRevenue(id);
+  }
+
   @Post(':id/refund-deposit')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()

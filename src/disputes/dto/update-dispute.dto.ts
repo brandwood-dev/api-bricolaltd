@@ -31,6 +31,14 @@ export class UpdateDisputeDto extends PartialType(CreateDisputeDto) {
   adminNotes?: string;
 
   @ApiProperty({
+    description: 'Resolution notes stored on the dispute',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  resolutionNotes?: string;
+
+  @ApiProperty({
     description: 'The resolution of the dispute',
     required: false,
   })

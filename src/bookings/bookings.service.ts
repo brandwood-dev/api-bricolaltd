@@ -1579,6 +1579,37 @@ export class BookingsService {
     }
   }
 
+  async payoutBookingRevenue(id: string): Promise<{ message: string; data: Booking }> {
+    const booking = await this.findOne(id);
+    if (!booking) {
+      throw new NotFoundException(`Booking ${id} not found`);
+    }
+    if (booking.status !== BookingStatus.ACCEPTED && booking.status !== BookingStatus.ONGOING && booking.status !== BookingStatus.COMPLETED) {
+      throw new BadRequestException('Booking must be ACCEPTED, ONGOING, or COMPLETED to payout');
+    }
+
+    const tool = await this.toolsService.findOne(booking.toolId);
+    const ownerWallet = await this.walletsService.findByUserId(tool.ownerId);
+
+    const adminUserId = await this.resolveAdminUserId();
+    let adminWallet: any = null;
+    if (adminUserId) {
+      try {
+        adminWallet = await this.walletsService.findByUserId(adminUserId);
+      } catch {}
+    }
+
+    await this.walletsService.transferPendingToAvailable(ownerWallet.id, booking.id);
+    if (adminWallet) {
+      await this.walletsService.transferPendingToAvailable(adminWallet.id, booking.id);
+    }
+
+    return {
+      message: 'Pending funds transferred to available',
+      data: booking,
+    };
+  }
+
   async checkAvailability(
     checkAvailabilityDto: CheckAvailabilityDto,
   ): Promise<AvailabilityResponseDto> {
