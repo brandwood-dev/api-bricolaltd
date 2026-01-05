@@ -22,8 +22,13 @@ import {
   RefundStatus,
   RefundReason,
 } from '../../refunds/entities/refund.entity';
+import { Refund } from '../../refunds/entities/refund.entity';
+import { UsersService } from '../../users/users.service';
+import { BookingNotificationService } from '../booking-notification.service';
+import { ADMIN_EMAIL, ADMIN_USER_ID } from '../../config/constants';
 
 import { TransactionType } from '../../transactions/enums/transaction-type.enum';
+import { TransactionStatus } from '../../transactions/enums/transaction-status.enum';
 
 @Injectable()
 export class BookingsCancellationService {
@@ -38,6 +43,8 @@ export class BookingsCancellationService {
     private refundsService: RefundsService,
     private walletsService: WalletsService,
     private adminNotificationsService: AdminNotificationsService,
+    private usersService: UsersService,
+    private bookingNotificationService: BookingNotificationService,
     private dataSource: DataSource,
   ) {}
 
@@ -67,6 +74,19 @@ export class BookingsCancellationService {
         `Failed to cleanup transactions for ${bookingId}: ${error.message}`,
       );
       // Don't throw, as this is a cleanup operation
+    }
+  }
+
+  private async resolveAdminUserId(): Promise<string | null> {
+    try {
+      if (ADMIN_EMAIL) {
+        const user = await this.usersService.findByEmail(ADMIN_EMAIL);
+        if (user?.id) return user.id;
+      }
+      if (ADMIN_USER_ID) return ADMIN_USER_ID;
+      return null;
+    } catch {
+      return ADMIN_USER_ID ?? null;
     }
   }
 
@@ -248,12 +268,20 @@ export class BookingsCancellationService {
               );
 
               // Find transaction matching the payment intent
-              const transaction = await this.transactionRepository.findOne({
+              let transaction = await this.transactionRepository.findOne({
                 where: {
                   bookingId: booking.id,
                   externalReference: booking.paymentIntentId,
                 },
               });
+              if (!transaction) {
+                transaction = await this.transactionRepository.findOne({
+                  where: {
+                    bookingId: booking.id,
+                    type: 'PAYMENT',
+                  } as any,
+                });
+              }
 
               // Using RefundService to track it properly
               if (transaction) {
@@ -294,16 +322,77 @@ export class BookingsCancellationService {
                 }
               } else {
                 console.log(
-                  `[CANCEL_SERVICE] ⚠️ No transaction record found. Calling Stripe direct refund...`,
+                  `[CANCEL_SERVICE] ⚠️ No transaction record found. Attempting Stripe direct refund...`,
                 );
-                // Fallback if no transaction record but paymentIntent exists (should not happen usually)
-                await this.paymentService.createRefund(
-                  booking.paymentIntentId,
-                  refundAmount,
-                );
-                console.log(
-                  `[CANCEL_SERVICE] ✅ Stripe direct refund completed.`,
-                );
+                try {
+                  await this.paymentService.createRefund(
+                    booking.paymentIntentId,
+                    refundAmount,
+                  );
+                  console.log(
+                    `[CANCEL_SERVICE] ✅ Stripe direct refund completed.`,
+                  );
+                  // Persist a refund transaction and record for audit
+                  try {
+                    const ownerWallet = await this.walletsService.findByUserId(
+                      booking.ownerId,
+                    );
+                    const refundTx = this.transactionRepository.create({
+                      amount: -Math.abs(Number(refundAmount)),
+                      type: TransactionType.REFUND,
+                      status: TransactionStatus.COMPLETED,
+                      description: `Renter cancellation refund for booking ${booking.id}`,
+                      externalReference: undefined,
+                      paymentProvider: 'STRIPE',
+                      providerMetadata: {
+                        originalPaymentIntentId: booking.paymentIntentId,
+                        reason: 'CUSTOMER_REQUEST',
+                        reasonDetails: `Renter cancellation: ${reason}`,
+                      },
+                      senderId: booking.ownerId,
+                      recipientId: booking.renterId,
+                      walletId: ownerWallet.id,
+                      bookingId: booking.id,
+                    });
+                    const savedRefundTx = await queryRunner.manager.save(
+                      Transaction,
+                      refundTx,
+                    );
+                    const refundRecord = queryRunner.manager.create(Refund, {
+                      refundId: `ref_${Date.now()}`,
+                      transactionId: savedRefundTx.id,
+                      bookingId: booking.id,
+                      originalAmount: Number(refundAmount),
+                      refundAmount: Number(refundAmount),
+                      currency: 'gbp',
+                      status: RefundStatus.COMPLETED,
+                      reason: RefundReason.CUSTOMER_REQUEST,
+                      reasonDetails: `Renter cancellation: ${reason}`,
+                      processedBy: userId,
+                      processedAt: new Date(),
+                      walletBalanceUpdated: false,
+                      notificationSent: false,
+                    } as any);
+                    await queryRunner.manager.save(Refund, refundRecord);
+                  } catch (persistErr) {
+                    this.logger.warn(
+                      `Failed to persist renter direct refund record for booking ${booking.id}: ${
+                        (persistErr as any)?.message || persistErr
+                      }`,
+                    );
+                  }
+                } catch (e: any) {
+                  const msg = e?.response?.message || e?.message || '';
+                  if (!String(msg).includes('already been refunded')) {
+                    throw e;
+                  }
+                  console.log(
+                    `[CANCEL_SERVICE] ⚠️ Refund already completed on Stripe. Proceeding with cancellation record persistence.`,
+                  );
+                }
+                // Update booking refund fields for audit
+                booking.refundAmount = refundAmount as any;
+                booking.refundReason = `Renter cancellation: ${reason}`;
               }
               this.logger.log(
                 `Refunded £${refundAmount} for booking ${bookingId}`,
@@ -331,6 +420,48 @@ export class BookingsCancellationService {
         );
       }
 
+      // Eliminate owner pending balance for this booking
+      try {
+        const ownerWallet = await this.walletsService.findByUserId(
+          booking.ownerId,
+        );
+        await this.walletsService.withdrawPendingFunds(
+          ownerWallet.id,
+          booking.id,
+        );
+        this.logger.log(
+          `Owner pending balance removed for booking ${booking.id} (wallet ${ownerWallet.id})`,
+        );
+
+        // Also eliminate admin pending balance for this booking
+        const adminUserId = await this.resolveAdminUserId();
+        if (adminUserId) {
+          try {
+            const adminWallet =
+              await this.walletsService.findByUserId(adminUserId);
+            await this.walletsService.withdrawPendingFunds(
+              adminWallet.id,
+              booking.id,
+            );
+            this.logger.log(
+              `Admin pending balance removed for booking ${booking.id} (wallet ${adminWallet.id})`,
+            );
+          } catch (adminWalletErr) {
+            this.logger.warn(
+              `Failed to withdraw pending funds for admin wallet on booking ${booking.id}: ${
+                (adminWalletErr as any)?.message || adminWalletErr
+              }`,
+            );
+          }
+        }
+      } catch (walletErr) {
+        this.logger.warn(
+          `Failed to withdraw pending funds for owner wallet on booking ${booking.id}: ${
+            (walletErr as any)?.message || walletErr
+          }`,
+        );
+      }
+
       // Save to DB *after* payment actions are successful
       await queryRunner.manager.save(Booking, booking);
       console.log(
@@ -338,6 +469,20 @@ export class BookingsCancellationService {
       );
 
       await queryRunner.commitTransaction();
+
+      // Notify renter and owner about cancelled booking
+      try {
+        await this.bookingNotificationService.sendBookingCancelledNotification(
+          booking,
+          reason,
+        );
+      } catch (notifyErr) {
+        this.logger.warn(
+          `Failed to send booking cancelled notifications for ${booking.id}: ${
+            (notifyErr as any)?.message || notifyErr
+          }`,
+        );
+      }
       console.log(
         `[CANCEL_SERVICE] ✅ Transaction committed. Cancellation complete.`,
       );
@@ -463,13 +608,92 @@ export class BookingsCancellationService {
               );
             }
           } else {
-            await this.paymentService.createRefund(booking.paymentIntentId);
+            let stripeRefund: any = null;
+            try {
+              stripeRefund = await this.paymentService.createRefund(
+                booking.paymentIntentId,
+              );
+            } catch (e: any) {
+              const msg = e?.response?.message || e?.message || '';
+              if (!String(msg).includes('already been refunded')) {
+                throw e;
+              }
+            }
+            const ownerWallet = await this.walletsService.findByUserId(
+              booking.ownerId,
+            );
+            const refundTx = this.transactionRepository.create({
+              amount: -Math.abs(Number(booking.totalPrice)),
+              type: TransactionType.REFUND,
+              status: TransactionStatus.COMPLETED,
+              description: `Owner ${targetStatus === BookingStatus.REJECTED ? 'rejection' : 'cancellation'} refund for booking ${booking.id}`,
+              externalReference: stripeRefund?.id || undefined,
+              paymentProvider: 'STRIPE',
+              providerMetadata: {
+                originalPaymentIntentId: booking.paymentIntentId,
+                reason:
+                  targetStatus === BookingStatus.REJECTED
+                    ? 'TOOL_UNAVAILABLE'
+                    : 'BOOKING_CANCELLATION',
+                reasonDetails: `Owner ${targetStatus === BookingStatus.REJECTED ? 'rejection' : 'cancellation'}: ${reason}`,
+              },
+              senderId: booking.ownerId,
+              recipientId: booking.renterId,
+              walletId: ownerWallet.id,
+              bookingId: booking.id,
+            });
+            const savedRefundTx = await queryRunner.manager.save(
+              Transaction,
+              refundTx,
+            );
+            const refundRecord = queryRunner.manager.create(Refund, {
+              refundId: stripeRefund?.id || `ref_${Date.now()}`,
+              transactionId: savedRefundTx.id,
+              bookingId: booking.id,
+              originalAmount: Number(booking.totalPrice),
+              refundAmount: Number(booking.totalPrice),
+              currency: 'gbp',
+              status: RefundStatus.COMPLETED,
+              reason:
+                targetStatus === BookingStatus.REJECTED
+                  ? RefundReason.TOOL_UNAVAILABLE
+                  : RefundReason.BOOKING_CANCELLATION,
+              reasonDetails: `Owner ${targetStatus === BookingStatus.REJECTED ? 'rejection' : 'cancellation'}: ${reason}`,
+              processedBy: userId,
+              processedAt: new Date(),
+              stripeRefundData: stripeRefund || null,
+              walletBalanceUpdated: true,
+              notificationSent: true,
+            } as any);
+            await queryRunner.manager.save(Refund, refundRecord);
+            booking.refundAmount = booking.totalPrice as any;
+            booking.refundReason = `Owner ${targetStatus === BookingStatus.REJECTED ? 'rejection' : 'cancellation'}: ${reason}`;
           }
           this.logger.log(
             `Refunded full amount for booking ${bookingId} (Owner action)`,
           );
         }
       }
+
+      // Eliminate pending balances for owner and admin
+      try {
+        const ownerWallet = await this.walletsService.findByUserId(
+          booking.ownerId,
+        );
+        await this.walletsService.withdrawPendingFunds(
+          ownerWallet.id,
+          booking.id,
+        );
+        const adminUserId = await this.resolveAdminUserId();
+        if (adminUserId) {
+          const adminWallet =
+            await this.walletsService.findByUserId(adminUserId);
+          await this.walletsService.withdrawPendingFunds(
+            adminWallet.id,
+            booking.id,
+          );
+        }
+      } catch {}
 
       await queryRunner.commitTransaction();
 
@@ -548,6 +772,13 @@ export class BookingsCancellationService {
         }
 
         if (paymentIntent) {
+          // Skip refund if a completed refund already exists for this booking
+          const existingRefunds =
+            await this.refundsService.getRefundsByBookingId(booking.id);
+          const hasCompletedRefund = existingRefunds?.some(
+            (r) => r.status === RefundStatus.COMPLETED,
+          );
+
           if (paymentIntent.status === 'requires_capture') {
             await this.paymentService.cancelPaymentIntent(
               booking.paymentIntentId,
@@ -555,14 +786,25 @@ export class BookingsCancellationService {
             this.logger.log(
               `Released hold for booking ${bookingId} (Admin cancelled)`,
             );
-          } else if (paymentIntent.status === 'succeeded') {
+          } else if (
+            paymentIntent.status === 'succeeded' &&
+            !hasCompletedRefund
+          ) {
             // Full Refund
-            const transaction = await this.transactionRepository.findOne({
+            let transaction = await this.transactionRepository.findOne({
               where: {
                 bookingId: booking.id,
                 externalReference: booking.paymentIntentId,
               },
             });
+            if (!transaction) {
+              transaction = await this.transactionRepository.findOne({
+                where: {
+                  bookingId: booking.id,
+                  type: 'PAYMENT',
+                } as any,
+              });
+            }
 
             if (transaction) {
               await this.refundsService.createRefundRequest(
@@ -589,10 +831,86 @@ export class BookingsCancellationService {
                 );
               }
             } else {
-              await this.paymentService.createRefund(booking.paymentIntentId);
+              let stripeRefund: any = null;
+              try {
+                stripeRefund = await this.paymentService.createRefund(
+                  booking.paymentIntentId,
+                );
+              } catch (e: any) {
+                const msg = e?.response?.message || e?.message || '';
+                if (!String(msg).includes('already been refunded')) {
+                  throw e;
+                }
+                this.logger.log(
+                  `Refund already completed on Stripe for booking ${bookingId}. Skipping duplicate refund.`,
+                );
+              }
+              // Reflect refund on booking for audit
+              booking.refundAmount = booking.totalPrice as any;
+              booking.refundReason = `Admin cancellation: ${reason}`;
+
+              // Persist a refund record and corresponding refund transaction when direct refund executed
+              try {
+                const ownerWallet = await this.walletsService.findByUserId(
+                  booking.ownerId,
+                );
+
+                const refundTx = this.transactionRepository.create({
+                  amount: -Math.abs(Number(booking.totalPrice)),
+                  type: TransactionType.REFUND,
+                  status: TransactionStatus.COMPLETED,
+                  description: `Admin cancellation refund for booking ${booking.id}`,
+                  externalReference: stripeRefund?.id || undefined,
+                  paymentProvider: 'STRIPE',
+                  providerMetadata: {
+                    originalPaymentIntentId: booking.paymentIntentId,
+                    reason: 'ADMIN_DECISION',
+                    reasonDetails: `Admin cancellation: ${reason}`,
+                  },
+                  senderId: booking.ownerId,
+                  recipientId: booking.renterId,
+                  walletId: ownerWallet.id,
+                  bookingId: booking.id,
+                });
+                const savedRefundTx = await queryRunner.manager.save(
+                  Transaction,
+                  refundTx,
+                );
+
+                // Create refund record linked to transaction
+                const refundRecord = queryRunner.manager.create(Refund, {
+                  refundId: stripeRefund?.id || `ref_${Date.now()}`,
+                  transactionId: savedRefundTx.id,
+                  bookingId: booking.id,
+                  originalAmount: Number(booking.totalPrice),
+                  refundAmount: Number(booking.totalPrice),
+                  currency: 'gbp',
+                  status: RefundStatus.COMPLETED,
+                  reason: RefundReason.ADMIN_DECISION,
+                  reasonDetails: `Admin cancellation: ${reason}`,
+                  adminNotes: message || null,
+                  processedBy: 'ADMIN',
+                  processedAt: new Date(),
+                  stripeRefundData: stripeRefund || null,
+                  walletBalanceUpdated: false,
+                  notificationSent: false,
+                } as any);
+                await queryRunner.manager.save(Refund, refundRecord);
+              } catch (persistErr) {
+                this.logger.warn(
+                  `Failed to persist manual refund record for booking ${booking.id}: ${
+                    (persistErr as any)?.message || persistErr
+                  }`,
+                );
+              }
             }
             this.logger.log(
               `Refunded full amount for booking ${bookingId} (Admin action)`,
+            );
+          }
+          if (hasCompletedRefund) {
+            this.logger.log(
+              `Refund already completed for booking ${bookingId}. Skipping refund attempt.`,
             );
           }
         }

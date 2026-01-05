@@ -42,7 +42,14 @@ export class AdminTransactionsController {
   @ApiQuery({ name: 'type', required: false, type: String })
   @ApiQuery({ name: 'start_date', required: false, type: String })
   @ApiQuery({ name: 'end_date', required: false, type: String })
-  async getTransactions(@Query() filters: TransactionFilterParams) {
+  async getTransactions(
+    @Query() filters: TransactionFilterParams,
+    @Query('start_date') start_date?: string,
+    @Query('end_date') end_date?: string,
+  ) {
+    // Map snake_case query params to DTO camelCase fields for date filtering
+    if (start_date) (filters as any).startDate = start_date;
+    if (end_date) (filters as any).endDate = end_date;
     return this.adminTransactionsService.getTransactions(filters);
   }
 
