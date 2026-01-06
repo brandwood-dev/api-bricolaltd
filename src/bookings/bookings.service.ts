@@ -170,42 +170,42 @@ export class BookingsService {
       throw new BadRequestException('End date must be after start date');
     }
 
-    // Minimum 48 hours advance booking requirement
-    // This allows time for: owner confirmation, deposit jobs (24h before), and notifications
-    const minimumAdvanceHours = 48;
-    const minimumStartTime = new Date(
-      now.getTime() + minimumAdvanceHours * 60 * 60 * 1000,
-    );
+    // // Minimum 48 hours advance booking requirement
+    // // This allows time for: owner confirmation, deposit jobs (24h before), and notifications
+    // const minimumAdvanceHours = 48;
+    // const minimumStartTime = new Date(
+    //   now.getTime() + minimumAdvanceHours * 60 * 60 * 1000,
+    // );
 
-    console.log('🔍 [BookingService] 48-hour advance booking validation:', {
-      now: now.toISOString(),
-      startWithPickupTime: startWithPickupTime.toISOString(),
-      minimumStartTime: minimumStartTime.toISOString(),
-      minimumAdvanceHours: minimumAdvanceHours,
-      hoursUntilPickup:
-        (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
-      pickupHour: pickupHour,
-    });
+    // console.log('🔍 [BookingService] 48-hour advance booking validation:', {
+    //   now: now.toISOString(),
+    //   startWithPickupTime: startWithPickupTime.toISOString(),
+    //   minimumStartTime: minimumStartTime.toISOString(),
+    //   minimumAdvanceHours: minimumAdvanceHours,
+    //   hoursUntilPickup:
+    //     (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
+    //   pickupHour: pickupHour,
+    // });
 
-    if (startWithPickupTime < minimumStartTime) {
-      const hoursUntilPickup =
-        (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      console.log(
-        '❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance',
-      );
-      console.log('❌ [BookingService] 48-hour validation details:', {
-        startWithPickupTime: startWithPickupTime.toISOString(),
-        now: now.toISOString(),
-        minimumStartTime: minimumStartTime.toISOString(),
-        hoursUntilPickup: hoursUntilPickup,
-        minimumRequired: minimumAdvanceHours,
-      });
-      throw new BadRequestException(
-        `Les réservations doivent être faites au moins ${minimumAdvanceHours} heures à l'avance. ` +
-          `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
-          `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`,
-      );
-    }
+    // if (startWithPickupTime < minimumStartTime) {
+    //   const hoursUntilPickup =
+    //     (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    //   console.log(
+    //     '❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance',
+    //   );
+    //   console.log('❌ [BookingService] 48-hour validation details:', {
+    //     startWithPickupTime: startWithPickupTime.toISOString(),
+    //     now: now.toISOString(),
+    //     minimumStartTime: minimumStartTime.toISOString(),
+    //     hoursUntilPickup: hoursUntilPickup,
+    //     minimumRequired: minimumAdvanceHours,
+    //   });
+    //   throw new BadRequestException(
+    //     `Les réservations doivent être faites au moins ${minimumAdvanceHours} heures à l'avance. ` +
+    //       `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
+    //       `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`,
+    //   );
+    // }
 
     // Validate tool exists and is available
     console.log('🔍 [BookingService] Fetching tool:', toolId);
