@@ -26,6 +26,7 @@ import { Refund } from '../../refunds/entities/refund.entity';
 import { UsersService } from '../../users/users.service';
 import { BookingNotificationService } from '../booking-notification.service';
 import { ADMIN_EMAIL, ADMIN_USER_ID } from '../../config/constants';
+import { Wallet } from '../../wallets/entities/wallet.entity';
 
 import { TransactionType } from '../../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../../transactions/enums/transaction-status.enum';
@@ -724,7 +725,7 @@ export class BookingsCancellationService {
     bookingId: string,
     reason?: string,
     message?: string,
-  ): Promise<Booking> {
+  ): Promise<any> {
     const booking = await this.bookingRepository.findOne({
       where: { id: bookingId },
     });
@@ -748,6 +749,19 @@ export class BookingsCancellationService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
+    const result: any = {
+      success: false,
+      bookingId,
+      steps: {
+        cancellation: {},
+        stripeRefund: {},
+        dbRefund: {},
+        wallets: {},
+        transactionsCleanup: {},
+        notifications: {},
+      },
+    };
+
     try {
       booking.status = BookingStatus.CANCELLED;
       booking.cancellationReason = reason || 'Cancelled by admin';
@@ -757,6 +771,13 @@ export class BookingsCancellationService {
       }
 
       await queryRunner.manager.save(Booking, booking);
+      result.steps.cancellation = {
+        updated: true,
+        eligible: true,
+        status: booking.status,
+        reason: booking.cancellationReason,
+        message: booking.cancellationMessage,
+      };
 
       // 100% Refund Logic (Same as Owner)
       if (booking.paymentIntentId) {
@@ -786,6 +807,10 @@ export class BookingsCancellationService {
             this.logger.log(
               `Released hold for booking ${bookingId} (Admin cancelled)`,
             );
+            result.steps.stripeRefund = {
+              attempted: false,
+              requiresCaptureCancelled: true,
+            };
           } else if (
             paymentIntent.status === 'succeeded' &&
             !hasCompletedRefund
@@ -829,6 +854,12 @@ export class BookingsCancellationService {
                   pendingRefund.id,
                   'SYSTEM_AUTO',
                 );
+                result.steps.dbRefund = {
+                  created: true,
+                  processed: true,
+                  refundId: pendingRefund.id,
+                  amount: Number(booking.totalPrice),
+                };
               }
             } else {
               let stripeRefund: any = null;
@@ -844,6 +875,10 @@ export class BookingsCancellationService {
                 this.logger.log(
                   `Refund already completed on Stripe for booking ${bookingId}. Skipping duplicate refund.`,
                 );
+                result.steps.stripeRefund = {
+                  attempted: true,
+                  alreadyRefunded: true,
+                };
               }
               // Reflect refund on booking for audit
               booking.refundAmount = booking.totalPrice as any;
@@ -896,42 +931,145 @@ export class BookingsCancellationService {
                   notificationSent: false,
                 } as any);
                 await queryRunner.manager.save(Refund, refundRecord);
+                result.steps.dbRefund = {
+                  created: true,
+                  processed: true,
+                  refundId: refundRecord.id,
+                  amount: Number(booking.totalPrice),
+                };
               } catch (persistErr) {
                 this.logger.warn(
                   `Failed to persist manual refund record for booking ${booking.id}: ${
                     (persistErr as any)?.message || persistErr
                   }`,
                 );
+                result.steps.dbRefund = {
+                  created: false,
+                  processed: false,
+                  error: (persistErr as any)?.message || String(persistErr),
+                };
               }
             }
             this.logger.log(
               `Refunded full amount for booking ${bookingId} (Admin action)`,
             );
+            result.steps.stripeRefund = {
+              ...(result.steps.stripeRefund || {}),
+              attempted: true,
+              succeeded: true,
+            };
           }
           if (hasCompletedRefund) {
             this.logger.log(
               `Refund already completed for booking ${bookingId}. Skipping refund attempt.`,
             );
+            result.steps.dbRefund = {
+              existsAlready: true,
+            };
           }
         }
       }
 
+      // Wallets: remove 85% owner, 15% admin from pending
+      try {
+        const total = Number(booking.totalPrice) || 0;
+        const ownerPendingRemove = Number((total * 0.85).toFixed(2));
+        const adminPendingRemove = Number((total * 0.15).toFixed(2));
+
+        const ownerWallet = await this.walletsService.findByUserId(
+          booking.ownerId,
+        );
+        ownerWallet.pendingBalance =
+          Number(ownerWallet.pendingBalance) - ownerPendingRemove;
+        await queryRunner.manager.save(Wallet, ownerWallet);
+
+        const adminUserId = await this.resolveAdminUserId();
+        if (adminUserId) {
+          try {
+            const adminWallet =
+              await this.walletsService.findByUserId(adminUserId);
+            adminWallet.pendingBalance =
+              Number(adminWallet.pendingBalance) - adminPendingRemove;
+            await queryRunner.manager.save(Wallet, adminWallet);
+          } catch (adminWalletErr) {
+            this.logger.warn(
+              `Admin wallet update failed for booking ${booking.id}: ${
+                (adminWalletErr as any)?.message || adminWalletErr
+              }`,
+            );
+          }
+        }
+        result.steps.wallets = {
+          ownerPendingRemoved: ownerPendingRemove,
+          adminPendingRemoved: adminPendingRemove,
+        };
+      } catch (walletErr) {
+        this.logger.warn(
+          `Wallet pending update error for booking ${booking.id}: ${
+            (walletErr as any)?.message || walletErr
+          }`,
+        );
+        result.steps.wallets = {
+          error: (walletErr as any)?.message || String(walletErr),
+        };
+      }
+
+      // Cleanup payment transactions associated with the booking; keep refund records for audit
+      try {
+        const txDel = await queryRunner.manager.delete(Transaction as any, {
+          bookingId: booking.id,
+          type: TransactionType.PAYMENT as any,
+        });
+        result.steps.transactionsCleanup = {
+          deleted: true,
+          transactionsDeleted:
+            typeof txDel?.affected === 'number' ? txDel.affected : 0,
+        };
+      } catch (cleanupErr) {
+        this.logger.warn(
+          `Failed to cleanup payment transactions for booking ${booking.id}: ${
+            (cleanupErr as any)?.message || cleanupErr
+          }`,
+        );
+        result.steps.transactionsCleanup = {
+          deleted: false,
+          error: (cleanupErr as any)?.message || String(cleanupErr),
+        };
+      }
+
       await queryRunner.commitTransaction();
 
-      // Cleanup internal transactions
-      const cleanupRunner = this.dataSource.createQueryRunner();
-      await cleanupRunner.connect();
-      await this.cleanupBookingTransactions(booking.id, cleanupRunner);
-      await cleanupRunner.release();
+      // Notify renter and owner
+      try {
+        await this.bookingNotificationService.sendBookingCancelledNotification(
+          booking,
+          reason,
+        );
+        result.steps.notifications = { sent: true };
+      } catch (notifyErr) {
+        this.logger.warn(
+          `Failed to send booking cancelled notifications for ${booking.id}: ${
+            (notifyErr as any)?.message || notifyErr
+          }`,
+        );
+        result.steps.notifications = {
+          sent: false,
+          error: (notifyErr as any)?.message || String(notifyErr),
+        };
+      }
 
-      return booking;
+      result.success = true;
+      result.data = booking;
+      return result;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       this.logger.error(
         `Failed to process admin cancellation for ${bookingId}`,
         error,
       );
-      throw error;
+      result.success = false;
+      result.error = (error as any)?.message || String(error);
+      return result;
     } finally {
       await queryRunner.release();
     }

@@ -269,14 +269,48 @@ export class BookingsController {
     @Request() req,
   ) {
     console.log(`[BOOKINGS_CONTROLLER] 🛑 cancelBooking called for ${id}`);
-    console.log(`[BOOKINGS_CONTROLLER] 👉 Delegating to BookingsCancellationService.cancelBookingByRenter`);
-    
+    console.log(
+      `[BOOKINGS_CONTROLLER] 👉 Delegating to BookingsCancellationService.cancelBookingByRenter`,
+    );
+
     // Use new cancellation service for enhanced refund logic
     return this.bookingsCancellationService.cancelBookingByRenter(
-        id, 
-        req.user.id, 
-        cancelBookingDto.reason, 
-        cancelBookingDto.cancellationMessage
+      id,
+      req.user.id,
+      cancelBookingDto.reason,
+      cancelBookingDto.cancellationMessage,
+    );
+  }
+
+  @Patch(':id/cancelByAdmin')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel a booking' })
+  @ApiParam({ name: 'id', description: 'Booking ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'The booking has been successfully cancelled.',
+    type: Booking,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 404, description: 'Booking not found.' })
+  cancelBookingByAdmin(
+    @Param('id') id: string,
+    @Body() cancelBookingDto: CancelBookingDto,
+    @Request() req,
+  ) {
+    console.log(
+      `[BOOKINGS_CONTROLLER] 🛑 cancelBooking By Admin called for ${id}`,
+    );
+    console.log(
+      `[BOOKINGS_CONTROLLER] 👉 Delegating to BookingsCancellationService.cancelBookingByAdmin`,
+    );
+
+    // Use new cancellation service for enhanced refund logic
+    return this.bookingsCancellationService.cancelBookingByAdmin(
+      id,
+      cancelBookingDto.reason,
+      cancelBookingDto.cancellationMessage,
     );
   }
 
@@ -315,10 +349,10 @@ export class BookingsController {
   ) {
     // Use new cancellation service for enhanced refund logic (Owner Rejection)
     return this.bookingsCancellationService.cancelBookingByOwner(
-        id,
-        req.user.id,
-        rejectBookingDto.refusalReason,
-        rejectBookingDto.refusalMessage
+      id,
+      req.user.id,
+      rejectBookingDto.refusalReason,
+      rejectBookingDto.refusalMessage,
     );
   }
 
@@ -583,7 +617,9 @@ export class BookingsController {
   @Patch('admin/:id/payout')
   @UseGuards(JwtAuthGuard, AdminGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Transfer pending funds to available for booking (admin only)' })
+  @ApiOperation({
+    summary: 'Transfer pending funds to available for booking (admin only)',
+  })
   @ApiParam({ name: 'id', description: 'Booking ID' })
   @ApiResponse({ status: 200, description: 'Funds transferred successfully.' })
   payoutBooking(@Param('id') id: string) {
