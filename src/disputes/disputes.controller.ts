@@ -99,9 +99,14 @@ export class DisputesController {
     if (search) filters.search = search;
     if (status) filters.status = status;
     if (startDate && endDate) {
+      const s = new Date(startDate);
+      s.setDate(s.getDate() + 1);
+      const e = new Date(endDate);
+      e.setDate(e.getDate() + 1);
+
       filters.dateRange = {
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: s,
+        endDate: e,
       };
     }
 

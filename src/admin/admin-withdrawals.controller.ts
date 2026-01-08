@@ -33,6 +33,7 @@ import {
 import { CreateWalletDto } from '../wallets/dto/create-wallet.dto';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
+import { ADMIN_EMAIL, ADMIN_USER_ID } from '../config/constants';
 
 @ApiTags('admin-withdrawals')
 @Controller('admin/withdrawals')
@@ -243,6 +244,59 @@ export class AdminWithdrawalsController {
     };
 
     return { success: true, data: stats, message: 'Request successful' };
+  }
+
+  private async resolveAdminUserId(): Promise<string | null> {
+    try {
+      if (ADMIN_EMAIL) {
+        const user = await this.usersRepository.findOne({ where: { email: ADMIN_EMAIL } });
+        if (user?.id) return user.id;
+      }
+      if (ADMIN_USER_ID) return ADMIN_USER_ID;
+      return null;
+    } catch {
+      return ADMIN_USER_ID ?? null;
+    }
+  }
+
+  @Get('platform-wallet')
+  @ApiOperation({ summary: 'Get platform (admin) wallet metrics' })
+  @ApiResponse({ status: 200, description: 'Return admin wallet balances and withdrawals sum.' })
+  async getPlatformWallet() {
+    const adminUserId = await this.resolveAdminUserId();
+    if (!adminUserId) {
+      return {
+        success: false,
+        message: 'Admin user not configured',
+      };
+    }
+
+    const wallet = await this.walletsService.findByUserId(adminUserId);
+    const completedWithdrawalsSumRaw = await this.transactionsRepository
+      .createQueryBuilder('transaction')
+      .select('SUM(transaction.amount)', 'sum')
+      .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
+      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .getRawOne();
+
+    const completedWithdrawalsSum = parseFloat(completedWithdrawalsSumRaw?.sum || '0');
+
+    return {
+      success: true,
+      data: {
+        wallet: {
+          id: wallet.id,
+          balance: Number(wallet.balance),
+          pendingBalance: Number(wallet.pendingBalance),
+          reservedBalance: Number(wallet.reservedBalance),
+          currency: 'GBP',
+        },
+        totals: {
+          totalConfirmedWithdrawals: completedWithdrawalsSum,
+        },
+      },
+      message: 'Request successful',
+    };
   }
 
   @Post(':id/approve')

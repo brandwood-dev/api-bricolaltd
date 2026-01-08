@@ -15,9 +15,11 @@ import { S3Service } from '../common/services/s3.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type';
+import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class DisputesService {
+   private readonly logger: Logger = new Logger(DisputesService.name);
   constructor(
     @InjectRepository(Dispute)
     private disputesRepository: Repository<Dispute>,
@@ -240,6 +242,9 @@ export class DisputesService {
         status: filters.status,
       });
     }
+    this.logger.log(
+      `🔄 DATE START: ${filters?.dateRange?.startDate} (-------------------->: ${filters?.dateRange?.endDate})`,
+    );
 
     if (filters?.dateRange?.startDate && filters?.dateRange?.endDate) {
       queryBuilder.andWhere(
