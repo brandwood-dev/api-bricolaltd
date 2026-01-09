@@ -606,7 +606,9 @@ export class BookingsService {
     id: string,
     cancelBookingDto: CancelBookingDto,
   ): Promise<Booking> {
-    console.log(`[BOOKINGS_SERVICE] 🛑 cancelBooking called for ${id} (Delegating to BookingsCancellationService)`);
+    console.log(
+      `[BOOKINGS_SERVICE] 🛑 cancelBooking called for ${id} (Delegating to BookingsCancellationService)`,
+    );
     // Delegate to BookingsCancellationService.cancelBookingByAdmin
     // This ensures refunds are processed correctly for bulk/admin actions
     // This method is typically called by bulkUpdateBookings or other internal admin processes
@@ -645,7 +647,9 @@ export class BookingsService {
     id: string,
     rejectBookingDto: RejectBookingDto,
   ): Promise<Booking> {
-    console.log(`[BOOKINGS_SERVICE] 🛑 rejectBooking called for ${id} (Delegating to BookingsCancellationService)`);
+    console.log(
+      `[BOOKINGS_SERVICE] 🛑 rejectBooking called for ${id} (Delegating to BookingsCancellationService)`,
+    );
     const booking = await this.findOne(id);
 
     if (booking.status !== BookingStatus.PENDING) {
@@ -1579,13 +1583,21 @@ export class BookingsService {
     }
   }
 
-  async payoutBookingRevenue(id: string): Promise<{ message: string; data: Booking }> {
+  async payoutBookingRevenue(
+    id: string,
+  ): Promise<{ message: string; data: Booking }> {
     const booking = await this.findOne(id);
     if (!booking) {
       throw new NotFoundException(`Booking ${id} not found`);
     }
-    if (booking.status !== BookingStatus.ACCEPTED && booking.status !== BookingStatus.ONGOING && booking.status !== BookingStatus.COMPLETED) {
-      throw new BadRequestException('Booking must be ACCEPTED, ONGOING, or COMPLETED to payout');
+    if (
+      booking.status !== BookingStatus.ACCEPTED &&
+      booking.status !== BookingStatus.ONGOING &&
+      booking.status !== BookingStatus.COMPLETED
+    ) {
+      throw new BadRequestException(
+        'Booking must be ACCEPTED, ONGOING, or COMPLETED to payout',
+      );
     }
 
     const tool = await this.toolsService.findOne(booking.toolId);
@@ -1599,10 +1611,54 @@ export class BookingsService {
       } catch {}
     }
 
-    await this.walletsService.transferPendingToAvailable(ownerWallet.id, booking.id);
-    if (adminWallet) {
-      await this.walletsService.transferPendingToAvailable(adminWallet.id, booking.id);
+    const result = await this.walletsService.transferPendingToAvailable(
+      ownerWallet.id,
+      booking.id,
+    );
+    //if result = wallet, then add 85% of totalPrice to owner wallet
+    console.log('🔍 [BookingService] forcer la refund de 85%', result);
+    if (result === ownerWallet) {
+      const totalPrice = booking.totalPrice;
+      const refundAmount = Math.round(totalPrice * 0.85 * 100) / 100;
+      await this.walletsService.addAvailableFunds(ownerWallet.id, refundAmount);
     }
+    if (adminWallet) {
+      const resultAdmin = await this.walletsService.transferPendingToAvailable(
+        adminWallet.id,
+        booking.id,
+      );
+      //if resultAdmin = wallet, then add 15% of totalPrice to admin wallet
+      console.log('🔍 [BookingService] forcer la refund de 15%', resultAdmin);
+      if (resultAdmin === adminWallet) {
+        console.log('🔍 [BookingService] forcer la refund de 15%', resultAdmin);
+        const totalPrice = booking.totalPrice;
+        const refundAmount = Math.round(totalPrice * 0.15 * 100) / 100;
+        await this.walletsService.addAvailableFunds(
+          adminWallet.id,
+          refundAmount,
+        );
+      }
+    }
+    //cancel booking
+    console.log('🔍 [BookingService] cancel booking', booking.id);
+    await this.bookingsRepository.update(booking.id, {
+      status: BookingStatus.CANCELLED,
+    });
+
+    //notify renter and owner that booking is cancelled
+
+    console.log('🔍 [BookingService] notifyBookingCancelled', booking.id);
+    await this.bookingNotificationService.notifyBookingCancelled(
+      booking,
+      'renter',
+      'Booking canceled by admin after dispute',
+    );
+    console.log('🔍 [BookingService] notifyBookingCancelled', booking.id);
+    await this.bookingNotificationService.notifyBookingCancelled(
+      booking,
+      'owner',
+      'Booking canceled by admin after dispute',
+    );
 
     return {
       message: 'Pending funds transferred to available',
