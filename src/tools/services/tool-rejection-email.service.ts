@@ -166,7 +166,7 @@ export class ToolRejectionEmailService {
           </div>
           <div class="content">
             <p>${textBody.replace(/\n/g, '<br/>')}</p>
-            <p><a href="${frontendUrl}/tools" rel="noopener noreferrer">Access your tools</a></p>
+           
             <p>Sincerely,<br/>The BricolaLTD Team</p>
           </div>
           <div class="footer">

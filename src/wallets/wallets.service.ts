@@ -434,4 +434,12 @@ export class WalletsService {
 
     return this.walletsRepository.save(wallet);
   }
+
+  async getReservedBalanceSum() {
+    const sum = await this.walletsRepository
+      .createQueryBuilder('wallet')
+      .select('SUM(wallet.reservedBalance)', 'sum')
+      .getRawOne();
+    return sum;
+  }
 }

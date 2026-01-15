@@ -697,7 +697,19 @@ export class BookingsCancellationService {
       } catch {}
 
       await queryRunner.commitTransaction();
-
+//notify renter
+ if (targetStatus === BookingStatus.REJECTED) {
+      await this.bookingNotificationService.notifyBookingRejected(
+        booking,
+        reason,
+      );
+    } else if (targetStatus === BookingStatus.CANCELLED) {
+      await this.bookingNotificationService.notifyBookingCancelled(
+        booking,
+        'owner',
+        reason,
+      );   
+      
       // Cleanup internal transactions
       const cleanupRunner = this.dataSource.createQueryRunner();
       await cleanupRunner.connect();

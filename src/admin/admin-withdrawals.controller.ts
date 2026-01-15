@@ -60,10 +60,16 @@ export class AdminWithdrawalsController {
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
   async getAllWithdrawals(
     @Query('status') status?: TransactionStatus,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Query('search') search?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     const qb = this.transactionsRepository
       .createQueryBuilder('transaction')
@@ -71,6 +77,19 @@ export class AdminWithdrawalsController {
       .leftJoinAndSelect('transaction.recipient', 'recipient')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
       .orderBy('transaction.createdAt', 'DESC');
+      if (search) {
+        qb.andWhere(
+          'LOWER(sender.firstName) LIKE LOWER(:search) OR LOWER(sender.lastName) LIKE LOWER(:search) OR LOWER(sender.email) LIKE LOWER(:search)',
+          { search: `%${search}%` },
+        );
+      }
+      if (startDate && endDate) {
+        qb.andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate),
+        });
+      }
+     
 
     if (status) {
       qb.andWhere('transaction.status = :status', { status });
@@ -249,7 +268,9 @@ export class AdminWithdrawalsController {
   private async resolveAdminUserId(): Promise<string | null> {
     try {
       if (ADMIN_EMAIL) {
-        const user = await this.usersRepository.findOne({ where: { email: ADMIN_EMAIL } });
+        const user = await this.usersRepository.findOne({
+          where: { email: ADMIN_EMAIL },
+        });
         if (user?.id) return user.id;
       }
       if (ADMIN_USER_ID) return ADMIN_USER_ID;
@@ -261,7 +282,10 @@ export class AdminWithdrawalsController {
 
   @Get('platform-wallet')
   @ApiOperation({ summary: 'Get platform (admin) wallet metrics' })
-  @ApiResponse({ status: 200, description: 'Return admin wallet balances and withdrawals sum.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return admin wallet balances and withdrawals sum.',
+  })
   async getPlatformWallet() {
     const adminUserId = await this.resolveAdminUserId();
     if (!adminUserId) {
@@ -276,11 +300,29 @@ export class AdminWithdrawalsController {
       .createQueryBuilder('transaction')
       .select('SUM(transaction.amount)', 'sum')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
-      .andWhere('transaction.status = :status', { status: TransactionStatus.COMPLETED })
+      .andWhere('transaction.status = :status', {
+        status: TransactionStatus.COMPLETED,
+      })
       .getRawOne();
 
-    const completedWithdrawalsSum = parseFloat(completedWithdrawalsSumRaw?.sum || '0');
+    const completedWithdrawalsSum = parseFloat(
+      completedWithdrawalsSumRaw?.sum || '0',
+    );
+    // sum des reserved_balance de tout les utilisateurs via wallet service
+    const reservedBalanceSumRaw =
+      await this.walletsService.getReservedBalanceSum();
+    console.log(
+      `[WALLET_METRICS] reservedBalanceSumRaw: ${reservedBalanceSumRaw}€`,
+    );
+    const reservedBalanceSum = parseFloat(reservedBalanceSumRaw.sum || '0');
+    console.log(`[WALLET_METRICS] reservedBalanceSum: ${reservedBalanceSum}€`);
 
+    // Solde cumulé S: reserved_balance - wallet_admin.reservedBalance
+    const cumulativeBalance = Math.max(
+      Number(reservedBalanceSum - wallet.reservedBalance),
+      0,
+    );
+    console.log(`[WALLET_METRICS] cumulativeBalance: ${cumulativeBalance}€`);
     return {
       success: true,
       data: {
@@ -293,6 +335,9 @@ export class AdminWithdrawalsController {
         },
         totals: {
           totalConfirmedWithdrawals: completedWithdrawalsSum,
+        },
+        walletMetrics: {
+          cumulativeBalance,
         },
       },
       message: 'Request successful',

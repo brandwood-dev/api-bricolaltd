@@ -1310,8 +1310,11 @@ export class BookingsService {
 
     // 1. Calcul des montants
     const totalAmount = Number(booking.totalPrice);
-    const adminCommission = Math.round(totalAmount * 0.15 * 100) / 100; // 15%
-    const ownerRevenue = Math.round(totalAmount * 0.79 * 100) / 100; // 79%
+
+    const net = Math.round(totalAmount * 0.94 * 100) / 100;
+
+    const adminCommission = Math.round(net * 0.15 * 100) / 100; // 15%
+    const ownerRevenue = Math.round(net * 0.85 * 100) / 100; // 79% 
 
     console.log(
       `[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`,
