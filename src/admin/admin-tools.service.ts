@@ -430,7 +430,9 @@ export class AdminToolsService {
 
     // Send email notification to tool owner before deletion
     if (tool.owner && tool.owner.email) {
-      console.log(`📧 Sending tool removal email to tool owner: ${tool.owner.email}`);
+      console.log(
+        `📧 Sending tool removal email to tool owner: ${tool.owner.email}`,
+      );
       try {
         await this.sendToolRemovalEmail(tool.owner, tool.title, reason);
       } catch (error) {
@@ -440,7 +442,7 @@ export class AdminToolsService {
     }
 
     await this.toolRepository.remove(tool);
-    
+
     // Notify admins of deletion
     try {
       await this.adminNotificationsService.createUserNotification(
@@ -453,7 +455,7 @@ export class AdminToolsService {
         NotificationPriority.HIGH,
       );
     } catch {}
-    
+
     return { message: 'Tool deleted successfully' };
   }
 
@@ -584,15 +586,18 @@ export class AdminToolsService {
     toolName: string,
     reason?: string,
   ): Promise<void> {
-    console.log(`📧 Preparing tool removal email for ${owner.email} - Tool: ${toolName}`);
-    
+    console.log(
+      `📧 Preparing tool removal email for ${owner.email} - Tool: ${toolName}`,
+    );
+
     const subject = 'Tool Removal Notification';
-    
+
     // Use provided reason or default message
-    const deletionReason = reason || 'Violation of platform terms and conditions';
-    
+    const deletionReason =
+      reason || 'Violation of platform terms and conditions';
+
     console.log(`📧 Deletion reason: ${deletionReason}`);
-    
+
     const htmlContent = `
       <!DOCTYPE html>
       <html lang="en">
@@ -649,7 +654,7 @@ export class AdminToolsService {
       subject,
       html: htmlContent,
     });
-    
+
     console.log(`✅ Tool removal email sent successfully to ${owner.email}`);
   }
 }

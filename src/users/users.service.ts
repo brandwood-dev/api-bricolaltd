@@ -1101,7 +1101,9 @@ export class UsersService {
         .getRawOne();
 
       const averageRating = parseFloat(ratingResult?.averageRating || '0');
-this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRating})`);
+      this.logger.log(
+        `🔄 averageRating user:  (-------------------->: ${averageRating})`,
+      );
       return {
         data: {
           totalEarnings: Math.round(totalEarnings * 100) / 100, // Arrondir à 2 décimales
@@ -1188,7 +1190,9 @@ this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRati
   async activateUser(id: string): Promise<User> {
     const user = await this.findOne(id);
 
-    this.logger.log(`🔄 Activating user: ${user.email} (currently suspended: ${user.isSuspended})`);
+    this.logger.log(
+      `🔄 Activating user: ${user.email} (currently suspended: ${user.isSuspended})`,
+    );
 
     // Activate the user
     user.isActive = true;
@@ -1203,8 +1207,10 @@ this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRati
       const reactivationHtml = this.getReactivationEmailTemplate(
         user.firstName || 'Utilisateur',
       );
-      this.logger.log(`📧 Reactivation HTML generated, length: ${reactivationHtml.length} characters`);
-      
+      this.logger.log(
+        `📧 Reactivation HTML generated, length: ${reactivationHtml.length} characters`,
+      );
+
       const emailSent = await this.sendGridService.sendEmail({
         to: user.email,
         subject: 'Your Bricola-ltd Account Has Been Reactivated',
@@ -1270,8 +1276,10 @@ this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRati
     try {
       this.logger.log(`Attempting to send suspension email to: ${user.email}`);
       this.logger.log(`Email subject: ${emailTemplate.subject}`);
-      this.logger.log(`Email HTML length: ${emailTemplate.html.length} characters`);
-      
+      this.logger.log(
+        `Email HTML length: ${emailTemplate.html.length} characters`,
+      );
+
       const emailSent = await this.sendGridService.sendEmail({
         to: user.email,
         subject: emailTemplate.subject,
@@ -1279,9 +1287,13 @@ this.logger.log(`🔄 averageRating user:  (-------------------->: ${averageRati
       });
 
       if (emailSent) {
-        this.logger.log(`✅ Suspension email sent successfully to: ${user.email}`);
+        this.logger.log(
+          `✅ Suspension email sent successfully to: ${user.email}`,
+        );
       } else {
-        this.logger.error(`❌ Failed to send suspension email to: ${user.email}`);
+        this.logger.error(
+          `❌ Failed to send suspension email to: ${user.email}`,
+        );
       }
     } catch (error) {
       this.logger.error('❌ Error sending suspension email:', error);

@@ -27,7 +27,13 @@ import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, DepositCaptureJob, User, Tool, Transaction]),
+    TypeOrmModule.forFeature([
+      Booking,
+      DepositCaptureJob,
+      User,
+      Tool,
+      Transaction,
+    ]),
     ScheduleModule.forRoot(),
     forwardRef(() => WalletsModule),
     forwardRef(() => UsersModule),

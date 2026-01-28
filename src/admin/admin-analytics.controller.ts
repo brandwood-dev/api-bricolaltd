@@ -80,6 +80,13 @@ export class AdminAnalyticsController {
     return this.adminAnalyticsService.getGeographicAnalytics();
   }
 
+  @Get('geographic/users-by-country')
+  @ApiOperation({ summary: 'Get users distribution by country' })
+  @ApiResponse({ status: 200, description: 'Users by country with percentage' })
+  async getUsersByCountry() {
+    return this.adminAnalyticsService.getUsersByCountry();
+  }
+
   @Get('performance')
   @ApiOperation({ summary: 'Get platform performance metrics' })
   @ApiResponse({ status: 200, description: 'Performance metrics data' })

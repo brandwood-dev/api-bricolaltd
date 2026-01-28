@@ -216,10 +216,7 @@ export class AdminToolsController {
   @ApiResponse({ status: 200, description: 'Tool deleted successfully.' })
   @ApiResponse({ status: 404, description: 'Tool not found.' })
   @ApiParam({ name: 'id', description: 'Tool ID' })
-  async deleteTool(
-    @Param('id') id: string,
-    @Body() body: { reason?: string },
-  ) {
+  async deleteTool(@Param('id') id: string, @Body() body: { reason?: string }) {
     return this.adminToolsService.deleteTool(id, body.reason);
   }
 

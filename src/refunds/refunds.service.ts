@@ -539,7 +539,13 @@ export class RefundsService {
   async getRefundsByTransactionId(transactionId: string): Promise<Refund[]> {
     return this.refundRepository.find({
       where: { transactionId },
-      relations: ['transaction', 'booking', 'booking.tool', 'booking.renter', 'booking.owner'],
+      relations: [
+        'transaction',
+        'booking',
+        'booking.tool',
+        'booking.renter',
+        'booking.owner',
+      ],
       order: { createdAt: 'DESC' },
     });
   }
@@ -550,7 +556,13 @@ export class RefundsService {
   async getRefundsByBookingId(bookingId: string): Promise<Refund[]> {
     return this.refundRepository.find({
       where: { bookingId },
-      relations: ['transaction', 'booking', 'booking.tool', 'booking.renter', 'booking.owner'],
+      relations: [
+        'transaction',
+        'booking',
+        'booking.tool',
+        'booking.renter',
+        'booking.owner',
+      ],
       order: { createdAt: 'DESC' },
     });
   }

@@ -1314,7 +1314,7 @@ export class BookingsService {
     const net = Math.round(totalAmount * 0.94 * 100) / 100;
 
     const adminCommission = Math.round(net * 0.15 * 100) / 100; // 15%
-    const ownerRevenue = Math.round(net * 0.85 * 100) / 100; // 79% 
+    const ownerRevenue = Math.round(net * 0.85 * 100) / 100; // 79%
 
     console.log(
       `[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`,
@@ -1645,7 +1645,7 @@ export class BookingsService {
     //cancel booking
     console.log('🔍 [BookingService] cancel booking', booking.id);
     await this.bookingsRepository.update(booking.id, {
-      status: BookingStatus.CANCELLED,
+      status: BookingStatus.COMPLETED,
     });
 
     //notify renter and owner that booking is cancelled

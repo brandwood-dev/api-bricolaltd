@@ -11,7 +11,10 @@ import { CreateContactDto } from './dto/create-contact.dto';
 import { EmailSenderService } from '../emails/email-sender.service';
 import { ConfigService } from '@nestjs/config';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
-import { NotificationCategory, NotificationPriority } from '../admin/dto/admin-notifications.dto';
+import {
+  NotificationCategory,
+  NotificationPriority,
+} from '../admin/dto/admin-notifications.dto';
 
 @Injectable()
 export class ContactService {

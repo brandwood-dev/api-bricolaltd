@@ -378,7 +378,7 @@ export class BookingsCancellationService {
                   } catch (persistErr) {
                     this.logger.warn(
                       `Failed to persist renter direct refund record for booking ${booking.id}: ${
-                        (persistErr as any)?.message || persistErr
+                        persistErr?.message || persistErr
                       }`,
                     );
                   }
@@ -450,7 +450,7 @@ export class BookingsCancellationService {
           } catch (adminWalletErr) {
             this.logger.warn(
               `Failed to withdraw pending funds for admin wallet on booking ${booking.id}: ${
-                (adminWalletErr as any)?.message || adminWalletErr
+                adminWalletErr?.message || adminWalletErr
               }`,
             );
           }
@@ -458,7 +458,7 @@ export class BookingsCancellationService {
       } catch (walletErr) {
         this.logger.warn(
           `Failed to withdraw pending funds for owner wallet on booking ${booking.id}: ${
-            (walletErr as any)?.message || walletErr
+            walletErr?.message || walletErr
           }`,
         );
       }
@@ -480,7 +480,7 @@ export class BookingsCancellationService {
       } catch (notifyErr) {
         this.logger.warn(
           `Failed to send booking cancelled notifications for ${booking.id}: ${
-            (notifyErr as any)?.message || notifyErr
+            notifyErr?.message || notifyErr
           }`,
         );
       }
@@ -697,19 +697,20 @@ export class BookingsCancellationService {
       } catch {}
 
       await queryRunner.commitTransaction();
-//notify renter
- if (targetStatus === BookingStatus.REJECTED) {
-      await this.bookingNotificationService.notifyBookingRejected(
-        booking,
-        reason,
-      );
-    } else if (targetStatus === BookingStatus.CANCELLED) {
-      await this.bookingNotificationService.notifyBookingCancelled(
-        booking,
-        'owner',
-        reason,
-      );   
-      
+      //notify renter
+      if (targetStatus === BookingStatus.REJECTED) {
+        await this.bookingNotificationService.notifyBookingRejected(
+          booking,
+          reason,
+        );
+      } else if (targetStatus === BookingStatus.CANCELLED) {
+        await this.bookingNotificationService.notifyBookingCancelled(
+          booking,
+          'owner',
+          reason,
+        );
+      }
+
       // Cleanup internal transactions
       const cleanupRunner = this.dataSource.createQueryRunner();
       await cleanupRunner.connect();
@@ -952,13 +953,13 @@ export class BookingsCancellationService {
               } catch (persistErr) {
                 this.logger.warn(
                   `Failed to persist manual refund record for booking ${booking.id}: ${
-                    (persistErr as any)?.message || persistErr
+                    persistErr?.message || persistErr
                   }`,
                 );
                 result.steps.dbRefund = {
                   created: false,
                   processed: false,
-                  error: (persistErr as any)?.message || String(persistErr),
+                  error: persistErr?.message || String(persistErr),
                 };
               }
             }
@@ -1006,7 +1007,7 @@ export class BookingsCancellationService {
           } catch (adminWalletErr) {
             this.logger.warn(
               `Admin wallet update failed for booking ${booking.id}: ${
-                (adminWalletErr as any)?.message || adminWalletErr
+                adminWalletErr?.message || adminWalletErr
               }`,
             );
           }
@@ -1018,11 +1019,11 @@ export class BookingsCancellationService {
       } catch (walletErr) {
         this.logger.warn(
           `Wallet pending update error for booking ${booking.id}: ${
-            (walletErr as any)?.message || walletErr
+            walletErr?.message || walletErr
           }`,
         );
         result.steps.wallets = {
-          error: (walletErr as any)?.message || String(walletErr),
+          error: walletErr?.message || String(walletErr),
         };
       }
 
@@ -1040,12 +1041,12 @@ export class BookingsCancellationService {
       } catch (cleanupErr) {
         this.logger.warn(
           `Failed to cleanup payment transactions for booking ${booking.id}: ${
-            (cleanupErr as any)?.message || cleanupErr
+            cleanupErr?.message || cleanupErr
           }`,
         );
         result.steps.transactionsCleanup = {
           deleted: false,
-          error: (cleanupErr as any)?.message || String(cleanupErr),
+          error: cleanupErr?.message || String(cleanupErr),
         };
       }
 
@@ -1061,12 +1062,12 @@ export class BookingsCancellationService {
       } catch (notifyErr) {
         this.logger.warn(
           `Failed to send booking cancelled notifications for ${booking.id}: ${
-            (notifyErr as any)?.message || notifyErr
+            notifyErr?.message || notifyErr
           }`,
         );
         result.steps.notifications = {
           sent: false,
-          error: (notifyErr as any)?.message || String(notifyErr),
+          error: notifyErr?.message || String(notifyErr),
         };
       }
 
@@ -1080,7 +1081,7 @@ export class BookingsCancellationService {
         error,
       );
       result.success = false;
-      result.error = (error as any)?.message || String(error);
+      result.error = error?.message || String(error);
       return result;
     } finally {
       await queryRunner.release();

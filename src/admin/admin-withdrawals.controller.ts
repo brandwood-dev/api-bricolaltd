@@ -77,19 +77,18 @@ export class AdminWithdrawalsController {
       .leftJoinAndSelect('transaction.recipient', 'recipient')
       .where('transaction.type = :type', { type: TransactionType.WITHDRAWAL })
       .orderBy('transaction.createdAt', 'DESC');
-      if (search) {
-        qb.andWhere(
-          'LOWER(sender.firstName) LIKE LOWER(:search) OR LOWER(sender.lastName) LIKE LOWER(:search) OR LOWER(sender.email) LIKE LOWER(:search)',
-          { search: `%${search}%` },
-        );
-      }
-      if (startDate && endDate) {
-        qb.andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', {
-          startDate: new Date(startDate),
-          endDate: new Date(endDate),
-        });
-      }
-     
+    if (search) {
+      qb.andWhere(
+        'LOWER(sender.firstName) LIKE LOWER(:search) OR LOWER(sender.lastName) LIKE LOWER(:search) OR LOWER(sender.email) LIKE LOWER(:search)',
+        { search: `%${search}%` },
+      );
+    }
+    if (startDate && endDate) {
+      qb.andWhere('transaction.createdAt BETWEEN :startDate AND :endDate', {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      });
+    }
 
     if (status) {
       qb.andWhere('transaction.status = :status', { status });

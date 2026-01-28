@@ -33,8 +33,10 @@ export class SendGridService {
     try {
       this.logger.log(`📧 Starting email send process to: ${options.to}`);
       this.logger.log(`📧 Subject: ${options.subject}`);
-      this.logger.log(`📧 HTML content length: ${options.html?.length || 0} characters`);
-      
+      this.logger.log(
+        `📧 HTML content length: ${options.html?.length || 0} characters`,
+      );
+
       const fromEmail = this.configService.get(
         'SENDGRID_FROM_EMAIL',
         'noreply@bricolaltd.com',
@@ -66,7 +68,7 @@ export class SendGridService {
       const response = await sgMail.send(msg);
       this.logger.log(`✅ Email sent successfully to ${options.to}`);
       this.logger.log(`✅ SendGrid response status: ${response[0].statusCode}`);
-      
+
       // Persist a lightweight email log for validation in tests if userId provided
       if (options.userId) {
         try {

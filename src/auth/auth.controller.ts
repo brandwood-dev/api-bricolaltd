@@ -161,6 +161,18 @@ export class AuthController {
     );
   }
 
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh JWT token with refresh token' })
+  @ApiResponse({ status: 200, description: 'Token refreshed successfully.' })
+  @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    if (!body.refreshToken) {
+      throw new BadRequestException('Refresh token is required');
+    }
+    return this.authService.refreshToken(body.refreshToken);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('verify')
   @ApiBearerAuth()

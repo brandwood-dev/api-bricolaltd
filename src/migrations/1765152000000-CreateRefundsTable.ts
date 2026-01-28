@@ -1,10 +1,10 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateRefundsTable1765152000000 implements MigrationInterface {
-    name = 'CreateRefundsTable1765152000000'
+  name = 'CreateRefundsTable1765152000000';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             CREATE TABLE \`refunds\` (
                 \`id\` varchar(36) NOT NULL,
                 \`refund_id\` varchar(255) NOT NULL,
@@ -38,9 +38,9 @@ export class CreateRefundsTable1765152000000 implements MigrationInterface {
                 CONSTRAINT \`FK_booking_id_refunds\` FOREIGN KEY (\`booking_id\`) REFERENCES \`booking\` (\`id\`) ON DELETE NO ACTION ON UPDATE NO ACTION
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE \`refunds\``);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE \`refunds\``);
+  }
 }

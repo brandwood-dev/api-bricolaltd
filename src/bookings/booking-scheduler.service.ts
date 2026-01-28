@@ -236,7 +236,7 @@ export class BookingSchedulerService {
   @Cron('*/30 * * * *')
   async checkDepositReminders() {
     // this.logger.log('Checking for deposit reminders...');
-return;
+    return;
     const now = new Date();
     const oneMinuteFromNow = new Date(now.getTime() + 60 * 1000); // 1 minute for testing
     const twoMinutesFromNow = new Date(now.getTime() + 2 * 60 * 1000); // 2 minutes buffer
@@ -275,7 +275,7 @@ return;
   @Cron('0 * * * *')
   async checkOverdueDeposits() {
     this.logger.log('Checking for overdue deposits...');
-return;
+    return;
     const now = new Date();
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 

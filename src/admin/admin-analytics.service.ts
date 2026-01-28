@@ -47,7 +47,7 @@ export class AdminAnalyticsService {
 
     return { start, end: now };
   }
-
+  // get revenue Analytics from bookings table calculant la somme de total_price
   async getRevenueAnalytics(period: string, granularity: string) {
     console.log('🔍 [DATABASE] Fetching revenue analytics from database...');
     const { start, end } = this.getDateRange(period);
@@ -57,37 +57,38 @@ export class AdminAnalyticsService {
 
     switch (granularity) {
       case 'week':
-        dateFormat = "DATE_FORMAT(pt.createdAt, '%Y-%u')"; // Year-Week
-        groupByFormat = 'YEAR(pt.createdAt), WEEK(pt.createdAt)';
+        dateFormat = "DATE_FORMAT(b.createdAt, '%Y-%u')"; // Year-Week
+        groupByFormat = 'YEAR(b.createdAt), WEEK(b.createdAt)';
         break;
       case 'month':
-        dateFormat = "DATE_FORMAT(pt.createdAt, '%Y-%m')"; // Year-Month
-        groupByFormat = 'YEAR(pt.createdAt), MONTH(pt.createdAt)';
+        dateFormat = "DATE_FORMAT(b.createdAt, '%Y-%m')"; // Year-Month
+        groupByFormat = 'YEAR(b.createdAt), MONTH(b.createdAt)';
         break;
       default:
-        dateFormat = 'DATE(pt.createdAt)';
-        groupByFormat = 'DATE(pt.createdAt)';
+        dateFormat = 'DATE(b.createdAt)';
+        groupByFormat = 'DATE(b.createdAt)';
     }
 
-    const revenueData = await this.paymentTransactionRepository
-      .createQueryBuilder('pt')
+    const revenueData = await this.bookingRepository
+      .createQueryBuilder('b')
       .select(dateFormat, 'period')
-      .addSelect('SUM(pt.amount)', 'revenue')
+      .addSelect('SUM(b.totalPrice)', 'revenue')
       .addSelect('COUNT(*)', 'transactions')
-      .addSelect('AVG(pt.amount)', 'averageTransaction')
-      .where('pt.status = :status', { status: 'completed' })
-      .andWhere('pt.createdAt BETWEEN :start AND :end', { start, end })
+      .addSelect('AVG(b.totalPrice)', 'averageTransaction')
+      .where('b.status = :status', { status: 'COMPLETED' })
+      .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
       .groupBy(groupByFormat)
-      .orderBy('pt.createdAt', 'ASC')
+      .orderBy('b.createdAt', 'ASC')
       .getRawMany();
 
-    const totalRevenue = await this.paymentTransactionRepository
-      .createQueryBuilder('pt')
-      .select('SUM(pt.amount)', 'total')
-      .where('pt.status = :status', { status: 'completed' })
-      .andWhere('pt.createdAt BETWEEN :start AND :end', { start, end })
+    const totalRevenue = await this.bookingRepository
+      .createQueryBuilder('b')
+      .select('SUM(b.totalPrice)', 'total')
+      .where('b.status = :status', { status: 'COMPLETED' })
       .getRawOne();
 
+    console.log('🔍 [DATABASE] Raw revenue data:', revenueData);
+    console.log('🔍 [DATABASE] Raw total data:', totalRevenue);
     const result = {
       chartData: revenueData.map((item) => ({
         period: item.period,
@@ -395,6 +396,40 @@ export class AdminAnalyticsService {
     return result;
   }
 
+  async getUsersByCountry() {
+    console.log('🔍 [DATABASE] Fetching users by country...');
+
+    const raw = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user.country', 'country')
+      .select('country.name', 'country')
+      .addSelect('COUNT(user.id)', 'users')
+      .where('country.name IS NOT NULL')
+      .groupBy('country.id')
+      .orderBy('COUNT(user.id)', 'DESC')
+      .limit(10)
+      .getRawMany();
+
+    const totalUsers = await this.userRepository.count();
+
+    const result = raw.map((item) => {
+      const users = parseInt(item.users || '0');
+      const percentage = totalUsers > 0 ? (users / totalUsers) * 100 : 0;
+      return {
+        country: item.country,
+        users,
+        percentage: Math.round(percentage * 100) / 100,
+      };
+    });
+
+    console.log('✅ [DATABASE] Users by country fetched:', {
+      count: result.length,
+      source: 'DATABASE',
+    });
+
+    return result;
+  }
+
   async getPerformanceMetrics(period: string) {
     console.log('🔍 [DATABASE] Fetching performance metrics from database...');
     const { start, end } = this.getDateRange(period);
@@ -518,11 +553,11 @@ export class AdminAnalyticsService {
               availabilityStatus: AvailabilityStatus.AVAILABLE,
             },
           }),
-          this.paymentTransactionRepository
-            .createQueryBuilder('pt')
-            .select('SUM(pt.amount)', 'total')
-            .where('pt.status = :status', { status: 'completed' })
-            .andWhere('pt.createdAt BETWEEN :start AND :end', { start, end })
+          this.bookingRepository
+            .createQueryBuilder('b')
+            .select('SUM(b.totalPrice)', 'total')
+            .where('b.status = :status', { status: 'COMPLETED' })
+            .andWhere('b.createdAt BETWEEN :start AND :end', { start, end })
             .getRawOne(),
         ]);
 
@@ -539,11 +574,11 @@ export class AdminAnalyticsService {
           this.bookingRepository.count({
             where: { createdAt: Between(previousStart, previousEnd) },
           }),
-          this.paymentTransactionRepository
-            .createQueryBuilder('pt')
-            .select('SUM(pt.amount)', 'total')
-            .where('pt.status = :status', { status: 'completed' })
-            .andWhere('pt.createdAt BETWEEN :start AND :end', {
+          this.bookingRepository
+            .createQueryBuilder('b')
+            .select('SUM(b.totalPrice)', 'total')
+            .where('b.status = :status', { status: 'COMPLETED' })
+            .andWhere('b.createdAt BETWEEN :start AND :end', {
               start: previousStart,
               end: previousEnd,
             })

@@ -19,7 +19,7 @@ import { Logger } from '@nestjs/common';
 
 @Injectable()
 export class DisputesService {
-   private readonly logger: Logger = new Logger(DisputesService.name);
+  private readonly logger: Logger = new Logger(DisputesService.name);
   constructor(
     @InjectRepository(Dispute)
     private disputesRepository: Repository<Dispute>,

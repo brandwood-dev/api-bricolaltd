@@ -13,14 +13,18 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const reflector = app.get(Reflector);
 
-  // Enable CORS
+  const corsOriginRaw = String(configService.get('CORS_ORIGIN', '*'));
+  const corsOrigins = corsOriginRaw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const allowAnyOrigin = corsOrigins.length === 0 || corsOrigins[0] === '*';
+
   app.enableCors({
-    origin: configService
-      .get('CORS_ORIGIN', '*')
-      .split(',')
-      .map((origin) => origin.trim()),
+    origin: allowAnyOrigin ? true : corsOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: 'Content-Type,Authorization,Accept',
   });
 
   // Set global prefix
