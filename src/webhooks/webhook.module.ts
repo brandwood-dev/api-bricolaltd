@@ -23,22 +23,25 @@ import { WebhookRateLimitService } from './services/webhook-rate-limit.service';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { StripeWebhookEvent } from './entities/stripe-webhook-event.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
 
 // External services
 import { WiseService } from '../wallets/wise.service';
 import { PaymentModule } from '../payments/payment.module';
 import { AdminModule } from '../admin/admin.module';
 import { WalletsModule } from '../wallets/wallets.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { WebhookCronService } from './webhook-cron.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Transaction, Booking, StripeWebhookEvent]),
+    TypeOrmModule.forFeature([Transaction, Booking, StripeWebhookEvent, Wallet]),
     ConfigModule,
     ScheduleModule.forRoot(), // For cron jobs
     PaymentModule,
     AdminModule,
     WalletsModule,
+    NotificationsModule,
   ],
   controllers: [
     StripeWebhookController,

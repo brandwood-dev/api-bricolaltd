@@ -10,6 +10,9 @@ import {
   NotificationPriority as AdminNotificationPriority,
   NotificationType as AdminNotificationType,
 } from '../admin/dto/admin-notifications.dto';
+import { Wallet } from './entities/wallet.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type';
 
 export interface WiseWebhookEvent {
   data: {
@@ -42,8 +45,11 @@ export class WiseWebhookService {
   constructor(
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>,
     private readonly wiseService: WiseService,
     private readonly adminNotificationsService: AdminNotificationsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -161,8 +167,31 @@ export class WiseWebhookService {
         break;
 
       case 'completed':
-        transaction.status = TransactionStatus.COMPLETED;
-        transaction.processedAt = new Date();
+        if (transaction.status !== TransactionStatus.COMPLETED) {
+          transaction.status = TransactionStatus.COMPLETED;
+          transaction.processedAt = new Date();
+          
+          // Deduct from wallet's reserved balance
+          if (transaction.wallet) {
+            const wallet = transaction.wallet;
+            wallet.reservedBalance = Number(wallet.reservedBalance) - Number(transaction.amount);
+            await this.walletRepository.save(wallet);
+          }
+          
+          // Send notification to user
+          try {
+            await this.notificationsService.createSystemNotification(
+              transaction.senderId,
+              NotificationType.WITHDRAWAL_COMPLETED,
+              'Retrait terminé',
+              `Votre retrait de ${transaction.amount} a été effectué avec succès.`,
+              transaction.id,
+              'transaction'
+            );
+          } catch (notifErr) {
+            this.logger.warn(`Failed to send withdrawal completion notification: ${notifErr}`);
+          }
+        }
         break;
 
       case 'cancelled':

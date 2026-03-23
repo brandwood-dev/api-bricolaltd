@@ -9,11 +9,13 @@ import { WiseService } from './wise-enhanced.service';
 import { WiseWebhookService } from './wise-webhook-enhanced.service';
 import { WiseController } from './wise-enhanced.controller';
 import { AdminModule } from '../admin/admin.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Wallet, Transaction]),
     forwardRef(() => AdminModule),
+    NotificationsModule,
   ],
   controllers: [WalletsController, WiseController],
   providers: [
