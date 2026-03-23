@@ -24,6 +24,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AdminModule } from './admin/admin.module';
 import { ContactModule } from './contact/contact.module';
 import { RefundsModule } from './refunds/refunds.module';
+import { WebhookModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { RefundsModule } from './refunds/refunds.module';
     AdminModule,
     ContactModule,
     RefundsModule,
+    WebhookModule,
   ],
   controllers: [AppController],
   providers: [AppService],
