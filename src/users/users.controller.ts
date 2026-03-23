@@ -51,6 +51,21 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
+  @Post('veriff-webhook')
+  @ApiOperation({ summary: 'Handle Veriff webhook' })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully.' })
+  async handleVeriffWebhook(@Body() body: any) {
+    const verification = body?.verification;
+    if (verification && verification.status === 'approved' && verification.vendorData) {
+      try {
+        await this.usersService.verifyUserIdentity(verification.vendorData);
+      } catch (error) {
+        console.error(`Failed to verify user identity for vendorData ${verification.vendorData}:`, error);
+      }
+    }
+    return { success: true };
+  }
+
   // User endpoints - must come before admin endpoints
   @Get('me')
   @UseGuards(JwtAuthGuard)
@@ -64,6 +79,15 @@ export class UsersController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   async getMyProfile(@Request() req) {
     return this.usersService.findOne(req.user.id);
+  }
+
+  @Post('me/verify-identity')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark current user as verified after Veriff completion' })
+  @ApiResponse({ status: 200, description: 'User identity verified.' })
+  async verifyMyIdentity(@Request() req) {
+    return this.usersService.verifyUserIdentity(req.user.id);
   }
 
   @Get('me/transactions')

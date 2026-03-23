@@ -43,4 +43,21 @@ export class WiseWebhookController {
       throw new BadRequestException('Webhook processing failed');
     }
   }
+  // endpoint to test webhook
+  @Post('test')
+  async testWebhook(@Body() payload: any, @Headers('x-signature-sha256') signature: string) {
+    try {
+      this.logger.log(`Received Wise webhook test: ${payload?.event_type}`);
+
+      const result = await this.wiseWebhookService.processWebhook(payload);
+
+      this.logger.log(
+        `Wise webhook test processed: ${result.status} - ${result.message}`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(`Failed to process Wise webhook test:`, error);
+      throw new BadRequestException('Webhook test processing failed');
+    }
+  }
 }
