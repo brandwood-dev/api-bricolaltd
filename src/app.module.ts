@@ -25,6 +25,7 @@ import { AdminModule } from './admin/admin.module';
 import { ContactModule } from './contact/contact.module';
 import { RefundsModule } from './refunds/refunds.module';
 import { WebhookModule } from './webhooks/webhook.module';
+import { DataSyncModule } from './data-sync/data-sync.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { WebhookModule } from './webhooks/webhook.module';
     ContactModule,
     RefundsModule,
     WebhookModule,
+    DataSyncModule,
   ],
   controllers: [AppController],
   providers: [AppService],

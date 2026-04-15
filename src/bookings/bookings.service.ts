@@ -61,6 +61,7 @@ import { QueryRunner } from 'typeorm';
 import { Dispute } from '../disputes/entities/dispute.entity';
 import { DisputeStatus } from '../disputes/enums/dispute-status.enum';
 import { ADMIN_USER_ID, ADMIN_EMAIL } from '../config/constants';
+import { DataSyncService } from '../data-sync/data-sync.service';
 
 @Injectable()
 export class BookingsService {
@@ -78,6 +79,7 @@ export class BookingsService {
     private bookingsCancellationService: BookingsCancellationService,
     private walletsService: WalletsService,
     private transactionsService: TransactionsService,
+    private readonly dataSyncService: DataSyncService,
   ) {}
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
@@ -330,21 +332,9 @@ export class BookingsService {
         );
       }
 
-      // // Schedule deposit reminder for testing (1 minute delay)
-      // try {
-      //   console.log('🔍 [BookingService] Scheduling deposit reminder...');
-      //   await this.bookingSchedulerService.scheduleDepositReminder(
-      //     savedBooking.id,
-      //   );
-      //   console.log(
-      //     '🔍 [BookingService] Deposit reminder scheduled successfully',
-      //   );
-      // } catch (error) {
-      //   console.error(
-      //     '❌ [BookingService] Failed to schedule deposit reminder:',
-      //     error,
-      //   );
-      // }
+      // Emit real-time event for booking created
+      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_created', { booking: savedBooking });
+      this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_created', { booking: savedBooking });
 
       return savedBooking;
     } catch (error) {
@@ -575,7 +565,13 @@ export class BookingsService {
     }
 
     Object.assign(booking, updateBookingDto);
-    return this.bookingsRepository.save(booking);
+    const updatedBooking = await this.bookingsRepository.save(booking);
+
+    // Emit real-time event
+    this.dataSyncService.emitToUser(updatedBooking.ownerId, 'booking_updated', { booking: updatedBooking });
+    this.dataSyncService.emitToUser(updatedBooking.renterId, 'booking_updated', { booking: updatedBooking });
+
+    return updatedBooking;
   }
 
   async confirmBooking(id: string): Promise<Booking> {
@@ -598,6 +594,10 @@ export class BookingsService {
     } catch (error) {
       console.error('Failed to send booking confirmation notification:', error);
     }
+
+    // Emit real-time event
+    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
+    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
 
     return savedBooking;
   }
@@ -639,6 +639,10 @@ export class BookingsService {
     } catch (error) {
       console.error('Failed to send booking completion notification:', error);
     }
+
+    // Emit real-time event
+    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
+    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
 
     return savedBooking;
   }
@@ -1036,6 +1040,10 @@ export class BookingsService {
           { bookingId: savedBooking.id, error: error?.message },
         );
       }
+
+      // Emit real-time event
+      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
+      this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
 
       return savedBooking;
     } catch (error) {
@@ -2036,27 +2044,137 @@ export class BookingsService {
       throw new NotFoundException('Booking not found');
     }
 
-    // For now, return a basic history based on booking status
-    // In a real implementation, you'd have a separate BookingHistory entity
-    const history = [
-      {
-        action: 'CREATED',
-        timestamp: booking.createdAt.toISOString(),
-        user: 'System',
-        notes: 'Booking created',
-      },
-    ];
+    const history: {
+      action: string;
+      timestamp: string;
+      user: string;
+      notes?: string;
+    }[] = [];
 
-    if (booking.status !== BookingStatus.PENDING) {
+    const pushEvent = (
+      action: string,
+      timestamp?: Date | string | null,
+      user: 'SYSTEM' | 'RENTER' | 'OWNER' | 'ADMIN' = 'SYSTEM',
+      notes?: string,
+    ) => {
+      if (!timestamp) {
+        return;
+      }
+
+      const normalizedTimestamp =
+        timestamp instanceof Date
+          ? timestamp.toISOString()
+          : new Date(timestamp).toISOString();
+
       history.push({
-        action: booking.status,
-        timestamp: booking.updatedAt.toISOString(),
-        user: 'Admin',
-        notes: `Booking ${booking.status.toLowerCase()}`,
+        action,
+        timestamp: normalizedTimestamp,
+        user,
+        notes,
       });
+    };
+
+    pushEvent('CREATED', booking.createdAt, 'RENTER');
+
+    if (booking.acceptedAt) {
+      pushEvent('ACCEPTED', booking.acceptedAt, 'OWNER');
+    } else if (booking.status === BookingStatus.ACCEPTED) {
+      pushEvent('ACCEPTED', booking.updatedAt, 'OWNER');
     }
 
-    return history;
+    if (booking.validationCode) {
+      pushEvent(
+        'VALIDATION_CODE_GENERATED',
+        booking.acceptedAt ?? booking.updatedAt,
+        'SYSTEM',
+      );
+    }
+
+    if (booking.paymentCapturedAt) {
+      pushEvent('PAYMENT_CAPTURED', booking.paymentCapturedAt, 'SYSTEM');
+    }
+
+    if (booking.depositCaptureScheduledAt) {
+      pushEvent(
+        'DEPOSIT_CAPTURE_SCHEDULED',
+        booking.depositCaptureScheduledAt,
+        'SYSTEM',
+      );
+    }
+
+    if (booking.depositNotificationSentAt) {
+      pushEvent(
+        'DEPOSIT_NOTIFICATION_SENT',
+        booking.depositNotificationSentAt,
+        'SYSTEM',
+      );
+    }
+
+    if (booking.depositCapturedAt) {
+      pushEvent('DEPOSIT_CAPTURED', booking.depositCapturedAt, 'SYSTEM');
+    }
+
+    if (booking.status === BookingStatus.ONGOING) {
+      pushEvent('ONGOING', booking.updatedAt, 'OWNER');
+    }
+
+    if (booking.renterHasReturned) {
+      pushEvent('RETURN_CONFIRMED', booking.updatedAt, 'RENTER');
+    }
+
+    if (booking.pickupTool) {
+      pushEvent('PICKUP_CONFIRMED', booking.updatedAt, 'OWNER');
+    }
+
+    if (booking.status === BookingStatus.COMPLETED) {
+      pushEvent('COMPLETED', booking.updatedAt, 'SYSTEM');
+    }
+
+    if (booking.status === BookingStatus.REJECTED || booking.refusalReason) {
+      pushEvent('REJECTED', booking.updatedAt, 'OWNER');
+    }
+
+    if (booking.cancelledAt || booking.status === BookingStatus.CANCELLED) {
+      pushEvent(
+        'CANCELLED',
+        booking.cancelledAt ?? booking.updatedAt,
+        booking.cancellationReason ? 'RENTER' : 'OWNER',
+      );
+    }
+
+    if (booking.hasActiveClaim) {
+      pushEvent(
+        'CLAIM_OPENED',
+        booking.updatedAt,
+        booking.pickupTool ? 'OWNER' : 'RENTER',
+      );
+    }
+
+    if (booking.refundAmount && Number(booking.refundAmount) > 0) {
+      pushEvent(
+        'REFUND_PROCESSED',
+        booking.cancelledAt ?? booking.updatedAt,
+        'SYSTEM',
+      );
+    }
+
+    return history
+      .sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      )
+      .filter(
+        (event, index, events) =>
+          index === 0 ||
+          !events
+            .slice(0, index)
+            .some(
+              (existing) =>
+                existing.action === event.action &&
+                existing.timestamp === event.timestamp &&
+                existing.user === event.user,
+            ),
+      );
   }
 
   async sendBookingNotification(

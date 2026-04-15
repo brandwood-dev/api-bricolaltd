@@ -12,6 +12,9 @@ import {
   Request,
   Query,
   Res,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -36,7 +39,42 @@ import { EnhancedAdminGuard } from '../auth/guards/enhanced-admin.guard';
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
+  private readonly logger: Logger;
   constructor(private readonly usersService: UsersService) {}
+
+  @Post('veriff-webhook')
+  @ApiOperation({ summary: 'Handle Veriff webhook' })
+  @ApiResponse({ status: 200, description: 'Webhook processed successfully.' })
+  async handleVeriffWebhook(@Body() body: any) {
+    console.log('Received Veriff Webhook:', JSON.stringify(body, null, 2));
+
+    // Support testing and standard webhook shapes
+    const verification = body?.verification || body?.data?.verification || body;
+
+    // The decision can be under `verification.status`, `verification.decision` or `verification.action`
+    const isApproved =
+      verification?.status === 'approved' ||
+      verification?.decision === 'approved' ||
+      verification?.action === 'approved';
+
+    if (verification && body.vendorData && isApproved) {
+      try {
+        console.log(`Approving user identity for ID: ${body.vendorData}`);
+        await this.usersService.verifyUserIdentity(body.vendorData);
+      } catch (error) {
+        console.error(
+          `Failed to verify user identity for vendorData ${body.vendorData}:`,
+          error,
+        );
+      }
+    } else {
+      console.log(
+        'Webhook ignored or not approved:',
+        verification?.status || verification?.action || verification?.decision,
+      );
+    }
+    return { success: true };
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
@@ -49,21 +87,6 @@ export class UsersController {
   @ApiResponse({ status: 409, description: 'Email already exists.' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
-  }
-
-  @Post('veriff-webhook')
-  @ApiOperation({ summary: 'Handle Veriff webhook' })
-  @ApiResponse({ status: 200, description: 'Webhook processed successfully.' })
-  async handleVeriffWebhook(@Body() body: any) {
-    const verification = body?.verification;
-    if (verification && verification.status === 'approved' && verification.vendorData) {
-      try {
-        await this.usersService.verifyUserIdentity(verification.vendorData);
-      } catch (error) {
-        console.error(`Failed to verify user identity for vendorData ${verification.vendorData}:`, error);
-      }
-    }
-    return { success: true };
   }
 
   // User endpoints - must come before admin endpoints
@@ -81,13 +104,60 @@ export class UsersController {
     return this.usersService.findOne(req.user.id);
   }
 
-  @Post('me/verify-identity')
+  @Post('me/veriff-session')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Mark current user as verified after Veriff completion' })
-  @ApiResponse({ status: 200, description: 'User identity verified.' })
-  async verifyMyIdentity(@Request() req) {
-    return this.usersService.verifyUserIdentity(req.user.id);
+  @ApiOperation({ summary: 'Create a Veriff session for the current user' })
+  async createVeriffSession(@Request() req) {
+    const user = await this.usersService.findOne(req.user.id);
+
+    try {
+      const veriffApiKey = process.env.VERIFF_API_KEY || '';
+
+      if (!veriffApiKey) {
+        this.logger.error(
+          'VERIFF_API_KEY is not defined in environment variables',
+        );
+      }
+
+      const response = await fetch(
+        'https://stationapi.veriff.com/v1/sessions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-AUTH-CLIENT': veriffApiKey,
+          },
+          body: JSON.stringify({
+            verification: {
+              person: {
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+              },
+              vendorData: user.id, // Map vendorData to userId for webhook matching
+            },
+          }),
+        },
+      );
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to create Veriff session:', error);
+      throw new HttpException(
+        'Failed to create verification session',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('me/veriff-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Check current user Veriff status by checking DB' })
+  async checkVeriffStatus(@Request() req) {
+    const user = await this.usersService.findOne(req.user.id);
+    return { isVerified: user.isVerified };
   }
 
   @Get('me/transactions')

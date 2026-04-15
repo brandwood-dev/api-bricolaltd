@@ -16,6 +16,7 @@ import { UsersModule } from '../users/users.module';
 import { S3Module } from '../common/services/s3.module';
 import { FileUploadMiddleware } from '../common/middlewares/file-upload.middleware';
 import { AdminModule } from '../admin/admin.module';
+import { DataSyncModule } from '../data-sync/data-sync.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AdminModule } from '../admin/admin.module';
     forwardRef(() => UsersModule),
     S3Module,
     forwardRef(() => AdminModule),
+    DataSyncModule,
   ],
   controllers: [ToolsController, ToolPhotosController],
   providers: [ToolsService],

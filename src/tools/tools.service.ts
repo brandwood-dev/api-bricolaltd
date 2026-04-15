@@ -19,6 +19,7 @@ import { S3Service } from '../common/services/s3.service';
 import { BookingStatus } from '../bookings/enums/booking-status.enum';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
 import { NotificationPriority } from '../admin/dto/admin-notifications.dto';
+import { DataSyncService } from '../data-sync/data-sync.service';
 
 @Injectable()
 export class ToolsService {
@@ -31,6 +32,7 @@ export class ToolsService {
     private reviewToolRepository: Repository<ReviewTool>,
     private readonly s3Service: S3Service,
     private readonly adminNotificationsService: AdminNotificationsService,
+    private readonly dataSyncService: DataSyncService,
   ) {}
 
   async create(
@@ -71,6 +73,9 @@ export class ToolsService {
     }
 
     const finalTool = await this.findOne(savedTool.id);
+    // Broadcast tool creation via DataSync
+    this.dataSyncService.broadcast('tool_created', { tool: finalTool });
+
     // Notify admins of tool creation
     try {
       await this.adminNotificationsService.createUserNotification(
@@ -418,6 +423,10 @@ export class ToolsService {
     const { rating, reviewCount } = await this.calculateToolRating(id);
     (finalTool as any).rating = rating;
     (finalTool as any).reviewCount = reviewCount;
+
+    // Broadcast tool update via DataSync
+    this.dataSyncService.broadcast('tool_updated', { tool: finalTool });
+
     // Notify admins of tool update
     try {
       await this.adminNotificationsService.createUserNotification(
@@ -461,6 +470,10 @@ export class ToolsService {
     if (result.affected === 0) {
       throw new NotFoundException(`Tool with ID ${id} not found`);
     }
+
+    // Broadcast tool deletion via DataSync
+    this.dataSyncService.broadcast('tool_deleted', { toolId: id });
+
     // Notify admins of tool deletion
     try {
       await this.adminNotificationsService.createUserNotification(

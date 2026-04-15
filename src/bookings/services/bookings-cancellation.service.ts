@@ -30,6 +30,7 @@ import { Wallet } from '../../wallets/entities/wallet.entity';
 
 import { TransactionType } from '../../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../../transactions/enums/transaction-status.enum';
+import { DataSyncService } from '../../data-sync/data-sync.service';
 
 @Injectable()
 export class BookingsCancellationService {
@@ -47,6 +48,7 @@ export class BookingsCancellationService {
     private usersService: UsersService,
     private bookingNotificationService: BookingNotificationService,
     private dataSource: DataSource,
+    private readonly dataSyncService: DataSyncService,
   ) {}
 
   /**
@@ -500,6 +502,10 @@ export class BookingsCancellationService {
       // Cleanup internal transactions
       await this.cleanupBookingTransactions(booking.id, queryRunner);
 
+      // Emit real-time event
+      this.dataSyncService.emitToUser(booking.ownerId, 'booking_updated', { booking });
+      this.dataSyncService.emitToUser(booking.renterId, 'booking_updated', { booking });
+
       return booking;
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -716,6 +722,10 @@ export class BookingsCancellationService {
       await cleanupRunner.connect();
       await this.cleanupBookingTransactions(booking.id, cleanupRunner);
       await cleanupRunner.release();
+
+      // Emit real-time event
+      this.dataSyncService.emitToUser(booking.ownerId, 'booking_updated', { booking });
+      this.dataSyncService.emitToUser(booking.renterId, 'booking_updated', { booking });
 
       return booking;
     } catch (error) {
@@ -1073,6 +1083,11 @@ export class BookingsCancellationService {
 
       result.success = true;
       result.data = booking;
+
+      // Emit real-time event
+      this.dataSyncService.emitToUser(booking.ownerId, 'booking_updated', { booking });
+      this.dataSyncService.emitToUser(booking.renterId, 'booking_updated', { booking });
+
       return result;
     } catch (error) {
       await queryRunner.rollbackTransaction();

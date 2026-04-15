@@ -24,6 +24,7 @@ import { AdminModule } from '../admin/admin.module';
 import { PaymentModule } from '../payments/payment.module';
 import { EmailsModule } from '../emails/emails.module';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { DataSyncModule } from '../data-sync/data-sync.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
     EmailsModule,
     TransactionsModule,
     forwardRef(() => RefundsModule),
+    DataSyncModule,
   ],
   controllers: [BookingsController],
   providers: [

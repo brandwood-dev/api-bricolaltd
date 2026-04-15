@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Bookmark } from './entities/bookmark.entity';
 import { CreateBookmarkDto } from './dto/create-bookmark.dto';
 import { ToolsService } from '../tools/tools.service';
+import { DataSyncService } from '../data-sync/data-sync.service';
 
 @Injectable()
 export class BookmarksService {
@@ -11,6 +12,7 @@ export class BookmarksService {
     @InjectRepository(Bookmark)
     private bookmarksRepository: Repository<Bookmark>,
     private readonly toolsService: ToolsService,
+    private readonly dataSyncService: DataSyncService,
   ) {}
 
   async findByUser(userId: string): Promise<Bookmark[]> {
@@ -103,6 +105,9 @@ export class BookmarksService {
       '✅ BookmarksService.removeByUserAndTool - Favori supprimé avec succès:',
       bookmark.id,
     );
+
+    // Emit real-time event
+    this.dataSyncService.emitToUser(userId, 'bookmark_deleted', { toolId });
   }
 
   async create(createBookmarkDto: CreateBookmarkDto): Promise<Bookmark> {
@@ -147,6 +152,9 @@ export class BookmarksService {
       'toolId:',
       savedBookmark.toolId,
     );
+
+    // Emit real-time event
+    this.dataSyncService.emitToUser(userId, 'bookmark_created', { bookmark: savedBookmark });
 
     return savedBookmark;
   }

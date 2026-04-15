@@ -9,6 +9,7 @@ import {
   UseGuards,
   Query,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -149,8 +150,20 @@ export class BookingsController {
     type: Booking,
   })
   @ApiResponse({ status: 404, description: 'Booking not found.' })
-  findOne(@Param('id') id: string) {
-    return this.bookingsService.findOne(id);
+  async findOne(@Param('id') id: string, @Request() req) {
+    const booking = await this.bookingsService.findOne(id);
+
+    if (
+      booking.renterId !== req.user.id &&
+      booking.ownerId !== req.user.id &&
+      !req.user.isAdmin
+    ) {
+      throw new ForbiddenException(
+        'You are not allowed to access this booking',
+      );
+    }
+
+    return booking;
   }
 
   @Get('user/:userId')
@@ -163,7 +176,13 @@ export class BookingsController {
     description: 'Return all bookings for the user.',
     type: [Booking],
   })
-  findByUserId(@Param('userId') userId: string) {
+  findByUserId(@Param('userId') userId: string, @Request() req) {
+    if (req.user.id !== userId && !req.user.isAdmin) {
+      throw new ForbiddenException(
+        'You are not allowed to access these bookings',
+      );
+    }
+
     return this.bookingsService.findByUserId(userId);
   }
 
@@ -179,7 +198,13 @@ export class BookingsController {
     description: 'Return all bookings where the user is the tool owner.',
     type: [Booking],
   })
-  findByOwnerId(@Param('userId') userId: string) {
+  findByOwnerId(@Param('userId') userId: string, @Request() req) {
+    if (req.user.id !== userId && !req.user.isAdmin) {
+      throw new ForbiddenException(
+        'You are not allowed to access these owner bookings',
+      );
+    }
+
     return this.bookingsService.findByOwnerId(userId);
   }
 
@@ -572,7 +597,19 @@ export class BookingsController {
     status: 200,
     description: 'Booking history retrieved successfully.',
   })
-  getBookingHistory(@Param('id') id: string) {
+  async getBookingHistory(@Param('id') id: string, @Request() req) {
+    const booking = await this.bookingsService.findOne(id);
+
+    if (
+      booking.renterId !== req.user.id &&
+      booking.ownerId !== req.user.id &&
+      !req.user.isAdmin
+    ) {
+      throw new ForbiddenException(
+        'You are not allowed to access this booking history',
+      );
+    }
+
     return this.bookingsService.getBookingHistory(id);
   }
 
