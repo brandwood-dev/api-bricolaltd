@@ -38,7 +38,7 @@ export class BookingNotificationService {
       `${renter.firstName} ${renter.lastName} souhaite réserver votre outil "${tool.title}" du ${this.formatDate(booking.startDate)} au ${this.formatDate(booking.endDate)}.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -66,7 +66,7 @@ export class BookingNotificationService {
       `Vous avez confirmé la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -94,7 +94,7 @@ export class BookingNotificationService {
       `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}. Code de validation généré: ${booking.validationCode}`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -116,7 +116,7 @@ export class BookingNotificationService {
         `${renter.firstName} ${renter.lastName} a annulé sa réservation pour "${tool.title}".${reason ? ` Raison: ${reason}` : ''}`,
         booking.id,
         'booking',
-        `/admin/bookings/${booking.id}`,
+        `/bookings/${booking.id}`,
       );
     } else {
       // Notify renter
@@ -159,7 +159,7 @@ export class BookingNotificationService {
       `Vous avez refusé la demande de réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName}.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -187,7 +187,7 @@ export class BookingNotificationService {
       `La réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName} a commencé.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -215,7 +215,7 @@ export class BookingNotificationService {
       `La réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName} est maintenant terminée.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -247,7 +247,7 @@ export class BookingNotificationService {
         `Rappel: ${renter.firstName} ${renter.lastName} doit récupérer "${tool.title}" demain.`,
         booking.id,
         'booking',
-        `/admin/bookings/${booking.id}`,
+        `/bookings/${booking.id}`,
       );
     } else {
       // Remind renter about return
@@ -269,7 +269,7 @@ export class BookingNotificationService {
         `Rappel: ${renter.firstName} ${renter.lastName} doit retourner "${tool.title}" demain.`,
         booking.id,
         'booking',
-        `/admin/bookings/${booking.id}`,
+        `/bookings/${booking.id}`,
       );
     }
   }
@@ -298,7 +298,7 @@ export class BookingNotificationService {
       `La réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName} est en retard.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -326,7 +326,7 @@ export class BookingNotificationService {
       `Le paiement pour la réservation de "${tool.title}" par ${renter.firstName} ${renter.lastName} a été reçu.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -359,7 +359,7 @@ export class BookingNotificationService {
       `${renter.firstName} ${renter.lastName} a confirmé le retour de "${tool.title}".${notes ? ` Notes: ${notes}` : ''}`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
 
     // Notify renter (confirmation)
@@ -414,7 +414,7 @@ export class BookingNotificationService {
       `La réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été automatiquement annulée car l'acompte n'a pas été payé.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -442,7 +442,7 @@ export class BookingNotificationService {
       `L'acompte pour la réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été reçu. La réservation est confirmée.`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 
@@ -473,7 +473,7 @@ export class BookingNotificationService {
       `La réservation de ${renter.firstName} ${renter.lastName} pour "${tool.title}" a été annulée.${reason ? ` Raison: ${reason}` : ''}`,
       booking.id,
       'booking',
-      `/admin/bookings/${booking.id}`,
+      `/bookings/${booking.id}`,
     );
   }
 

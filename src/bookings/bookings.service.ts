@@ -333,8 +333,14 @@ export class BookingsService {
       }
 
       // Emit real-time event for booking created
-      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_created', { booking: savedBooking });
-      this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_created', { booking: savedBooking });
+      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_created', {
+        booking: savedBooking,
+      });
+      this.dataSyncService.emitToUser(
+        savedBooking.renterId,
+        'booking_created',
+        { booking: savedBooking },
+      );
 
       return savedBooking;
     } catch (error) {
@@ -568,8 +574,14 @@ export class BookingsService {
     const updatedBooking = await this.bookingsRepository.save(booking);
 
     // Emit real-time event
-    this.dataSyncService.emitToUser(updatedBooking.ownerId, 'booking_updated', { booking: updatedBooking });
-    this.dataSyncService.emitToUser(updatedBooking.renterId, 'booking_updated', { booking: updatedBooking });
+    this.dataSyncService.emitToUser(updatedBooking.ownerId, 'booking_updated', {
+      booking: updatedBooking,
+    });
+    this.dataSyncService.emitToUser(
+      updatedBooking.renterId,
+      'booking_updated',
+      { booking: updatedBooking },
+    );
 
     return updatedBooking;
   }
@@ -596,8 +608,12 @@ export class BookingsService {
     }
 
     // Emit real-time event
-    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
-    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
+    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', {
+      booking: savedBooking,
+    });
+    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', {
+      booking: savedBooking,
+    });
 
     return savedBooking;
   }
@@ -641,8 +657,12 @@ export class BookingsService {
     }
 
     // Emit real-time event
-    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
-    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
+    this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', {
+      booking: savedBooking,
+    });
+    this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', {
+      booking: savedBooking,
+    });
 
     return savedBooking;
   }
@@ -942,22 +962,14 @@ export class BookingsService {
       const endDate = new Date(booking.endDate);
       const totalDays = this.calculateDays(startDate, endDate);
       const subtotal = Number(tool.basePrice) * Number(totalDays);
-      const fees = Math.round(subtotal * 0.06 * 100) / 100;
-      totalAmount = Math.round((subtotal + fees) * 100) / 100;
+      const fees = Number((subtotal * 5.25) / 100);
+      const totalAmount = Number((subtotal + fees + 0.25).toFixed(2));
+
       booking.totalPrice = totalAmount;
       console.log(
         `[BOOKING_ACCEPT] ✅ totalPrice recomputed: days=${totalDays}, subtotal=${subtotal}€, fees=${fees}€, total=${totalAmount}€`,
       );
     }
-
-    // Check if payment is authorized or captured before accepting
-    // if (!['authorized', 'captured'].includes(booking.paymentStatus)) {
-    //   console.log(`[BOOKING_ACCEPT] ❌ Rejected - Payment status is ${booking.paymentStatus}, expected authorized/captured`);
-    //   throw new BadRequestException(
-    //     'Payment must be authorized or captured before accepting the booking',
-    //   );
-    // }
-
     console.log(
       `[BOOKING_ACCEPT] ✅ Validation passed - Proceeding with acceptance`,
     );
@@ -1042,8 +1054,14 @@ export class BookingsService {
       }
 
       // Emit real-time event
-      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', { booking: savedBooking });
-      this.dataSyncService.emitToUser(savedBooking.renterId, 'booking_updated', { booking: savedBooking });
+      this.dataSyncService.emitToUser(savedBooking.ownerId, 'booking_updated', {
+        booking: savedBooking,
+      });
+      this.dataSyncService.emitToUser(
+        savedBooking.renterId,
+        'booking_updated',
+        { booking: savedBooking },
+      );
 
       return savedBooking;
     } catch (error) {
@@ -1318,11 +1336,15 @@ export class BookingsService {
 
     // 1. Calcul des montants
     const totalAmount = Number(booking.totalPrice);
+    const adjustement = 0.25;
+    const feesRate = 5.25;
+    const wa = totalAmount - adjustement;
+    const fees = (wa / 105.25 ) * feesRate;
 
-    const net = Math.round(totalAmount * 0.94 * 100) / 100;
+    const net = totalAmount - fees - adjustement;
 
-    const adminCommission = Math.round(net * 0.15 * 100) / 100; // 15%
-    const ownerRevenue = Math.round(net * 0.85 * 100) / 100; // 79%
+    const adminCommission = net * 0.15; // 15%
+    const ownerRevenue = net * 0.85; // 85%
 
     console.log(
       `[REVENUE_DISTRIBUTION] Total: ${totalAmount}€, Owner: ${ownerRevenue}€, Admin: ${adminCommission}€`,

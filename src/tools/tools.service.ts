@@ -294,12 +294,13 @@ export class ToolsService {
       id: tool.id,
       categoryId: tool.categoryId,
       subcategoryId: tool.subcategoryId,
+      moderationStatus: tool.moderationStatus,
     });
 
     // Force TypeORM to detect changes by using update() method instead of save()
     const updateResult = await this.toolsRepository.update(id, {
       ...updateToolDto,
-      moderationStatus: ModerationStatus.PENDING,
+      moderationStatus: tool.moderationStatus,
     });
 
     console.log('🔧 Backend - Update result:', updateResult);
@@ -323,6 +324,7 @@ export class ToolsService {
       id: updatedTool.id,
       categoryId: updatedTool.categoryId,
       subcategoryId: updatedTool.subcategoryId,
+      moderationStatus: updatedTool.moderationStatus,
     });
 
     // If files are uploaded, process them
