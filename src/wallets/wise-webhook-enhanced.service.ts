@@ -187,10 +187,10 @@ export class WiseWebhookService {
         break;
 
       case 'funds_converted':
-      case 'outgoing_payment_sent':
         transaction.status = TransactionStatus.PROCESSING;
         break;
 
+      case 'outgoing_payment_sent':
       case 'completed':
         await this.finalizeCompletedWithdrawal(transaction);
         break;
@@ -214,7 +214,13 @@ export class WiseWebhookService {
 
     // Create admin notification for important status changes
     if (
-      ['completed', 'cancelled', 'bounced_back', 'funds_refunded'].includes(
+      [
+        'completed',
+        'outgoing_payment_sent',
+        'cancelled',
+        'bounced_back',
+        'funds_refunded',
+      ].includes(
         status,
       )
     ) {
@@ -461,6 +467,7 @@ export class WiseWebhookService {
 
     switch (status) {
       case 'completed':
+      case 'outgoing_payment_sent':
         title = 'Wise Transfer Completed';
         message = `Transfer ${transaction.wizeTransferId} for transaction ${transaction.id} has been completed successfully. Amount: ${transaction.amount}`;
         type = AdminNotificationType.SUCCESS;
