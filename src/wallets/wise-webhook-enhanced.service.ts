@@ -13,19 +13,23 @@ import {
 import { Wallet } from './entities/wallet.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/enums/notification-type';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 export interface WiseWebhookEvent {
-  data: {
-    resource: {
-      id: string;
-      type: string;
-      status: string;
+  data?: {
+    resource?: {
+      id?: string | number;
+      type?: string;
+      status?: string;
+      state?: string;
       [key: string]: any;
     };
+    [key: string]: any;
   };
-  event_type: string;
-  event_time: string;
+  event_type?: string;
+  event_time?: string;
   subscription_id?: string;
+  [key: string]: any;
 }
 
 export enum WiseEventType {
@@ -50,6 +54,7 @@ export class WiseWebhookService {
     private readonly wiseService: WiseService,
     private readonly adminNotificationsService: AdminNotificationsService,
     private readonly notificationsService: NotificationsService,
+    private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
   /**
@@ -59,27 +64,29 @@ export class WiseWebhookService {
     event: WiseWebhookEvent,
   ): Promise<{ status: string; message: string }> {
     try {
-      this.logger.log(`Processing Wise webhook: ${event.event_type}`, {
-        eventType: event.event_type,
-        resourceId: event.data.resource?.id,
-        resourceStatus: event.data.resource?.status,
+      const eventType = event?.event_type || 'unknown';
+      const resource = this.extractResource(event);
+      const resourceId = this.extractTransferId(resource);
+      const resourceStatus = this.extractTransferStatus(resource, event);
+
+      this.logger.log(`Processing Wise webhook: ${eventType}`, {
+        eventType,
+        resourceId,
+        resourceStatus,
       });
 
-      const { event_type, data } = event;
-      const resource = data.resource;
-
-      if (!resource || !resource.id) {
+      if (!resource || !resourceId) {
         this.logger.warn('Invalid webhook payload - missing resource or ID');
         return { status: 'ignored', message: 'Missing resource or ID' };
       }
 
       // Handle different event types
-      switch (event_type) {
+      switch (eventType) {
         case WiseEventType.TRANSFER_STATUS_CHANGE:
-          return await this.handleTransferStatusChange(resource);
+          return await this.handleTransferStatusChange(resource, event);
 
         case WiseEventType.TRANSFER_PROBLEM:
-          return await this.handleTransferProblem(resource);
+          return await this.handleTransferProblem(resource, event);
 
         case WiseEventType.BALANCE_CREDIT:
           return await this.handleBalanceCredit(resource);
@@ -97,10 +104,10 @@ export class WiseWebhookService {
           return await this.handleQuoteExpired(resource);
 
         default:
-          this.logger.log(`Unhandled Wise event type: ${event_type}`);
+          this.logger.log(`Unhandled Wise event type: ${eventType}`);
           return {
             status: 'ignored',
-            message: `Unhandled event type: ${event_type}`,
+            message: `Unhandled event type: ${eventType}`,
           };
       }
     } catch (error) {
@@ -124,8 +131,26 @@ export class WiseWebhookService {
    */
   private async handleTransferStatusChange(
     resource: any,
+    event?: WiseWebhookEvent,
   ): Promise<{ status: string; message: string }> {
-    const { id: transferId, status } = resource;
+    const transferId = this.extractTransferId(resource);
+    let status = this.extractTransferStatus(resource, event);
+
+    if (transferId && !status) {
+      try {
+        const transfer = await this.wiseService.getTransfer(transferId);
+        status = this.extractTransferStatus(transfer);
+        this.logger.log(`Resolved Wise transfer status from API`, {
+          transferId,
+          resolvedStatus: status,
+        });
+      } catch (error) {
+        this.logger.warn(`Failed to resolve Wise transfer status from API`, {
+          transferId,
+          error: error?.message || String(error),
+        });
+      }
+    }
 
     if (!transferId || !status) {
       this.logger.warn(
@@ -137,8 +162,8 @@ export class WiseWebhookService {
     // Find transaction by Wise transfer ID
     const transaction = await this.transactionRepository.findOne({
       where: [
-        { externalReference: transferId },
-        { wizeTransferId: transferId },
+        { externalReference: String(transferId) },
+        { wizeTransferId: String(transferId) },
       ],
       relations: ['wallet', 'sender', 'recipient'],
     });
@@ -167,31 +192,7 @@ export class WiseWebhookService {
         break;
 
       case 'completed':
-        if (transaction.status !== TransactionStatus.COMPLETED) {
-          transaction.status = TransactionStatus.COMPLETED;
-          transaction.processedAt = new Date();
-          
-          // Deduct from wallet's reserved balance
-          if (transaction.wallet) {
-            const wallet = transaction.wallet;
-            wallet.reservedBalance = Number(wallet.reservedBalance) - Number(transaction.amount);
-            await this.walletRepository.save(wallet);
-          }
-          
-          // Send notification to user
-          try {
-            await this.notificationsService.createSystemNotification(
-              transaction.senderId,
-              NotificationType.WITHDRAWAL_COMPLETED,
-              'Retrait terminé',
-              `Votre retrait de ${transaction.amount} a été effectué avec succès.`,
-              transaction.id,
-              'transaction'
-            );
-          } catch (notifErr) {
-            this.logger.warn(`Failed to send withdrawal completion notification: ${notifErr}`);
-          }
-        }
+        await this.finalizeCompletedWithdrawal(transaction);
         break;
 
       case 'cancelled':
@@ -231,8 +232,12 @@ export class WiseWebhookService {
    */
   private async handleTransferProblem(
     resource: any,
+    event?: WiseWebhookEvent,
   ): Promise<{ status: string; message: string }> {
-    const { id: transferId, status, activeCases } = resource;
+    const transferId = this.extractTransferId(resource);
+    const status =
+      this.extractTransferStatus(resource, event) || 'active_cases';
+    const activeCases = this.extractActiveCases(resource);
 
     this.logger.warn(`Transfer problem detected for ${transferId}:`, {
       status,
@@ -241,8 +246,8 @@ export class WiseWebhookService {
 
     const transaction = await this.transactionRepository.findOne({
       where: [
-        { externalReference: transferId },
-        { wizeTransferId: transferId },
+        { externalReference: String(transferId) },
+        { wizeTransferId: String(transferId) },
       ],
     });
 
@@ -267,6 +272,117 @@ export class WiseWebhookService {
     });
 
     return { status: 'processed', message: 'Transfer problem handled' };
+  }
+
+  /**
+   * Extract the business resource from Wise webhook payloads.
+   */
+  private extractResource(event: WiseWebhookEvent): Record<string, any> | null {
+    const resource =
+      event?.data?.resource ||
+      event?.resource ||
+      (event?.data && typeof event.data === 'object' ? event.data : null);
+
+    return resource && typeof resource === 'object' ? resource : null;
+  }
+
+  /**
+   * Extract a transfer ID from different Wise payload variants.
+   */
+  private extractTransferId(resource: Record<string, any> | null): string | undefined {
+    const id =
+      resource?.id ??
+      resource?.transferId ??
+      resource?.transfer_id ??
+      resource?.resourceId;
+
+    if (id === undefined || id === null || id === '') {
+      return undefined;
+    }
+
+    return String(id);
+  }
+
+  /**
+   * Extract a status from different Wise payload variants.
+   */
+  private extractTransferStatus(
+    resource: Record<string, any> | null,
+    event?: WiseWebhookEvent,
+  ): string | undefined {
+    const candidates = [
+      resource?.status,
+      resource?.state,
+      resource?.currentState,
+      resource?.current_state,
+      resource?.transferStatus,
+      resource?.transfer_status,
+      event?.status,
+      event?.state,
+    ];
+
+    const value = candidates.find(
+      (candidate) =>
+        typeof candidate === 'string' && candidate.trim().length > 0,
+    );
+
+    return typeof value === 'string' ? value : undefined;
+  }
+
+  private extractActiveCases(resource: Record<string, any> | null): any[] {
+    const activeCases = resource?.activeCases ?? resource?.active_cases ?? [];
+    return Array.isArray(activeCases) ? activeCases : [];
+  }
+
+  /**
+   * Finalize a successful withdrawal exactly once.
+   */
+  private async finalizeCompletedWithdrawal(
+    transaction: Transaction,
+  ): Promise<void> {
+    const alreadyFinalized = transaction.wizeStatus === 'completed';
+
+    transaction.status = TransactionStatus.COMPLETED;
+    transaction.processedAt = transaction.processedAt || new Date();
+
+    if (alreadyFinalized) {
+      return;
+    }
+
+    const wallet =
+      transaction.wallet ||
+      (await this.walletRepository.findOne({
+        where: { id: transaction.walletId },
+      }));
+
+    if (wallet) {
+      wallet.reservedBalance = Math.max(
+        0,
+        Number(wallet.reservedBalance) - Number(transaction.amount),
+      );
+      wallet.lastWithdrawalDate = new Date();
+      await this.walletRepository.save(wallet);
+    }
+
+    try {
+      const notification = await this.notificationsService.createSystemNotification(
+        transaction.senderId,
+        NotificationType.WITHDRAWAL_COMPLETED,
+        'Retrait termine',
+        `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
+        transaction.id,
+        'transaction',
+      );
+
+      await this.notificationsGateway.sendNotificationToUser(
+        transaction.senderId,
+        notification,
+      );
+    } catch (notifErr) {
+      this.logger.warn(
+        `Failed to send withdrawal completion notification: ${notifErr}`,
+      );
+    }
   }
 
   /**
