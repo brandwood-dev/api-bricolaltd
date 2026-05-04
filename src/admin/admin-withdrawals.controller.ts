@@ -402,6 +402,14 @@ export class AdminWithdrawalsController {
     );
   }
 
+  @Post(':id/complete')
+  @ApiOperation({ summary: 'Complete a withdrawal request manually' })
+  @ApiResponse({ status: 200, description: 'Withdrawal completed.' })
+  @ApiResponse({ status: 400, description: 'Bad request.' })
+  async completeWithdrawal(@Param('id') transactionId: string) {
+    return this.withdrawalProcessingService.completeWithdrawal(transactionId);
+  }
+
   @Post('test')
   @ApiOperation({ summary: 'Create a test withdrawal for a user by email' })
   @ApiResponse({ status: 201, description: 'Test withdrawal created.' })

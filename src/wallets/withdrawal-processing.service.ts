@@ -11,12 +11,16 @@ import { TransactionStatus } from '../transactions/enums/transaction-status.enum
 import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { ConfigService } from '@nestjs/config';
 import { WiseService } from './wise-enhanced.service';
+import { Wallet } from './entities/wallet.entity';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
 import {
   NotificationCategory as AdminNotificationCategory,
   NotificationPriority as AdminNotificationPriority,
   NotificationType as AdminNotificationType,
 } from '../admin/dto/admin-notifications.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -27,9 +31,13 @@ export class WithdrawalProcessingService {
   constructor(
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    @InjectRepository(Wallet)
+    private walletRepository: Repository<Wallet>,
     private configService: ConfigService,
     private wiseService: WiseService,
     private adminNotificationsService: AdminNotificationsService,
+    private notificationsService: NotificationsService,
+    private notificationsGateway: NotificationsGateway,
   ) {
     // Initialiser Stripe avec la clé secrète
     const Stripe = require('stripe');
@@ -686,6 +694,94 @@ export class WithdrawalProcessingService {
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
     });
+
+    return savedTransaction;
+  }
+
+  async completeWithdrawal(transactionId: string): Promise<Transaction> {
+    const transaction = await this.transactionsRepository.findOne({
+      where: { id: transactionId },
+      relations: ['sender'],
+    });
+
+    if (!transaction) {
+      throw new BadRequestException('Transaction de retrait introuvable');
+    }
+
+    if (transaction.type !== TransactionType.WITHDRAWAL) {
+      throw new BadRequestException("Cette transaction n'est pas un retrait");
+    }
+
+    if (transaction.status === TransactionStatus.COMPLETED) {
+      return transaction;
+    }
+
+    if (
+      [
+        TransactionStatus.CANCELLED,
+        TransactionStatus.FAILED,
+        TransactionStatus.REFUNDED,
+      ].includes(transaction.status)
+    ) {
+      throw new BadRequestException(
+        "Impossible de terminer un retrait deja annule ou echoue",
+      );
+    }
+
+    const wallet = transaction.walletId
+      ? await this.walletRepository.findOne({
+          where: { id: transaction.walletId },
+        })
+      : await this.walletRepository.findOne({
+          where: { userId: transaction.senderId },
+        });
+
+    if (wallet) {
+      wallet.reservedBalance = Math.max(
+        0,
+        Number(wallet.reservedBalance) - Number(transaction.amount),
+      );
+      wallet.lastWithdrawalDate = new Date();
+      await this.walletRepository.save(wallet);
+    }
+
+    transaction.status = TransactionStatus.COMPLETED;
+    transaction.processedAt = transaction.processedAt || new Date();
+
+    if (transaction.wizeTransferId) {
+      transaction.wizeStatus = 'completed';
+    }
+
+    const savedTransaction =
+      await this.transactionsRepository.save(transaction);
+
+    await this.adminNotificationsService.createAdminNotification({
+      title: 'Withdrawal Completed Manually',
+      message: `Withdrawal ${transaction.id} has been completed manually. Amount: £${Number(transaction.amount).toFixed(2)}`,
+      type: AdminNotificationType.SUCCESS,
+      priority: AdminNotificationPriority.MEDIUM,
+      category: AdminNotificationCategory.PAYMENT,
+    });
+
+    try {
+      const notification = await this.notificationsService.createSystemNotification(
+        transaction.senderId,
+        NotificationType.WITHDRAWAL_COMPLETED,
+        'Retrait termine',
+        `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
+        transaction.id,
+        'transaction',
+      );
+
+      await this.notificationsGateway.sendNotificationToUser(
+        transaction.senderId,
+        notification,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send manual withdrawal completion notification: ${error}`,
+      );
+    }
 
     return savedTransaction;
   }
