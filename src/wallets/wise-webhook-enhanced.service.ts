@@ -199,6 +199,7 @@ export class WiseWebhookService {
       case 'bounced_back':
       case 'funds_refunded':
         transaction.status = TransactionStatus.FAILED;
+        await this.notifyFailedWithdrawal(transaction, status);
         break;
 
       default:
@@ -387,6 +388,31 @@ export class WiseWebhookService {
     } catch (notifErr) {
       this.logger.warn(
         `Failed to send withdrawal completion notification: ${notifErr}`,
+      );
+    }
+  }
+
+  private async notifyFailedWithdrawal(
+    transaction: Transaction,
+    status: string,
+  ): Promise<void> {
+    try {
+      const notification = await this.notificationsService.createSystemNotification(
+        transaction.senderId,
+        NotificationType.WITHDRAWAL_FAILED,
+        'Retrait echoue',
+        `Votre retrait n'a pas pu etre finalise. Statut Wise: ${status}.`,
+        transaction.id,
+        'transaction',
+      );
+
+      await this.notificationsGateway.sendNotificationToUser(
+        transaction.senderId,
+        notification,
+      );
+    } catch (notifErr) {
+      this.logger.warn(
+        `Failed to send withdrawal failure notification: ${notifErr}`,
       );
     }
   }
