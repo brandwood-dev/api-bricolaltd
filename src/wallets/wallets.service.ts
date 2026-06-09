@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
@@ -14,6 +14,7 @@ import { TransactionType } from '../transactions/enums/transaction-type.enum';
 import { TransactionStatus } from '../transactions/enums/transaction-status.enum';
 import { WithdrawalProcessingService } from './withdrawal-processing.service';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
+import { User } from '../users/entities/user.entity';
 import {
   NotificationPriority,
   NotificationCategory,
@@ -28,6 +29,8 @@ export class WalletsService {
     private walletsRepository: Repository<Wallet>,
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
     private withdrawalProcessingService: WithdrawalProcessingService,
     private adminNotificationsService: AdminNotificationsService,
   ) {}
@@ -221,17 +224,46 @@ export class WalletsService {
       );
     }
 
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    if (!user.isVerified) {
+      throw new BadRequestException(
+        "La verification d'identite est requise avant de demander un retrait",
+      );
+    }
+
+    const activeWithdrawal = await this.transactionsRepository.findOne({
+      where: {
+        senderId: userId,
+        type: TransactionType.WITHDRAWAL,
+        status: In([
+          TransactionStatus.PENDING,
+          TransactionStatus.CONFIRMED,
+          TransactionStatus.PAID,
+        ]),
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (activeWithdrawal) {
+      throw new BadRequestException(
+        'Un retrait est deja en cours de traitement',
+      );
+    }
+
+    const wallet = await this.findByUserId(userId);
+    const availableBalance = Number(wallet.reservedBalance);
+
     // Vérifier le solde disponible
-    const { balance } = await this.calculateBalance(userId);
-    this.logger.log(`Calculated balance`, { userId, balance });
-    if (balance < amount) {
+    this.logger.log(`Available balance`, { userId, availableBalance });
+    if (availableBalance < amount) {
       throw new BadRequestException(
         'Solde insuffisant pour effectuer ce retrait',
       );
     }
-
-    // Récupérer le wallet de l'utilisateur
-    const wallet = await this.findByUserId(userId);
 
     // Créer la transaction de retrait
     const withdrawalTransaction = this.transactionsRepository.create({

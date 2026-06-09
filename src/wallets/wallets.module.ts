@@ -10,10 +10,11 @@ import { WiseWebhookService } from './wise-webhook-enhanced.service';
 import { WiseController } from './wise-enhanced.controller';
 import { AdminModule } from '../admin/admin.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Wallet, Transaction]),
+    TypeOrmModule.forFeature([Wallet, Transaction, User]),
     forwardRef(() => AdminModule),
     NotificationsModule,
   ],

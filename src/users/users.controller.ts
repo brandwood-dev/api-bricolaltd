@@ -226,6 +226,17 @@ export class UsersController {
     return this.usersService.getUserPersonalStats(req.user.id);
   }
 
+  @Get('public/:id')
+  @ApiOperation({ summary: 'Get a public user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return public profile information for a user.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async getPublicProfile(@Param('id') id: string) {
+    return this.usersService.findPublicProfile(id);
+  }
+
   @Patch('me')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

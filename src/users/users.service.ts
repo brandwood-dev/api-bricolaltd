@@ -47,6 +47,7 @@ import { SecurityLog } from '../admin/entities/security-log.entity';
 import { SendGridService } from '../emails/sendgrid.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { DataSyncService } from '../data-sync';
 
 export interface AdminUserFilters {
   search?: string;
@@ -132,6 +133,7 @@ export class UsersService {
     private readonly s3Service: S3Service,
     private readonly walletsService: WalletsService,
     private readonly sendGridService: SendGridService,
+    private readonly dataSyncService: DataSyncService,
   ) {
     this.logger = new Logger(UsersService.name);
   }
@@ -328,6 +330,37 @@ export class UsersService {
     return user;
   }
 
+  async findPublicProfile(id: string) {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: ['country'],
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    const totalTools = await this.toolRepository.count({
+      where: { ownerId: id },
+    });
+
+    return {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profilePicture: user.profilePicture ?? null,
+      bio: user.bio ?? null,
+      city: user.city ?? null,
+      address: user.address ?? null,
+      country: user.country?.name ?? user.countryId ?? null,
+      isVerified: Boolean(user.isVerified),
+      rating: Number(user.ratingAsOwner ?? 0),
+      completedRentals: Number(user.completedRentals ?? 0),
+      totalTools,
+      memberSince: user.createdAt,
+    };
+  }
+
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { email } });
   }
@@ -399,7 +432,13 @@ export class UsersService {
     }
 
     Object.assign(user, allowedUpdates);
-    await this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+
+    this.dataSyncService.emitToUser(id, 'profile_updated', {
+      userId: id,
+      profile: savedUser,
+      updatedFields: Object.keys(allowedUpdates),
+    });
 
     // Return user with relations loaded
     return this.findOneWithRelations(id);
@@ -502,11 +541,17 @@ export class UsersService {
 
       // Update user's profile picture URL
       user.profilePicture = uploadResult.url;
-      await this.usersRepository.save(user);
+      const savedUser = await this.usersRepository.save(user);
       console.log(
         'User profile picture updated in database:',
         uploadResult.url,
       );
+
+      this.dataSyncService.emitToUser(id, 'profile_updated', {
+        userId: id,
+        profile: savedUser,
+        updatedFields: ['profilePicture'],
+      });
 
       const response = {
         data: {

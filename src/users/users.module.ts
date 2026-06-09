@@ -45,6 +45,7 @@ import { ExchangeRateController } from './exchange-rate.controller';
 import { ExchangeRateService } from './exchange-rate.service';
 import { SendGridService } from '../emails/sendgrid.service';
 import { EmailsModule } from '../emails/emails.module';
+import { DataSyncModule } from '../data-sync';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { EmailsModule } from '../emails/emails.module';
     ]),
     S3Module,
     EmailsModule,
+    DataSyncModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
