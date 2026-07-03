@@ -76,7 +76,15 @@ export class CreateBookingDto {
 
   @ApiProperty({ description: 'The payment method for the booking' })
   @IsNotEmpty()
-  paymentMethod: 'CARD' | 'PAYPAL';
+  @IsString()
+  paymentMethod:
+    | 'card'
+    | 'google_pay'
+    | 'apple_pay'
+    | 'CARD'
+    | 'PAYPAL'
+    | 'GOOGLE_PAY'
+    | 'APPLE_PAY';
 
   @ApiProperty({ description: 'The total price for the booking' })
   @IsNotEmpty()

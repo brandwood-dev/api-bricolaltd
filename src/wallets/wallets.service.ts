@@ -241,6 +241,7 @@ export class WalletsService {
         type: TransactionType.WITHDRAWAL,
         status: In([
           TransactionStatus.PENDING,
+          TransactionStatus.PROCESSING,
           TransactionStatus.CONFIRMED,
           TransactionStatus.PAID,
         ]),

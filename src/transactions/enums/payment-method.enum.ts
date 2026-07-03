@@ -1,5 +1,7 @@
 export enum PaymentMethod {
   CARD = 'CARD',
+  GOOGLE_PAY = 'GOOGLE_PAY',
+  APPLE_PAY = 'APPLE_PAY',
   BANK_TRANSFER = 'BANK_TRANSFER',
   PAYPAL = 'PAYPAL',
   STRIPE = 'STRIPE',

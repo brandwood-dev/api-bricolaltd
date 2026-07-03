@@ -51,9 +51,9 @@ export class CreateBookingWithDepositDto {
   @ApiProperty({
     description: 'Méthode de paiement',
     example: 'card',
-    enum: ['card', 'bank_transfer'],
+    enum: ['card', 'google_pay', 'apple_pay', 'bank_transfer'],
   })
-  @IsEnum(['card', 'bank_transfer'])
+  @IsEnum(['card', 'google_pay', 'apple_pay', 'bank_transfer'])
   paymentMethod: string;
 
   @ApiProperty({

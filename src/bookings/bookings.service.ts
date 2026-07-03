@@ -747,7 +747,13 @@ export class BookingsService {
     const convertedDto: CreateBookingDto = {
       ...createBookingDto,
       paymentMethod:
-        createBookingDto.paymentMethod === 'card' ? 'CARD' : 'PAYPAL',
+        createBookingDto.paymentMethod === 'google_pay'
+          ? 'GOOGLE_PAY'
+          : createBookingDto.paymentMethod === 'apple_pay'
+            ? 'APPLE_PAY'
+            : createBookingDto.paymentMethod === 'card'
+              ? 'CARD'
+              : 'PAYPAL',
     };
 
     // First create the booking
