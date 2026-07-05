@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsBoolean,
   IsUUID,
+  IsObject,
 } from 'class-validator';
 import { NotificationType } from '../enums/notification-type';
 
@@ -22,6 +23,33 @@ export class CreateNotificationDto {
   })
   @IsString()
   message: string;
+
+  @ApiProperty({
+    description: 'Optional translation key for the notification title',
+    example: 'notifications.content.booking_created_renter.title',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  titleKey?: string;
+
+  @ApiProperty({
+    description: 'Optional translation key for the notification message',
+    example: 'notifications.content.booking_created_renter.message',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  messageKey?: string;
+
+  @ApiProperty({
+    description: 'Optional interpolation params for translation keys',
+    example: { toolName: 'Bosch Drill', startDate: '12/06/2026' },
+    required: false,
+  })
+  @IsOptional()
+  @IsObject()
+  translationParams?: Record<string, string | number | boolean>;
 
   @ApiProperty({
     description: 'The type of notification',

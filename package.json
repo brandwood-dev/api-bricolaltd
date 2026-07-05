@@ -19,7 +19,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "seed": "ts-node -r tsconfig-paths/register src/seeds/index.ts",
-    "seed:dev": "npm run build && node dist/seeds/index.js"
+    "seed:dev": "npm run build && node dist/seeds/index.js",
+    "migration:show": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:show -d ./src/data-source.ts",
+    "migration:run": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:run -d ./src/data-source.ts",
+    "migration:revert": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:revert -d ./src/data-source.ts",
+    "migration:generate": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm/cli.js migration:generate -d ./src/data-source.ts",
+    "migration:create": "node ./node_modules/typeorm/cli.js migration:create"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.864.0",
@@ -42,6 +47,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "form-data": "^4.0.5",
     "multer": "^2.0.2",
     "mysql2": "^3.15.1",
     "nodemailer": "^7.0.6",
@@ -53,7 +59,8 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
     "stripe": "^17.7.0",
-    "typeorm": "^0.3.25"
+    "typeorm": "^0.3.25",
+    "typeorm-ts-node-commonjs": "^0.3.20"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -69,7 +76,7 @@
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/supertest": "^6.0.2",
-    "axios": "^1.13.1",
+    "axios": "^1.13.2",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",

@@ -10,6 +10,17 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { NotificationType } from './enums/notification-type';
 
+type NotificationTranslationParams = Record<
+  string,
+  string | number | boolean
+>;
+
+type NotificationI18nMetadata = {
+  titleKey?: string;
+  messageKey?: string;
+  translationParams?: NotificationTranslationParams;
+};
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -192,12 +203,16 @@ export class NotificationsService {
     relatedId?: string,
     relatedType?: string,
     link?: string,
+    i18n?: NotificationI18nMetadata,
   ): Promise<Notification> {
     return await this.create({
       userId,
       type,
       title,
       message,
+      titleKey: i18n?.titleKey,
+      messageKey: i18n?.messageKey,
+      translationParams: i18n?.translationParams,
       isSystem: true,
       relatedId,
       relatedType,

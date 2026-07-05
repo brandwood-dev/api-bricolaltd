@@ -1,5 +1,21 @@
-import { DataSource } from 'typeorm';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { config as loadEnv } from 'dotenv';
+import { DataSource } from 'typeorm';
+
+const envFiles = [
+  '.env',
+  process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : null,
+]
+  .filter((value): value is string => Boolean(value))
+  .map((file) => resolve(process.cwd(), file));
+
+for (const envFile of envFiles) {
+  if (existsSync(envFile)) {
+    loadEnv({ path: envFile, override: true });
+  }
+}
 
 const configService = new ConfigService();
 

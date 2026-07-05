@@ -14,6 +14,18 @@ export class BookingNotificationService {
     private readonly toolsService: ToolsService,
   ) {}
 
+  private getI18nMetadata(
+    titleKey: string,
+    messageKey: string,
+    translationParams?: Record<string, string | number | boolean>,
+  ) {
+    return {
+      titleKey,
+      messageKey,
+      translationParams,
+    };
+  }
+
   async notifyBookingCreated(booking: Booking): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
@@ -28,6 +40,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_created_renter.title',
+        'notifications.content.booking_created_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner
@@ -39,6 +56,16 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_created_owner.title',
+        'notifications.content.booking_created_owner.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+          startDate: this.formatDate(booking.startDate),
+          endDate: this.formatDate(booking.endDate),
+        },
+      ),
     );
   }
 
@@ -56,6 +83,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_confirmed_renter.title',
+        'notifications.content.booking_confirmed_renter.message',
+        {
+          toolName: tool.title,
+          startDate: this.formatDate(booking.startDate),
+        },
+      ),
     );
 
     // Notify owner
@@ -67,6 +102,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_confirmed_owner.title',
+        'notifications.content.booking_confirmed_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -74,16 +117,25 @@ export class BookingNotificationService {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
     const owner = await this.usersService.findOne(tool.ownerId);
+    const validationCode = booking.validationCode ?? '';
 
     // Notify renter with validation code
     await this.notificationsService.createSystemNotification(
       booking.renterId,
       NotificationType.BOOKING_CONFIRMED,
       'Réservation acceptée',
-      `Votre réservation pour "${tool.title}" a été acceptée ! Code de validation: ${booking.validationCode}. Présentez ce code lors de la récupération.`,
+      `Votre réservation pour "${tool.title}" a été acceptée ! Code de validation: ${validationCode}. Présentez ce code lors de la récupération.`,
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_accepted_renter.title',
+        'notifications.content.booking_accepted_renter.message',
+        {
+          toolName: tool.title,
+          validationCode,
+        },
+      ),
     );
 
     // Notify owner
@@ -91,10 +143,19 @@ export class BookingNotificationService {
       tool.ownerId,
       NotificationType.BOOKING_CONFIRMED,
       'Réservation acceptée',
-      `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}. Code de validation généré: ${booking.validationCode}`,
+      `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}. Code de validation généré: ${validationCode}`,
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_accepted_owner.title',
+        'notifications.content.booking_accepted_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+          validationCode,
+        },
+      ),
     );
   }
 
@@ -117,6 +178,17 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_cancelled_owner.title',
+          reason
+            ? 'notifications.content.booking_cancelled_owner.message_with_reason'
+            : 'notifications.content.booking_cancelled_owner.message',
+          {
+            userName: `${renter.firstName} ${renter.lastName}`,
+            toolName: tool.title,
+            ...(reason ? { reason } : {}),
+          },
+        ),
       );
     } else {
       // Notify renter
@@ -128,6 +200,16 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_cancelled_renter.title',
+          reason
+            ? 'notifications.content.booking_cancelled_renter.message_with_reason'
+            : 'notifications.content.booking_cancelled_renter.message',
+          {
+            toolName: tool.title,
+            ...(reason ? { reason } : {}),
+          },
+        ),
       );
     }
   }
@@ -149,6 +231,16 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_rejected_renter.title',
+        refusalReason
+          ? 'notifications.content.booking_rejected_renter.message_with_reason'
+          : 'notifications.content.booking_rejected_renter.message',
+        {
+          toolName: tool.title,
+          ...(refusalReason ? { reason: refusalReason } : {}),
+        },
+      ),
     );
 
     // Notify owner
@@ -160,6 +252,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_rejected_owner.title',
+        'notifications.content.booking_rejected_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -177,6 +277,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_started_renter.title',
+        'notifications.content.booking_started_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner
@@ -188,6 +293,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_started_owner.title',
+        'notifications.content.booking_started_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -205,6 +318,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_completed_renter.title',
+        'notifications.content.booking_completed_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner
@@ -216,6 +334,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_completed_owner.title',
+        'notifications.content.booking_completed_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -237,6 +363,14 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_pickup_reminder.title',
+          'notifications.content.booking_pickup_reminder.message',
+          {
+            toolName: tool.title,
+            startDate: this.formatDate(booking.startDate),
+          },
+        ),
       );
 
       // Remind owner about handover
@@ -248,6 +382,14 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_handover_reminder.title',
+          'notifications.content.booking_handover_reminder.message',
+          {
+            userName: `${renter.firstName} ${renter.lastName}`,
+            toolName: tool.title,
+          },
+        ),
       );
     } else {
       // Remind renter about return
@@ -259,6 +401,14 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_return_reminder.title',
+          'notifications.content.booking_return_reminder_renter.message',
+          {
+            toolName: tool.title,
+            endDate: this.formatDate(booking.endDate),
+          },
+        ),
       );
 
       // Remind owner about return
@@ -270,6 +420,14 @@ export class BookingNotificationService {
         booking.id,
         'booking',
         `/bookings/${booking.id}`,
+        this.getI18nMetadata(
+          'notifications.content.booking_return_reminder.title',
+          'notifications.content.booking_return_reminder_owner.message',
+          {
+            userName: `${renter.firstName} ${renter.lastName}`,
+            toolName: tool.title,
+          },
+        ),
       );
     }
   }
@@ -288,6 +446,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_overdue_renter.title',
+        'notifications.content.booking_overdue_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner
@@ -299,6 +462,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_overdue_owner.title',
+        'notifications.content.booking_overdue_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -316,6 +487,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.payment_confirmed_renter.title',
+        'notifications.content.payment_confirmed_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner
@@ -327,6 +503,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.payment_received_owner.title',
+        'notifications.content.payment_received_owner.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
     );
   }
 
@@ -343,6 +527,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.payment_failed.title',
+        'notifications.content.payment_failed.message',
+        { toolName: tool.title },
+      ),
     );
   }
 
@@ -360,6 +549,17 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.tool_returned_owner.title',
+        notes
+          ? 'notifications.content.tool_returned_owner.message_with_notes'
+          : 'notifications.content.tool_returned_owner.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+          ...(notes ? { notes } : {}),
+        },
+      ),
     );
 
     // Notify renter (confirmation)
@@ -371,6 +571,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.return_confirmed_renter.title',
+        'notifications.content.return_confirmed_renter.message',
+        { toolName: tool.title },
+      ),
     );
   }
 
@@ -387,6 +592,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}/deposit`,
+      this.getI18nMetadata(
+        'notifications.content.deposit_required.title',
+        'notifications.content.deposit_required.message',
+        { toolName: tool.title },
+      ),
     );
   }
 
@@ -404,6 +614,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.deposit_overdue_cancelled.title',
+        'notifications.content.deposit_overdue_cancelled_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner about cancelled booking
@@ -415,6 +630,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.deposit_overdue_cancelled.title',
+        'notifications.content.deposit_overdue_cancelled_owner.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+        },
+      ),
     );
   }
 
@@ -432,6 +655,11 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.deposit_paid_renter.title',
+        'notifications.content.deposit_paid_renter.message',
+        { toolName: tool.title },
+      ),
     );
 
     // Notify owner about deposit payment
@@ -443,6 +671,14 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.deposit_received_owner.title',
+        'notifications.content.deposit_received_owner.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+        },
+      ),
     );
   }
 
@@ -463,6 +699,16 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_cancelled_renter.title',
+        reason
+          ? 'notifications.content.booking_cancelled_renter.message_with_reason'
+          : 'notifications.content.booking_cancelled_renter.message',
+        {
+          toolName: tool.title,
+          ...(reason ? { reason } : {}),
+        },
+      ),
     );
 
     // Notify owner about cancelled booking
@@ -474,6 +720,17 @@ export class BookingNotificationService {
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
+      this.getI18nMetadata(
+        'notifications.content.booking_cancelled_owner.title',
+        reason
+          ? 'notifications.content.booking_cancelled_owner.message_with_reason'
+          : 'notifications.content.booking_cancelled_owner.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+          ...(reason ? { reason } : {}),
+        },
+      ),
     );
   }
 

@@ -27,6 +27,18 @@ export class BookingNotificationsService {
     private adminNotificationsService: AdminNotificationsService,
   ) {}
 
+  private getI18nMetadata(
+    titleKey: string,
+    messageKey: string,
+    translationParams?: Record<string, string | number | boolean>,
+  ) {
+    return {
+      titleKey,
+      messageKey,
+      translationParams,
+    };
+  }
+
   // Notifications pour les utilisateurs
   async notifyBookingCreated(booking: Booking): Promise<void> {
     const [renter, tool] = await Promise.all([
@@ -48,6 +60,11 @@ export class BookingNotificationsService {
       title: 'Réservation créée',
       message: `Votre réservation pour "${tool.title}" a été créée avec succès.`,
       type: NotificationType.BOOKING_CREATED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_created_renter.title',
+        'notifications.content.booking_created_renter_legacy.message',
+        { toolName: tool.title },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -58,6 +75,14 @@ export class BookingNotificationsService {
       title: 'Nouvelle réservation',
       message: `${renter.firstName} ${renter.lastName} a réservé votre outil "${tool.title}".`,
       type: NotificationType.BOOKING_CREATED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_created_owner_legacy.title',
+        'notifications.content.booking_created_owner_legacy.message',
+        {
+          userName: `${renter.firstName} ${renter.lastName}`,
+          toolName: tool.title,
+        },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -96,6 +121,11 @@ export class BookingNotificationsService {
       title: 'Réservation confirmée',
       message: `Votre réservation pour "${tool.title}" a été confirmée par le propriétaire.`,
       type: NotificationType.BOOKING_CONFIRMED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_confirmed_renter.title',
+        'notifications.content.booking_confirmed_renter_legacy.message',
+        { toolName: tool.title },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -106,6 +136,11 @@ export class BookingNotificationsService {
       title: 'Réservation confirmée',
       message: `Vous avez confirmé la réservation de ${renter.firstName} ${renter.lastName}.`,
       type: NotificationType.BOOKING_CONFIRMED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_confirmed_owner.title',
+        'notifications.content.booking_confirmed_owner_legacy.message',
+        { userName: `${renter.firstName} ${renter.lastName}` },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -139,6 +174,16 @@ export class BookingNotificationsService {
       title: 'Réservation annulée',
       message: `La réservation pour "${tool.title}" a été annulée par ${cancellerName}.`,
       type: NotificationType.BOOKING_CANCELLED,
+      ...this.getI18nMetadata(
+        cancelledBy === 'client'
+          ? 'notifications.content.booking_cancelled_owner.title'
+          : 'notifications.content.booking_cancelled_renter.title',
+        'notifications.content.booking_cancelled_legacy.message',
+        {
+          toolName: tool.title,
+          userName: cancellerName,
+        },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -179,6 +224,11 @@ export class BookingNotificationsService {
       title: 'Location terminée',
       message: `Votre location de "${tool.title}" est terminée. N'oubliez pas de laisser un avis !`,
       type: NotificationType.BOOKING_COMPLETED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_completed_legacy.title',
+        'notifications.content.booking_completed_renter_legacy_alt.message',
+        { toolName: tool.title },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -189,6 +239,14 @@ export class BookingNotificationsService {
       title: 'Location terminée',
       message: `La location de votre outil "${tool.title}" par ${renter.firstName} ${renter.lastName} est terminée.`,
       type: NotificationType.BOOKING_COMPLETED,
+      ...this.getI18nMetadata(
+        'notifications.content.booking_completed_legacy.title',
+        'notifications.content.booking_completed_owner_legacy_alt.message',
+        {
+          toolName: tool.title,
+          userName: `${renter.firstName} ${renter.lastName}`,
+        },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });
@@ -210,6 +268,14 @@ export class BookingNotificationsService {
       title: 'Paiement reçu',
       message: `Le paiement pour la location de "${tool.title}" a été traité (${booking.totalPrice}€).`,
       type: NotificationType.PAYMENT_RECEIVED,
+      ...this.getI18nMetadata(
+        'notifications.content.payment_received_owner.title',
+        'notifications.content.payment_received_owner_legacy.message',
+        {
+          toolName: tool.title,
+          amount: booking.totalPrice,
+        },
+      ),
       relatedId: booking.id,
       relatedType: 'booking',
     });

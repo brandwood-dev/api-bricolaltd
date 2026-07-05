@@ -20,6 +20,25 @@ export class Notification {
   @Column({ name: 'message', type: 'longtext' })
   message: string;
 
+  @Column({
+    name: 'title_key',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  titleKey: string | null;
+
+  @Column({
+    name: 'message_key',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  messageKey: string | null;
+
+  @Column({ name: 'translation_params', type: 'json', nullable: true })
+  translationParams: Record<string, string | number | boolean> | null;
+
   @Column({ name: 'type', type: 'enum', enum: NotificationType })
   type: NotificationType;
 

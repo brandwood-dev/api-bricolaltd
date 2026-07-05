@@ -63,6 +63,9 @@ export class NotificationsController {
       type: string;
       title: string;
       message: string;
+      titleKey?: string;
+      messageKey?: string;
+      translationParams?: Record<string, string | number | boolean>;
       relatedId?: string;
       relatedType?: string;
       link?: string;
@@ -76,6 +79,11 @@ export class NotificationsController {
       body.relatedId,
       body.relatedType,
       body.link,
+      {
+        titleKey: body.titleKey,
+        messageKey: body.messageKey,
+        translationParams: body.translationParams,
+      },
     );
   }
 
