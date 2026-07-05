@@ -58,7 +58,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
-    "stripe": "^17.7.0",
+    "stripe": "19.1.0",
     "typeorm": "^0.3.25",
     "typeorm-ts-node-commonjs": "^0.3.20"
   },
