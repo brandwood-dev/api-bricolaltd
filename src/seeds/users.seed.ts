@@ -153,7 +153,7 @@ export async function seedUsers(dataSource: DataSource) {
         const preferences = userPreferenceRepository.create({
           userId: savedUser.id,
           language: 'fr',
-          currency: 'EUR',
+          currency: 'GBP',
           emailNotifications: true,
           pushNotifications: true,
           smsNotifications: false,

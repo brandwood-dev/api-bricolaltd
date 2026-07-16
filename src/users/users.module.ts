@@ -40,9 +40,6 @@ import { forwardRef } from '@nestjs/common';
 import { WalletsModule } from '../wallets/wallets.module';
 import { Email } from '../emails/entities/email.entity';
 import { Currency } from './entities/currency.entity';
-import { ExchangeRate } from './entities/exchange-rate.entity';
-import { ExchangeRateController } from './exchange-rate.controller';
-import { ExchangeRateService } from './exchange-rate.service';
 import { SendGridService } from '../emails/sendgrid.service';
 import { EmailsModule } from '../emails/emails.module';
 import { DataSyncModule } from '../data-sync';
@@ -71,7 +68,6 @@ import { DataSyncModule } from '../data-sync';
       Wallet,
       Email,
       Currency,
-      ExchangeRate,
     ]),
     S3Module,
     EmailsModule,
@@ -93,7 +89,6 @@ import { DataSyncModule } from '../data-sync';
     UserPreferenceController,
     CountryController,
     AccountDeletionRequestController,
-    ExchangeRateController,
   ],
   providers: [
     UsersService,
@@ -102,7 +97,6 @@ import { DataSyncModule } from '../data-sync';
     UserPreferenceService,
     CountryService,
     AccountDeletionRequestService,
-    ExchangeRateService,
   ],
   exports: [
     UsersService,
@@ -111,7 +105,6 @@ import { DataSyncModule } from '../data-sync';
     UserPreferenceService,
     CountryService,
     AccountDeletionRequestService,
-    ExchangeRateService,
   ],
 })
 export class UsersModule {

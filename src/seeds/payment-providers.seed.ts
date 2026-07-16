@@ -16,7 +16,7 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       supportedMethods: [PaymentMethod.CARD, PaymentMethod.STRIPE],
       logoUrl: 'https://stripe.com/img/v3/home/social.png',
       config: {
-        currency: 'EUR',
+        currency: 'GBP',
         feePercentage: 2.9,
         fixedFee: 0.3,
       },
@@ -30,7 +30,7 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       logoUrl:
         'https://www.paypalobjects.com/webstatic/mktg/logo/pp_cc_mark_111x69.jpg',
       config: {
-        currency: 'EUR',
+        currency: 'GBP',
         feePercentage: 3.4,
         fixedFee: 0.35,
       },
@@ -42,7 +42,7 @@ export async function seedPaymentProviders(dataSource: DataSource) {
       isActive: true,
       supportedMethods: [PaymentMethod.BANK_TRANSFER],
       config: {
-        currency: 'EUR',
+        currency: 'GBP',
         processingDays: 3,
       },
     },

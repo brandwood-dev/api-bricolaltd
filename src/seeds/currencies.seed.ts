@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import { Currency } from '../users/entities/currency.entity';
 
 export async function seedCurrencies(dataSource: DataSource) {
-  console.log('💱 Seeding currencies...');
+  console.log('Seeding currencies...');
 
   const currencyRepository = dataSource.getRepository(Currency);
 
@@ -56,20 +56,6 @@ export async function seedCurrencies(dataSource: DataSource) {
       isDefault: false,
       isActive: true,
     },
-    {
-      code: 'EUR',
-      name: 'Euro',
-      symbol: '€',
-      isDefault: false,
-      isActive: true,
-    },
-    {
-      code: 'USD',
-      name: 'US Dollar',
-      symbol: '$',
-      isDefault: false,
-      isActive: true,
-    },
   ];
 
   let seedCount = 0;
@@ -91,6 +77,6 @@ export async function seedCurrencies(dataSource: DataSource) {
   }
 
   console.log(
-    `✅ Currencies seeded successfully (${seedCount} new currencies added)`,
+    `Currencies seeded successfully (${seedCount} new currencies added)`,
   );
 }

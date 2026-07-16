@@ -25,7 +25,7 @@ export async function seedPaymentTransactions(dataSource: DataSource) {
 
   const paymentMethods = Object.values(PaymentMethod);
   const statuses = ['completed', 'pending', 'failed', 'cancelled'];
-  const currencies = ['EUR', 'USD', 'GBP'];
+  const currencies = ['GBP', 'KWD', 'SAR', 'BHD', 'OMR', 'QAR', 'AED'];
 
   // Generate 80 realistic payment transactions
   for (let i = 0; i < Math.min(80, transactions.length); i++) {

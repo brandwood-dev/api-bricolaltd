@@ -12,8 +12,10 @@ import {
   ExchangeRateService,
   ExchangeRateResponse,
   BulkExchangeRateResponse,
+  ExchangeRateTableResponse,
 } from './exchange-rate.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ExchangeRateTableResponseDto } from './dto/exchange-rate-table-response.dto';
 
 @ApiTags('Exchange Rates')
 @Controller('exchange-rates')
@@ -65,56 +67,81 @@ export class ExchangeRateController {
     @Query('to') toCurrency: string,
   ): Promise<{ data: ExchangeRateResponse; message: string }> {
     this.logger.log(
-      `🌐 [Controller] GET /exchange-rates?from=${fromCurrency}&to=${toCurrency}`,
+      `GET /exchange-rates?from=${fromCurrency}&to=${toCurrency}`,
     );
 
     if (!fromCurrency || !toCurrency) {
-      this.logger.error(
-        `❌ [Controller] Missing parameters: from=${fromCurrency}, to=${toCurrency}`,
-      );
       throw new HttpException(
         'Both from and to currency codes are required',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    // Validate currency codes (should be 3 characters)
     if (fromCurrency.length !== 3 || toCurrency.length !== 3) {
-      this.logger.error(
-        `❌ [Controller] Invalid currency code length: from=${fromCurrency} (${fromCurrency.length}), to=${toCurrency} (${toCurrency.length})`,
-      );
       throw new HttpException(
         'Currency codes must be 3 characters long',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    try {
-      this.logger.log(
-        `🔄 [Controller] Calling service for ${fromCurrency.toUpperCase()} → ${toCurrency.toUpperCase()}`,
-      );
-      const exchangeRate = await this.exchangeRateService.getExchangeRate(
-        fromCurrency.toUpperCase(),
-        toCurrency.toUpperCase(),
-      );
+    const exchangeRate = await this.exchangeRateService.getExchangeRateFromTable(
+      fromCurrency.toUpperCase(),
+      toCurrency.toUpperCase(),
+    );
 
-      const response = {
-        data: exchangeRate,
-        message: 'Exchange rate retrieved successfully',
-      };
+    return {
+      data: exchangeRate,
+      message: 'Exchange rate retrieved successfully',
+    };
+  }
 
-      this.logger.log(
-        `✅ [Controller] Success: ${fromCurrency} → ${toCurrency} = ${exchangeRate.rate}`,
+  @Get('table')
+  @ApiOperation({ summary: 'Get full exchange rate table for one base currency' })
+  @ApiQuery({
+    name: 'base',
+    description: 'Base currency code',
+    example: 'GBP',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Exchange rate table retrieved successfully',
+    type: ExchangeRateTableResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or unsupported base currency code provided',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Failed to fetch exchange rate table',
+  })
+  async getExchangeRateTable(
+    @Query('base') baseCurrency: string,
+  ): Promise<{ data: ExchangeRateTableResponse; message: string }> {
+    this.logger.log(`GET /exchange-rates/table?base=${baseCurrency}`);
+
+    if (!baseCurrency) {
+      throw new HttpException(
+        'Base currency code is required',
+        HttpStatus.BAD_REQUEST,
       );
-      return response;
-    } catch (error) {
-      this.logger.error(
-        `❌ [Controller] Error getting exchange rate ${fromCurrency} → ${toCurrency}:`,
-        error.message,
-      );
-      this.logger.error(`📊 [Controller] Error stack:`, error.stack);
-      throw error;
     }
+
+    if (baseCurrency.length !== 3) {
+      throw new HttpException(
+        'Currency code must be 3 characters long',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const table = await this.exchangeRateService.getExchangeRateTable(
+      baseCurrency.toUpperCase(),
+    );
+
+    return {
+      data: table,
+      message: 'Exchange rate table retrieved successfully',
+    };
   }
 
   @Get('bulk')
@@ -163,58 +190,31 @@ export class ExchangeRateController {
   async getBulkExchangeRates(
     @Query('base') baseCurrency: string,
   ): Promise<{ data: BulkExchangeRateResponse; message: string }> {
-    this.logger.log(
-      `🌐 [Controller] GET /exchange-rates/bulk?base=${baseCurrency}`,
-    );
+    this.logger.log(`GET /exchange-rates/bulk?base=${baseCurrency}`);
 
     if (!baseCurrency) {
-      this.logger.error(`❌ [Controller] Missing base currency parameter`);
       throw new HttpException(
         'Base currency code is required',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    // Validate currency code (should be 3 characters)
     if (baseCurrency.length !== 3) {
-      this.logger.error(
-        `❌ [Controller] Invalid base currency code length: ${baseCurrency} (${baseCurrency.length})`,
-      );
       throw new HttpException(
         'Currency code must be 3 characters long',
         HttpStatus.BAD_REQUEST,
       );
     }
 
-    try {
-      this.logger.log(
-        `🔄 [Controller] Calling service for bulk rates with base: ${baseCurrency.toUpperCase()}`,
-      );
-      const bulkRates = await this.exchangeRateService.getBulkExchangeRates(
+    const bulkRates =
+      await this.exchangeRateService.getBulkExchangeRatesFromTable(
         baseCurrency.toUpperCase(),
       );
 
-      const response = {
-        data: bulkRates,
-        message: 'Bulk exchange rates retrieved successfully',
-      };
-
-      this.logger.log(
-        `✅ [Controller] Bulk rates success for ${baseCurrency}: ${Object.keys(bulkRates.rates).length} rates`,
-      );
-      this.logger.log(
-        `📊 [Controller] Bulk rates data:`,
-        JSON.stringify(bulkRates, null, 2),
-      );
-      return response;
-    } catch (error) {
-      this.logger.error(
-        `❌ [Controller] Error getting bulk rates for ${baseCurrency}:`,
-        error.message,
-      );
-      this.logger.error(`📊 [Controller] Error stack:`, error.stack);
-      throw error;
-    }
+    return {
+      data: bulkRates,
+      message: 'Bulk exchange rates retrieved successfully',
+    };
   }
 
   @Get('convert')
@@ -286,7 +286,6 @@ export class ExchangeRateController {
       );
     }
 
-    // Validate currency codes (should be 3 characters)
     if (fromCurrency.length !== 3 || toCurrency.length !== 3) {
       throw new HttpException(
         'Currency codes must be 3 characters long',
@@ -294,7 +293,7 @@ export class ExchangeRateController {
       );
     }
 
-    const conversion = await this.exchangeRateService.convertCurrency(
+    const conversion = await this.exchangeRateService.convertCurrencyFromTable(
       numericAmount,
       fromCurrency.toUpperCase(),
       toCurrency.toUpperCase(),
@@ -324,6 +323,24 @@ export class ExchangeRateController {
           properties: {
             size: { type: 'number', example: 42 },
             keys: { type: 'array', items: { type: 'string' } },
+            pairCacheKeys: { type: 'array', items: { type: 'string' } },
+            tableCacheKeys: { type: 'array', items: { type: 'string' } },
+            metrics: {
+              type: 'object',
+              properties: {
+                pairCacheHits: { type: 'number', example: 10 },
+                pairCacheMisses: { type: 'number', example: 4 },
+                tableCacheFreshHits: { type: 'number', example: 24 },
+                tableCacheStaleHits: { type: 'number', example: 2 },
+                tableCacheMisses: { type: 'number', example: 3 },
+                providerCallsTotal: { type: 'number', example: 7 },
+                providerCallsByBase: {
+                  type: 'object',
+                  additionalProperties: { type: 'number' },
+                  example: { GBP: 3, AED: 2, SAR: 2 },
+                },
+              },
+            },
           },
         },
         message: {
@@ -334,7 +351,21 @@ export class ExchangeRateController {
     },
   })
   async getCacheStats(): Promise<{
-    data: { size: number; keys: string[] };
+    data: {
+      size: number;
+      keys: string[];
+      pairCacheKeys: string[];
+      tableCacheKeys: string[];
+      metrics: {
+        pairCacheHits: number;
+        pairCacheMisses: number;
+        tableCacheFreshHits: number;
+        tableCacheStaleHits: number;
+        tableCacheMisses: number;
+        providerCallsTotal: number;
+        providerCallsByBase: Record<string, number>;
+      };
+    };
     message: string;
   }> {
     const stats = this.exchangeRateService.getCacheStats();

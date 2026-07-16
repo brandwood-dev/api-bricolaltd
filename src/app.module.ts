@@ -26,6 +26,7 @@ import { ContactModule } from './contact/contact.module';
 import { RefundsModule } from './refunds/refunds.module';
 import { WebhookModule } from './webhooks/webhook.module';
 import { DataSyncModule } from './data-sync/data-sync.module';
+import { ExchangeRatesModule } from './exchange-rates/exchange-rates.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { DataSyncModule } from './data-sync/data-sync.module';
       inject: [ConfigService],
     }),
     UsersModule,
+    ExchangeRatesModule,
     AuthModule,
     DocumentsModule,
     WalletsModule,

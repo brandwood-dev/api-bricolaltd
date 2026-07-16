@@ -65,6 +65,9 @@ import { DataSyncService } from '../data-sync/data-sync.service';
 
 @Injectable()
 export class BookingsService {
+  private readonly reservationFeeRate = 0.0525;
+  private readonly reservationFixedFee = 0.25;
+
   constructor(
     @InjectRepository(Booking)
     private bookingsRepository: Repository<Booking>,
@@ -81,6 +84,16 @@ export class BookingsService {
     private transactionsService: TransactionsService,
     private readonly dataSyncService: DataSyncService,
   ) {}
+
+  private calculateReservationFees(subtotal: number): number {
+    return subtotal > 0
+      ? subtotal * this.reservationFeeRate + this.reservationFixedFee
+      : 0;
+  }
+
+  private calculateReservationTotal(subtotal: number): number {
+    return subtotal + this.calculateReservationFees(subtotal);
+  }
 
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     console.log('🔍 [BookingService] create called with:', createBookingDto);
@@ -771,8 +784,8 @@ export class BookingsService {
       const tool = await this.toolsService.findOne(booking.toolId);
       const totalDays = this.calculateDays(booking.startDate, booking.endDate);
       const subtotal = tool.basePrice * totalDays;
-      const fees = Math.round(subtotal * 0.06 * 100) / 100;
-      const rentalAmount = subtotal + fees; // Amount to capture immediately (without deposit)
+      const fees = this.calculateReservationFees(subtotal);
+      const rentalAmount = this.calculateReservationTotal(subtotal); // Amount to capture immediately (without deposit)
 
       console.log('🔍 [BookingService] Creating payment for rental amount:', {
         subtotal,
@@ -968,8 +981,8 @@ export class BookingsService {
       const endDate = new Date(booking.endDate);
       const totalDays = this.calculateDays(startDate, endDate);
       const subtotal = Number(tool.basePrice) * Number(totalDays);
-      const fees = Number((subtotal * 5.25) / 100);
-      const totalAmount = Number((subtotal + fees + 0.25).toFixed(2));
+      const fees = this.calculateReservationFees(subtotal);
+      const totalAmount = this.calculateReservationTotal(subtotal);
 
       booking.totalPrice = totalAmount;
       console.log(
@@ -1584,8 +1597,8 @@ export class BookingsService {
       const subtotal = tool.basePrice * totalDays;
       console.log('🔍 [BookingService] Subtotal calculated:', subtotal);
 
-      // Calculate fees (6% platform fee)
-      const fees = Math.round(subtotal * 0.06 * 100) / 100;
+      // Standardized reservation fee: 5.25% of subtotal + £0.25
+      const fees = this.calculateReservationFees(subtotal);
       console.log('🔍 [BookingService] Fees calculated:', fees);
 
       // Calculate deposit (20% of subtotal, minimum 50)
@@ -1595,7 +1608,7 @@ export class BookingsService {
 
       // Total amount to pay = subtotal + fees (WITHOUT deposit)
       // Deposit is managed separately by the automatic system
-      const totalAmount = subtotal + fees;
+      const totalAmount = this.calculateReservationTotal(subtotal);
       console.log(
         '🔍 [BookingService] Total amount to pay (without deposit):',
         totalAmount,
