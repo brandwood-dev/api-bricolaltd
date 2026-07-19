@@ -143,7 +143,7 @@ export class BookingNotificationService {
       tool.ownerId,
       NotificationType.BOOKING_CONFIRMED,
       'Réservation acceptée',
-      `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}. Code de validation généré: ${validationCode}`,
+      `Vous avez accepté la réservation de "${tool.title}" pour ${renter.firstName} ${renter.lastName}.`,
       booking.id,
       'booking',
       `/bookings/${booking.id}`,
