@@ -16,6 +16,20 @@ export class UserPreferenceService {
     private userPreferenceRepository: Repository<UserPreference>,
   ) {}
 
+  private async ensurePreference(userId: string): Promise<UserPreference> {
+    let preference = await this.userPreferenceRepository.findOne({
+      where: { userId },
+      relations: ['user'],
+    });
+
+    if (preference) {
+      return preference;
+    }
+
+    preference = this.userPreferenceRepository.create({ userId });
+    return await this.userPreferenceRepository.save(preference);
+  }
+
   async create(
     createUserPreferenceDto: CreateUserPreferenceDto,
   ): Promise<UserPreference> {
@@ -54,18 +68,7 @@ export class UserPreferenceService {
   }
 
   async findByUserId(userId: string): Promise<UserPreference> {
-    const preference = await this.userPreferenceRepository.findOne({
-      where: { userId },
-      relations: ['user'],
-    });
-
-    if (!preference) {
-      throw new NotFoundException(
-        `User preferences for user ${userId} not found`,
-      );
-    }
-
-    return preference;
+    return await this.ensurePreference(userId);
   }
 
   async update(

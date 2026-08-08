@@ -49,6 +49,44 @@ export class NotificationsController {
     return this.notificationsService.create(createNotificationDto);
   }
 
+  @Post('push-tokens/register')
+  @ApiOperation({ summary: 'Register the current device Expo push token' })
+  @ApiResponse({
+    status: 201,
+    description: 'Push token registered successfully',
+  })
+  registerPushToken(
+    @Request() req,
+    @Body()
+    body: {
+      token: string;
+      deviceId?: string;
+      platform?: string;
+    },
+  ) {
+    return this.notificationsService.registerPushToken(req.user.id, {
+      token: body.token,
+      deviceId: body.deviceId,
+      platform: body.platform,
+    });
+  }
+
+  @Post('push-tokens/unregister')
+  @ApiOperation({ summary: 'Unregister the current device Expo push token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Push token unregistered successfully',
+  })
+  unregisterPushToken(
+    @Request() req,
+    @Body()
+    body: {
+      token: string;
+    },
+  ) {
+    return this.notificationsService.unregisterPushToken(req.user.id, body.token);
+  }
+
   @Post('system')
   @ApiOperation({ summary: 'Create a system notification for current user' })
   @ApiResponse({

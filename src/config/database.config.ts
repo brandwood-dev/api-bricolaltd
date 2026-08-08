@@ -24,7 +24,11 @@ import { UserPreference } from '../users/entities/user-preference.entity';
 import { UserSession } from '../users/entities/user-session.entity';
 import { UserActivity } from '../users/entities/user-activity.entity';
 import { AccountDeletionRequest } from '../users/entities/account-deletion-request.entity';
-import { Notification, NotificationTemplate } from '../notifications/entities';
+import {
+  Notification,
+  NotificationTemplate,
+  PushDeviceToken,
+} from '../notifications/entities';
 import { ReviewTool } from '../reviews/entities/review-tool.entity';
 import { ReviewApp } from '../reviews/entities/review-app.entity';
 import { PaymentProvider } from '../transactions/entities/payment-provider.entity';
@@ -57,6 +61,7 @@ export const databaseConfig = (
     AccountDeletionRequest,
     Notification,
     NotificationTemplate,
+    PushDeviceToken,
     Category,
     Subcategory,
     Document,

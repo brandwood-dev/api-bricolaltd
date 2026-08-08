@@ -39,15 +39,6 @@ export class ToolsService {
     createToolDto: CreateToolDto,
     files?: Express.Multer.File[],
   ): Promise<Tool> {
-    // Check if tool name already exists
-    const existingTool = await this.toolsRepository.findOne({
-      where: { title: createToolDto.title },
-    });
-
-    if (existingTool) {
-      throw new Error('Un outil avec ce nom existe déjà');
-    }
-
     // Create the tool without images first
     const tool = this.toolsRepository.create(createToolDto);
     const savedTool = await this.toolsRepository.save(tool);
@@ -474,7 +465,10 @@ export class ToolsService {
     }
 
     // Broadcast tool deletion via DataSync
-    this.dataSyncService.broadcast('tool_deleted', { toolId: id });
+    this.dataSyncService.broadcast('tool_deleted', {
+      toolId: id,
+      ownerId: tool.owner?.id,
+    });
 
     // Notify admins of tool deletion
     try {
@@ -634,8 +628,9 @@ export class ToolsService {
 
     tool.moderationStatus = status;
     await this.toolsRepository.save(tool);
-
-    return this.findOne(id);
+    const updatedTool = await this.findOne(id);
+    this.dataSyncService.broadcast('tool_updated', { tool: updatedTool });
+    return updatedTool;
   }
 
   async updateToolStatus(id: string, status: ToolStatus): Promise<Tool> {
@@ -643,8 +638,9 @@ export class ToolsService {
 
     tool.toolStatus = status;
     await this.toolsRepository.save(tool);
-
-    return this.findOne(id);
+    const updatedTool = await this.findOne(id);
+    this.dataSyncService.broadcast('tool_updated', { tool: updatedTool });
+    return updatedTool;
   }
 
   async findAllForAdmin(query?: {

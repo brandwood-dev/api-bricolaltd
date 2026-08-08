@@ -2,13 +2,18 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions } from 'typeorm';
 import { Notification } from './entities/notification.entity';
+import { PushDeviceToken } from './entities/push-device-token.entity';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { NotificationType } from './enums/notification-type';
+import { NotificationDispatcherService } from './notification-dispatcher.service';
 
 type NotificationTranslationParams = Record<
   string,
@@ -23,9 +28,15 @@ type NotificationI18nMetadata = {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    @InjectRepository(PushDeviceToken)
+    private pushDeviceTokenRepository: Repository<PushDeviceToken>,
+    @Inject(forwardRef(() => NotificationDispatcherService))
+    private notificationDispatcherService: NotificationDispatcherService,
   ) {}
 
   async create(
@@ -34,7 +45,80 @@ export class NotificationsService {
     const notification = this.notificationRepository.create(
       createNotificationDto,
     );
-    return await this.notificationRepository.save(notification);
+    const savedNotification = await this.notificationRepository.save(notification);
+
+    if (savedNotification.userId) {
+      try {
+        const unreadCount = await this.getUnreadCount(savedNotification.userId);
+        await this.notificationDispatcherService.dispatchNotification(
+          savedNotification,
+          unreadCount,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Notification dispatch failed for ${savedNotification.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    return savedNotification;
+  }
+
+  async registerPushToken(
+    userId: string,
+    input: {
+      token: string;
+      deviceId?: string;
+      platform?: string;
+    },
+  ): Promise<PushDeviceToken> {
+    const normalizedToken = String(input.token ?? '').trim();
+    if (!normalizedToken) {
+      throw new NotFoundException('Push token is required');
+    }
+
+    const existing = await this.pushDeviceTokenRepository.findOne({
+      where: { expoPushToken: normalizedToken },
+    });
+
+    if (existing) {
+      existing.userId = userId;
+      existing.deviceId = input.deviceId?.trim() || existing.deviceId || null;
+      existing.platform = input.platform?.trim() || existing.platform || null;
+      existing.isActive = true;
+      existing.lastRegisteredAt = new Date();
+      existing.lastError = null;
+      return await this.pushDeviceTokenRepository.save(existing);
+    }
+
+    const token = this.pushDeviceTokenRepository.create({
+      userId,
+      expoPushToken: normalizedToken,
+      deviceId: input.deviceId?.trim() || null,
+      platform: input.platform?.trim() || null,
+      isActive: true,
+      lastRegisteredAt: new Date(),
+      lastError: null,
+    });
+
+    return await this.pushDeviceTokenRepository.save(token);
+  }
+
+  async unregisterPushToken(userId: string, token: string): Promise<void> {
+    const normalizedToken = String(token ?? '').trim();
+    if (!normalizedToken) return;
+
+    await this.pushDeviceTokenRepository.update(
+      {
+        userId,
+        expoPushToken: normalizedToken,
+      },
+      {
+        isActive: false,
+      },
+    );
   }
 
   async findAll(

@@ -55,12 +55,14 @@ import { AdminBookingsController } from './admin-bookings.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailsModule } from '../emails/emails.module';
 import { ToolRejectionEmailService } from '../tools/services/tool-rejection-email.service';
+import { DataSyncModule } from '../data-sync/data-sync.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => BookingsModule),
     forwardRef(() => NotificationsModule),
+    DataSyncModule,
     EmailsModule,
     forwardRef(() => WalletsModule),
     TypeOrmModule.forFeature([

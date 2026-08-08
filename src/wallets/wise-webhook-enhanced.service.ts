@@ -372,18 +372,13 @@ export class WiseWebhookService {
     }
 
     try {
-      const notification = await this.notificationsService.createSystemNotification(
+      await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_COMPLETED,
         'Retrait termine',
         `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
         transaction.id,
         'transaction',
-      );
-
-      await this.notificationsGateway.sendNotificationToUser(
-        transaction.senderId,
-        notification,
       );
     } catch (notifErr) {
       this.logger.warn(
@@ -397,18 +392,13 @@ export class WiseWebhookService {
     status: string,
   ): Promise<void> {
     try {
-      const notification = await this.notificationsService.createSystemNotification(
+      await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_FAILED,
         'Retrait echoue',
         `Votre retrait n'a pas pu etre finalise. Statut Wise: ${status}.`,
         transaction.id,
         'transaction',
-      );
-
-      await this.notificationsGateway.sendNotificationToUser(
-        transaction.senderId,
-        notification,
       );
     } catch (notifErr) {
       this.logger.warn(

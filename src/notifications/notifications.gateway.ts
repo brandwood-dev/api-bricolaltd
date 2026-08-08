@@ -8,7 +8,7 @@ import {
   MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Injectable, UseGuards, Logger } from '@nestjs/common';
+import { Injectable, UseGuards, Logger, Inject, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { NotificationsService } from './notifications.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
@@ -39,6 +39,7 @@ export class NotificationsGateway
 
   constructor(
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -177,16 +178,19 @@ export class NotificationsGateway
   }
 
   // Method to send notification to specific user
-  async sendNotificationToUser(userId: string, notification: any) {
+  async emitNotificationToUser(
+    userId: string,
+    notification: any,
+    unreadCount: number,
+  ) {
     this.server.to(`user_${userId}`).emit('new_notification', notification);
-    // Track last notification to allow verification in tests
     this.lastNotificationByUser.set(userId, notification);
+    this.server.to(`user_${userId}`).emit('unread_count', { count: unreadCount });
+  }
 
-    // Update unread count
+  async sendNotificationToUser(userId: string, notification: any) {
     const unreadCount = await this.notificationsService.getUnreadCount(userId);
-    this.server
-      .to(`user_${userId}`)
-      .emit('unread_count', { count: unreadCount });
+    await this.emitNotificationToUser(userId, notification, unreadCount);
   }
 
   // Method to broadcast notification to all connected users

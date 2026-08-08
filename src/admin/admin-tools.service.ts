@@ -22,6 +22,7 @@ import { ToolRejectionEmailService } from '../tools/services/tool-rejection-emai
 import { CreateToolDto } from '../tools/dto/create-tool.dto';
 import { ToolCondition } from '../tools/enums/tool-condition.enum';
 import { EmailsService } from '../emails/emails.service';
+import { DataSyncService } from '../data-sync/data-sync.service';
 
 export interface AdminToolFilters {
   search?: string;
@@ -56,6 +57,7 @@ export class AdminToolsService {
     private readonly sendGridService: SendGridService,
     private readonly toolRejectionEmailService: ToolRejectionEmailService,
     private readonly emailsService: EmailsService,
+    private readonly dataSyncService: DataSyncService,
   ) {}
 
   async findAllForAdmin(
@@ -195,19 +197,41 @@ export class AdminToolsService {
     tool.moderationStatus = ModerationStatus.CONFIRMED;
 
     const saved = await this.toolRepository.save(tool);
+    const hydratedTool = await this.findOneForAdmin(saved.id);
     // Notify admins of moderation approval
     try {
       await this.adminNotificationsService.createUserNotification(
         'Outil approuvé',
-        `L'outil "${saved.title}" a été approuvé.`,
-        saved.owner?.id,
-        saved.owner
-          ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        `L'outil "${hydratedTool.title}" a été approuvé.`,
+        hydratedTool.owner?.id,
+        hydratedTool.owner
+          ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
           : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
-    return saved;
+
+    try {
+      if (hydratedTool.owner?.id) {
+        await this.notificationsService.createSystemNotification(
+          hydratedTool.owner.id,
+          NotificationType.TOOL_APPROVED,
+          'Tool approved',
+          `Your tool "${hydratedTool.title}" has been approved.`,
+          hydratedTool.id,
+          'tool',
+          `/tool/${hydratedTool.id}`,
+          {
+            titleKey: 'notifications.content.tool_approved.title',
+            messageKey: 'notifications.content.tool_approved.message',
+            translationParams: { toolName: hydratedTool.title },
+          },
+        );
+      }
+    } catch {}
+
+    this.broadcastToolUpdated(hydratedTool);
+    return hydratedTool;
   }
 
   async rejectTool(id: string, reason: string): Promise<Tool> {
@@ -226,14 +250,15 @@ export class AdminToolsService {
     tool.rejectionReason = reason.trim();
 
     const saved = await this.toolRepository.save(tool);
+    const hydratedTool = await this.findOneForAdmin(saved.id);
     // Notify admins of moderation rejection
     try {
       await this.adminNotificationsService.createUserNotification(
         'Outil rejeté',
-        `L'outil "${saved.title}" a été rejeté. Raison: ${saved.rejectionReason}.`,
-        saved.owner?.id,
-        saved.owner
-          ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        `L'outil "${hydratedTool.title}" a été rejeté. Raison: ${hydratedTool.rejectionReason}.`,
+        hydratedTool.owner?.id,
+        hydratedTool.owner
+          ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
           : undefined,
         NotificationPriority.MEDIUM,
       );
@@ -241,29 +266,29 @@ export class AdminToolsService {
 
     // Notify tool owner (in-app + websocket + email)
     try {
-      const ownerId = saved.owner?.id;
-      const ownerEmail = saved.owner?.email;
-      const ownerName = saved.owner
-        ? `${saved.owner.firstName} ${saved.owner.lastName}`
+      const ownerId = hydratedTool.owner?.id;
+      const ownerEmail = hydratedTool.owner?.email;
+      const ownerName = hydratedTool.owner
+        ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
         : undefined;
 
       if (ownerId) {
-        // In-app notification
-        const userNotification =
-          await this.notificationsService.createSystemNotification(
-            ownerId,
-            NotificationType.TOOL_REJECTED,
-            'Outil rejeté',
-            `Votre outil "${saved.title}" a été rejeté. Raison: ${saved.rejectionReason}.`,
-            saved.id,
-            'tool',
-            `/tools/${saved.id}`,
-          );
-
-        // WebSocket push to user
-        await this.notificationsGateway.sendNotificationToUser(
+        await this.notificationsService.createSystemNotification(
           ownerId,
-          userNotification,
+          NotificationType.TOOL_REJECTED,
+          'Outil rejeté',
+          `Votre outil "${hydratedTool.title}" a été rejeté. Raison: ${hydratedTool.rejectionReason}.`,
+          hydratedTool.id,
+          'tool',
+          `/tool/${hydratedTool.id}`,
+          {
+            titleKey: 'notifications.content.tool_rejected.title',
+            messageKey: 'notifications.content.tool_rejected.message',
+            translationParams: {
+              toolName: hydratedTool.title,
+              reason: hydratedTool.rejectionReason || '',
+            },
+          },
         );
       }
 
@@ -271,9 +296,9 @@ export class AdminToolsService {
       if (ownerEmail) {
         const template =
           this.toolRejectionEmailService.getRejectionEmailTemplate(
-            saved.rejectionReason || '',
-            saved.owner?.firstName,
-            saved.title,
+            hydratedTool.rejectionReason || '',
+            hydratedTool.owner?.firstName,
+            hydratedTool.title,
             process.env.FRONTEND_URL,
           );
 
@@ -286,7 +311,8 @@ export class AdminToolsService {
         });
       }
     } catch {}
-    return saved;
+    this.broadcastToolUpdated(hydratedTool);
+    return hydratedTool;
   }
 
   // Test routine to create a tool, run rejections for 6 templates, and verify notifications/emails
@@ -396,19 +422,36 @@ export class AdminToolsService {
     }
 
     const saved = await this.toolRepository.save(tool);
+    const hydratedTool = await this.findOneForAdmin(saved.id);
     // Notify admins of status update
     try {
       await this.adminNotificationsService.createUserNotification(
         "Statut de l'outil mis à jour",
-        `Le statut de l'outil "${saved.title}" a été mis à jour à ${saved.toolStatus}.`,
-        saved.owner?.id,
-        saved.owner
-          ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        `Le statut de l'outil "${hydratedTool.title}" a été mis à jour à ${hydratedTool.toolStatus}.`,
+        hydratedTool.owner?.id,
+        hydratedTool.owner
+          ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
           : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
-    return saved;
+
+    try {
+      if (hydratedTool.owner?.id) {
+        await this.notificationsService.createSystemNotification(
+          hydratedTool.owner.id,
+          NotificationType.MODERATION_ACTION,
+          'Tool status updated',
+          `Your tool "${hydratedTool.title}" status is now ${hydratedTool.toolStatus}.`,
+          hydratedTool.id,
+          'tool',
+          `/tool/${hydratedTool.id}`,
+        );
+      }
+    } catch {}
+
+    this.broadcastToolUpdated(hydratedTool);
+    return hydratedTool;
   }
 
   async deleteTool(id: string, reason?: string): Promise<{ message: string }> {
@@ -441,6 +484,7 @@ export class AdminToolsService {
       }
     }
 
+    const ownerId = tool.owner?.id;
     await this.toolRepository.remove(tool);
 
     // Notify admins of deletion
@@ -456,6 +500,25 @@ export class AdminToolsService {
       );
     } catch {}
 
+    try {
+      if (ownerId) {
+        await this.notificationsService.createSystemNotification(
+          ownerId,
+          NotificationType.MODERATION_ACTION,
+          'Tool removed',
+          `Your tool "${tool.title}" was removed by an administrator.`,
+          tool.id,
+          'tool',
+          '/my-listings',
+        );
+      }
+    } catch {}
+
+    this.dataSyncService.broadcast('tool_deleted', {
+      toolId: tool.id,
+      ownerId,
+    });
+
     return { message: 'Tool deleted successfully' };
   }
 
@@ -470,19 +533,36 @@ export class AdminToolsService {
     tool.moderationStatus = ModerationStatus.CONFIRMED;
 
     const saved = await this.toolRepository.save(tool);
+    const hydratedTool = await this.findOneForAdmin(saved.id);
     // Notify admins of archiving
     try {
       await this.adminNotificationsService.createUserNotification(
         'Outil archivé',
-        `L'outil "${saved.title}" a été archivé.`,
-        saved.owner?.id,
-        saved.owner
-          ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        `L'outil "${hydratedTool.title}" a été archivé.`,
+        hydratedTool.owner?.id,
+        hydratedTool.owner
+          ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
           : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
-    return saved;
+
+    try {
+      if (hydratedTool.owner?.id) {
+        await this.notificationsService.createSystemNotification(
+          hydratedTool.owner.id,
+          NotificationType.TOOL_ARCHIVED,
+          'Tool archived',
+          `Your tool "${hydratedTool.title}" was archived by an administrator.`,
+          hydratedTool.id,
+          'tool',
+          '/my-listings',
+        );
+      }
+    } catch {}
+
+    this.broadcastToolUpdated(hydratedTool);
+    return hydratedTool;
   }
 
   async restoreTool(id: string): Promise<Tool> {
@@ -497,19 +577,40 @@ export class AdminToolsService {
     tool.publishedAt = new Date();
 
     const saved = await this.toolRepository.save(tool);
+    const hydratedTool = await this.findOneForAdmin(saved.id);
     // Notify admins of restoration
     try {
       await this.adminNotificationsService.createUserNotification(
         'Outil restauré',
-        `L'outil "${saved.title}" a été restauré et republié.`,
-        saved.owner?.id,
-        saved.owner
-          ? `${saved.owner.firstName} ${saved.owner.lastName}`
+        `L'outil "${hydratedTool.title}" a été restauré et republié.`,
+        hydratedTool.owner?.id,
+        hydratedTool.owner
+          ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
           : undefined,
         NotificationPriority.MEDIUM,
       );
     } catch {}
-    return saved;
+
+    try {
+      if (hydratedTool.owner?.id) {
+        await this.notificationsService.createSystemNotification(
+          hydratedTool.owner.id,
+          NotificationType.TOOL_APPROVED,
+          'Tool restored',
+          `Your tool "${hydratedTool.title}" was restored and published again.`,
+          hydratedTool.id,
+          'tool',
+          `/tool/${hydratedTool.id}`,
+        );
+      }
+    } catch {}
+
+    this.broadcastToolUpdated(hydratedTool);
+    return hydratedTool;
+  }
+
+  private broadcastToolUpdated(tool: Tool): void {
+    this.dataSyncService.broadcast('tool_updated', { tool });
   }
 
   private createFilteredQuery(

@@ -81,33 +81,7 @@ export class DisputesService {
       hasActiveClaim: true,
     });
 
-    // Send notification to the respondent (owner or renter)
-    try {
-      const initiator = await this.usersService.findOne(initiatorId);
-      const tool = booking.tool;
-
-      await this.notificationsService.createSystemNotification(
-        respondentId,
-        NotificationType.DISPUTE_CREATED,
-        'Nouvelle réclamation',
-        `${initiator.firstName} ${initiator.lastName} a créé une réclamation concernant "${tool?.title || "l'outil"}". Motif: ${createDisputeDto.reportReason}`,
-        savedDispute.id,
-        'dispute',
-        `/disputes/${savedDispute.id}`,
-      );
-
-      // Admin notification for dispute creation
-      await this.adminNotificationsService.createDisputeNotification(
-        'Litige créé',
-        `Un litige a été créé pour la réservation ${booking.id} (${tool?.title || 'outil'}).`,
-        savedDispute.id,
-        initiator.id,
-        `${initiator.firstName} ${initiator.lastName}`,
-      );
-    } catch (error) {
-      // Log error but don't fail the dispute creation
-      console.error('Failed to send dispute notification:', error);
-    }
+    await this.notifyDisputeCreated(savedDispute, booking, initiatorId, respondentId);
 
     return savedDispute;
   }
@@ -191,7 +165,54 @@ export class DisputesService {
       hasActiveClaim: true,
     });
 
+    await this.notifyDisputeCreated(savedDispute, booking, initiatorId, respondentId);
+
     return savedDispute;
+  }
+
+  private async notifyDisputeCreated(
+    dispute: Dispute,
+    booking: any,
+    initiatorId: string,
+    respondentId: string,
+  ): Promise<void> {
+    try {
+      const initiator = await this.usersService.findOne(initiatorId);
+      const tool = booking.tool;
+
+      await this.notificationsService.createSystemNotification(
+        respondentId,
+        NotificationType.DISPUTE_CREATED,
+        'Nouvelle réclamation',
+        `${initiator.firstName} ${initiator.lastName} a créé une réclamation concernant "${tool?.title || "l'outil"}". Motif: ${dispute.reason}`,
+        dispute.id,
+        'dispute',
+        `/disputes/${dispute.id}`,
+        {
+          titleKey: 'notifications.content.dispute_created.title',
+          messageKey: 'notifications.content.dispute_created.message',
+          translationParams: {
+            userName: `${initiator.firstName} ${initiator.lastName}`,
+            toolName: tool?.title || "l'outil",
+            reason: dispute.reason,
+          },
+        },
+      );
+
+      await this.adminNotificationsService.createDisputeNotification(
+        'Litige créé',
+        `Un litige a été créé pour la réservation ${booking.id} (${tool?.title || 'outil'}).`,
+        dispute.id,
+        initiator.id,
+        `${initiator.firstName} ${initiator.lastName}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to send dispute notification: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async findAll(

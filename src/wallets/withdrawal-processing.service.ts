@@ -695,6 +695,32 @@ export class WithdrawalProcessingService {
       category: AdminNotificationCategory.PAYMENT,
     });
 
+    try {
+      await this.notificationsService.createSystemNotification(
+        transaction.senderId,
+        NotificationType.WITHDRAWAL_FAILED,
+        'Retrait échoué',
+        `Votre retrait n'a pas pu être finalisé. Raison: ${reason}.`,
+        transaction.id,
+        'transaction',
+        '/wallet',
+        {
+          titleKey: 'notifications.content.withdrawal_failed.title',
+          messageKey:
+            'notifications.content.withdrawal_failed.message_with_reason',
+          translationParams: {
+            reason,
+          },
+        },
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to send withdrawal cancellation notification: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+
     return savedTransaction;
   }
 
@@ -764,18 +790,13 @@ export class WithdrawalProcessingService {
     });
 
     try {
-      const notification = await this.notificationsService.createSystemNotification(
+      await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_COMPLETED,
         'Retrait termine',
         `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
         transaction.id,
         'transaction',
-      );
-
-      await this.notificationsGateway.sendNotificationToUser(
-        transaction.senderId,
-        notification,
       );
     } catch (error) {
       this.logger.warn(

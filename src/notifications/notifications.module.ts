@@ -8,11 +8,19 @@ import { NotificationsGateway } from './notifications.gateway';
 import { AdminNotificationsGateway } from './admin-notifications.gateway';
 import { Notification } from './entities/notification.entity';
 import { NotificationTemplate } from './entities/notification-template.entity';
+import { PushDeviceToken } from './entities/push-device-token.entity';
+import { NotificationDispatcherService } from './notification-dispatcher.service';
 import { AdminModule } from '../admin/admin.module';
+import { UserPreference } from '../users/entities/user-preference.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification, NotificationTemplate]),
+    TypeOrmModule.forFeature([
+      Notification,
+      NotificationTemplate,
+      PushDeviceToken,
+      UserPreference,
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -26,11 +34,13 @@ import { AdminModule } from '../admin/admin.module';
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
+    NotificationDispatcherService,
     NotificationsGateway,
     AdminNotificationsGateway,
   ],
   exports: [
     NotificationsService,
+    NotificationDispatcherService,
     NotificationsGateway,
     AdminNotificationsGateway,
   ],
