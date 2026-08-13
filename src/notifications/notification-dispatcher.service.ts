@@ -113,7 +113,10 @@ export class NotificationDispatcherService {
       priority: 'high',
       channelId: 'bricola_main',
       badge: 0,
+      ttl: 2_419_200,
+      expiration: Math.floor(Date.now() / 1000) + 2_419_200,
       mutableContent: true,
+      contentAvailable: true,
       _contentAvailable: true,
       data: {
         notificationId: notification.id,
@@ -177,9 +180,7 @@ export class NotificationDispatcherService {
           );
         }
       } else {
-        this.logger.log(
-          `Expo push request succeeded HTTP ${response.status}`,
-        );
+        this.logger.log(`Expo push request succeeded HTTP ${response.status}`);
       }
 
       const results = Array.isArray(payload?.data) ? payload.data : [];
@@ -192,7 +193,13 @@ export class NotificationDispatcherService {
         return;
       }
 
-      const summary = { ok: 0, error: 0, deviceNotRegistered: 0, invalidToken: 0, miscError: 0 };
+      const summary = {
+        ok: 0,
+        error: 0,
+        deviceNotRegistered: 0,
+        invalidToken: 0,
+        miscError: 0,
+      };
 
       await Promise.all(
         results.map(async (result, index) => {
@@ -225,8 +232,13 @@ export class NotificationDispatcherService {
             errorCode === 'PUSH_TOO_MANY_EXPERIENCE_IDS' ||
             errorCode === 'MESSAGE_TOO_BIG'
           ) {
-            if (errorCode === 'DeviceNotRegistered') summary.deviceNotRegistered += 1;
-            if (errorCode === 'InvalidCredentials' || errorCode === 'InvalidPushToken') summary.invalidToken += 1;
+            if (errorCode === 'DeviceNotRegistered')
+              summary.deviceNotRegistered += 1;
+            if (
+              errorCode === 'InvalidCredentials' ||
+              errorCode === 'InvalidPushToken'
+            )
+              summary.invalidToken += 1;
 
             await this.pushDeviceTokenRepository.update(token.id, {
               isActive: false,
@@ -265,7 +277,10 @@ export class NotificationDispatcherService {
   ): Promise<void> {
     if (!this.fcmPushService.isAvailable()) return;
     const fcmEligible = tokens.filter(
-      (t) => t.platform && (t.platform.toLowerCase() === 'android' || t.platform.toLowerCase() === 'ios'),
+      (t) =>
+        t.platform &&
+        (t.platform.toLowerCase() === 'android' ||
+          t.platform.toLowerCase() === 'ios'),
     );
     if (fcmEligible.length === 0) return;
 

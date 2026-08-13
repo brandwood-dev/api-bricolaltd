@@ -100,6 +100,10 @@ export class NotificationsService {
         );
       }
 
+      // De-duplicate: disable any other ACTIVE tokens for the same user that
+      // match an older row on the same device (or a stale previous token) so
+      // we never dispatch to a duplicated / superseded token.
+      await this.deduplicateActiveTokensForUser(userId, saved.id);
       return saved;
     }
 
@@ -113,7 +117,58 @@ export class NotificationsService {
       lastError: null,
     });
 
-    return await this.pushDeviceTokenRepository.save(token);
+    const savedNew = await this.pushDeviceTokenRepository.save(token);
+
+    // De-duplicate for the newly inserted row as well, so we never keep
+    // multiple active tokens for the same user unless they belong to
+    // different (non-empty) deviceIds.
+    await this.deduplicateActiveTokensForUser(userId, savedNew.id);
+
+    return savedNew;
+  }
+
+  private async deduplicateActiveTokensForUser(
+    userId: string,
+    keepTokenId: string,
+  ): Promise<void> {
+    try {
+      const siblings = await this.pushDeviceTokenRepository.find({
+        where: { userId, isActive: true },
+      });
+
+      const kept = siblings.find((s) => s.id === keepTokenId);
+      if (!kept) return;
+
+      const sameDeviceSiblings = siblings.filter((s) => {
+        if (s.id === keepTokenId) return false;
+        if (!kept.deviceId) {
+          // If the kept row has no deviceId, we consider every other row a
+          // potential duplicate and disable them (safer default).
+          return true;
+        }
+        // If the kept row has a deviceId, we only disable rows that share
+        // the same deviceId (rows from other devices are legitimate and must
+        // remain active for multi-device users).
+        return (
+          s.deviceId &&
+          String(s.deviceId).toLowerCase() ===
+            String(kept.deviceId).toLowerCase()
+        );
+      });
+
+      if (sameDeviceSiblings.length === 0) return;
+
+      const ids = sameDeviceSiblings.map((s) => s.id);
+      await this.pushDeviceTokenRepository.update(ids, { isActive: false });
+
+      this.logger.log(
+        `[push] De-duplicated ${ids.length} stale active push token rows for user ${userId}: kept ${keepTokenId}`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `[push] Failed to deduplicate active push tokens for user ${userId}: ${error?.message ?? String(error)}`,
+      );
+    }
   }
 
   async unregisterPushToken(userId: string, token: string): Promise<void> {
