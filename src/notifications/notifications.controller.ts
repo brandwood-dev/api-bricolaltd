@@ -12,6 +12,7 @@ import {
   ParseUUIDPipe,
   ParseIntPipe,
   ParseBoolPipe,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -32,6 +33,7 @@ import { NotificationType } from './enums/notification-type';
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationsController {
+  private readonly logger = new Logger(NotificationsController.name);
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Post()
@@ -55,7 +57,7 @@ export class NotificationsController {
     status: 201,
     description: 'Push token registered successfully',
   })
-  registerPushToken(
+  async registerPushToken(
     @Request() req,
     @Body()
     body: {
@@ -64,11 +66,33 @@ export class NotificationsController {
       platform?: string;
     },
   ) {
-    return this.notificationsService.registerPushToken(req.user.id, {
-      token: body.token,
-      deviceId: body.deviceId,
-      platform: body.platform,
-    });
+    this.logger.log(
+      `[push] Register token request for user ${req?.user?.id} ` +
+        `tokenPreview=${String(body?.token ?? '').slice(0, 18)}... ` +
+        `platform=${body?.platform ?? 'unknown'} ` +
+        `deviceId=${body?.deviceId ?? 'none'}`,
+    );
+    try {
+      const result = await this.notificationsService.registerPushToken(
+        req.user.id,
+        {
+          token: body.token,
+          deviceId: body.deviceId,
+          platform: body.platform,
+        },
+      );
+      this.logger.log(
+        `[push] Token registered for user ${req.user.id}: id=${result.id} active=${result.isActive}`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `[push] Failed to register token for user ${req?.user?.id ?? 'unknown'}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error;
+    }
   }
 
   @Post('push-tokens/unregister')
@@ -84,7 +108,10 @@ export class NotificationsController {
       token: string;
     },
   ) {
-    return this.notificationsService.unregisterPushToken(req.user.id, body.token);
+    return this.notificationsService.unregisterPushToken(
+      req.user.id,
+      body.token,
+    );
   }
 
   @Post('system')

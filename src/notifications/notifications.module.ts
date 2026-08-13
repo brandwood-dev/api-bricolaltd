@@ -10,6 +10,7 @@ import { Notification } from './entities/notification.entity';
 import { NotificationTemplate } from './entities/notification-template.entity';
 import { PushDeviceToken } from './entities/push-device-token.entity';
 import { NotificationDispatcherService } from './notification-dispatcher.service';
+import { FcmPushService } from './fcm-push.service';
 import { AdminModule } from '../admin/admin.module';
 import { UserPreference } from '../users/entities/user-preference.entity';
 
@@ -37,12 +38,14 @@ import { UserPreference } from '../users/entities/user-preference.entity';
     NotificationDispatcherService,
     NotificationsGateway,
     AdminNotificationsGateway,
+    FcmPushService,
   ],
   exports: [
     NotificationsService,
     NotificationDispatcherService,
     NotificationsGateway,
     AdminNotificationsGateway,
+    FcmPushService,
   ],
 })
 export class NotificationsModule {}
