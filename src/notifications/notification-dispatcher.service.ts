@@ -111,8 +111,9 @@ export class NotificationDispatcherService {
       body: String(notification.message ?? '').slice(0, 240),
       sound: 'default',
       priority: 'high',
-      channelId: 'default',
+      channelId: 'bricola_main',
       badge: 0,
+      mutableContent: true,
       _contentAvailable: true,
       data: {
         notificationId: notification.id,

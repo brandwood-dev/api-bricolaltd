@@ -84,13 +84,23 @@ export class NotificationsService {
     });
 
     if (existing) {
+      const previousUserId = existing.userId;
+      const ownerChanged = String(existing.userId ?? '') !== String(userId ?? '');
       existing.userId = userId;
       existing.deviceId = input.deviceId?.trim() || existing.deviceId || null;
       existing.platform = input.platform?.trim() || existing.platform || null;
       existing.isActive = true;
       existing.lastRegisteredAt = new Date();
       existing.lastError = null;
-      return await this.pushDeviceTokenRepository.save(existing);
+      const saved = await this.pushDeviceTokenRepository.save(existing);
+
+      if (ownerChanged) {
+        this.logger.warn(
+          `[push] Token owner changed: token ${normalizedToken.slice(0, 18)}... moved from user ${previousUserId ?? 'none'} to user ${userId ?? 'unknown'}`,
+        );
+      }
+
+      return saved;
     }
 
     const token = this.pushDeviceTokenRepository.create({
@@ -110,14 +120,32 @@ export class NotificationsService {
     const normalizedToken = String(token ?? '').trim();
     if (!normalizedToken) return;
 
-    await this.pushDeviceTokenRepository.update(
-      {
-        userId,
-        expoPushToken: normalizedToken,
-      },
-      {
-        isActive: false,
-      },
+    // The Expo push token is global to the device and can be re-attributed to
+    // a different userId if an account switch happens on the same phone.
+    // So we match by token first, not by userId + token. Otherwise an old
+    // owner would fail to disable the row during logout.
+    const existing = await this.pushDeviceTokenRepository.findOne({
+      where: { expoPushToken: normalizedToken },
+    });
+
+    if (!existing) {
+      this.logger.warn(
+        `[push] Unregister requested for user ${userId} but token ${normalizedToken.slice(0, 18)}... was not found in storage`,
+      );
+      return;
+    }
+
+    const matchedUserId = String(existing.userId ?? '');
+    const belongsToCaller =
+      matchedUserId.length > 0 &&
+      matchedUserId === String(userId ?? '');
+
+    await this.pushDeviceTokenRepository.update(existing.id, {
+      isActive: false,
+    });
+
+    this.logger.log(
+      `[push] Token unregistered for user ${userId}: token=${normalizedToken.slice(0, 18)}... tokenRowId=${existing.id} matchedOwner=${belongsToCaller} previousOwner=${existing.userId}`,
     );
   }
 
