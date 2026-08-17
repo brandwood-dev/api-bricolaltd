@@ -39,35 +39,153 @@ export class ToolsService {
     createToolDto: CreateToolDto,
     files?: Express.Multer.File[],
   ): Promise<Tool> {
-    // Create the tool without images first
-    const tool = this.toolsRepository.create(createToolDto);
-    const savedTool = await this.toolsRepository.save(tool);
+    const safeDto: CreateToolDto & Record<string, any> = { ...createToolDto };
 
-    // If files are uploaded, process them
+    if (safeDto.toolStatus === undefined || safeDto.toolStatus === null) {
+      safeDto.toolStatus = ToolStatus.DRAFT;
+    }
+    if (
+      safeDto.availabilityStatus === undefined ||
+      safeDto.availabilityStatus === null
+    ) {
+      safeDto.availabilityStatus = AvailabilityStatus.AVAILABLE;
+    }
+    if (
+      (safeDto as any).moderationStatus === undefined ||
+      (safeDto as any).moderationStatus === null
+    ) {
+      (safeDto as any).moderationStatus = ModerationStatus.PENDING;
+    }
+
+    console.log('[tools.service#create] prepared dto (before save)', {
+      keys: Object.keys(safeDto),
+      title: safeDto.title,
+      condition: safeDto.condition,
+      basePrice: safeDto.basePrice,
+      depositAmount: safeDto.depositAmount,
+      categoryId: safeDto.categoryId,
+      subcategoryId: safeDto.subcategoryId,
+      ownerId: safeDto.ownerId,
+      primaryPhotoIndex: safeDto.primaryPhotoIndex,
+      toolStatus: safeDto.toolStatus,
+      availabilityStatus: safeDto.availabilityStatus,
+      moderationStatus: (safeDto as any).moderationStatus,
+      latitude: safeDto.latitude,
+      longitude: safeDto.longitude,
+      filesCount: files ? files.length : 0,
+      files:
+        files && files.length > 0
+          ? files.map((f) => ({
+              originalname: f.originalname,
+              mimetype: f.mimetype,
+              size: f.size,
+              fieldname: f.fieldname,
+            }))
+          : null,
+    });
+
+    let savedTool: Tool;
+    try {
+      const tool = this.toolsRepository.create(safeDto);
+      savedTool = await this.toolsRepository.save(tool);
+    } catch (err) {
+      const message = (err as any)?.message || 'Tool save failed';
+      const code = (err as any)?.code || null;
+      const detail = (err as any)?.detail || null;
+      const schema = (err as any)?.schema || null;
+      const table = (err as any)?.table || null;
+      const column = (err as any)?.column || null;
+      const query = (err as any)?.query || null;
+      const parameters = Array.isArray((err as any)?.parameters)
+        ? (err as any).parameters.slice(0, 40)
+        : null;
+      console.error('[tools.service#create] save tool failed', {
+        message,
+        code,
+        detail,
+        schema,
+        table,
+        column,
+        query: query ? String(query).slice(0, 500) : null,
+        parameters: parameters
+          ? (parameters as any[]).map((p) =>
+              typeof p === 'string' && p.length > 120
+                ? `${p.slice(0, 120)}… (${p.length} chars)`
+                : typeof p === 'string'
+                  ? p
+                  : JSON.stringify(p),
+            )
+          : null,
+        stack:
+          err instanceof Error
+            ? String(err.stack || '').slice(0, 1500)
+            : null,
+        safeDtoKeys: Object.keys(safeDto),
+        dtoValues: Object.fromEntries(
+          Object.entries(safeDto).map(([k, v]) => [
+            k,
+            v === null || v === undefined
+              ? v
+              : Array.isArray(v)
+                ? `${v.length} values`
+                : typeof v === 'string' && v.length > 160
+                  ? `${v.slice(0, 160)}… (${v.length} chars)`
+                  : typeof v,
+          ]),
+        ),
+      });
+      throw err;
+    }
+
     if (files && files.length > 0) {
-      // Upload all files to S3
-      const uploadResults = await this.s3Service.uploadFiles(files, 'tools');
+      let uploadResults: Array<{ url: string }> = [];
+      try {
+        uploadResults = await this.s3Service.uploadFiles(files, 'tools');
+      } catch (s3Err) {
+        console.error('[tools.service#create] s3 upload failed', {
+          message: (s3Err as any)?.message,
+          code: (s3Err as any)?.code,
+          name: (s3Err as any)?.name,
+          stack:
+            s3Err instanceof Error
+              ? String((s3Err as any).stack || '').slice(0, 1500)
+              : null,
+          savedToolId: savedTool.id,
+        });
+        throw s3Err;
+      }
 
-      // Create ToolPhoto entities
-      const primaryIndex = createToolDto.primaryPhotoIndex ?? 0; // Default to first image if not specified
+      const primaryIndex = safeDto.primaryPhotoIndex ?? 0;
       const toolPhotos = uploadResults.map((result, index) => {
         return this.toolPhotoRepository.create({
           url: result.url,
           filename: result.url.split('/').pop(),
-          isPrimary: index === primaryIndex, // Use specified primary index
+          isPrimary: index === primaryIndex,
           toolId: savedTool.id,
         });
       });
 
-      // Save all tool photos
-      await this.toolPhotoRepository.save(toolPhotos);
+      try {
+        await this.toolPhotoRepository.save(toolPhotos);
+      } catch (savePhotoErr) {
+        console.error('[tools.service#create] save toolPhotos failed', {
+          message: (savePhotoErr as any)?.message,
+          code: (savePhotoErr as any)?.code,
+          detail: (savePhotoErr as any)?.detail,
+          stack:
+            savePhotoErr instanceof Error
+              ? String((savePhotoErr as any).stack || '').slice(0, 1500)
+              : null,
+          savedToolId: savedTool.id,
+          photoCount: toolPhotos.length,
+        });
+        throw savePhotoErr;
+      }
     }
 
     const finalTool = await this.findOne(savedTool.id);
-    // Broadcast tool creation via DataSync
     this.dataSyncService.broadcast('tool_created', { tool: finalTool });
 
-    // Notify admins of tool creation
     try {
       await this.adminNotificationsService.createUserNotification(
         'Outil créé',

@@ -4,7 +4,6 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
-import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { Reflector } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
 
@@ -14,17 +13,80 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
 
   const corsOriginRaw = String(configService.get('CORS_ORIGIN', '*'));
-  const corsOrigins = corsOriginRaw
+  const staticOrigins = corsOriginRaw
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  const allowAnyOrigin = corsOrigins.length === 0 || corsOrigins[0] === '*';
+  const allowAnyOrigin =
+    staticOrigins.length === 0 ||
+    staticOrigins.includes('*');
+
+  const normalizeOriginForCompare = (value: string | undefined): string =>
+    (value || '').toLowerCase().replace(/\/+$/, '');
+
+  const isBricolaOrigin = (origin: string | undefined): boolean => {
+    if (!origin) return false;
+    try {
+      const url = new URL(origin);
+      const host = url.hostname.toLowerCase();
+      return (
+        host === 'bricolaltd.com' ||
+        host.endsWith('.bricolaltd.com') ||
+        host === 'localhost' ||
+        host.endsWith('.localhost')
+      );
+    } catch {
+      return hostAllowListFallback(origin);
+    }
+  };
+
+  const hostAllowListFallback = (origin: string): boolean => {
+    const lower = (origin || '').toLowerCase();
+    return (
+      lower.includes('bricolaltd.com') ||
+      lower.includes('localhost') ||
+      lower.includes('127.0.0.1') ||
+      lower.includes('0.0.0.0') ||
+      lower.startsWith('exp://') ||
+      lower.startsWith('http://localhost') ||
+      lower.startsWith('http://127.0.0.1') ||
+      lower.startsWith('capacitor://') ||
+      lower.startsWith('ionic://')
+    );
+  };
 
   app.enableCors({
-    origin: allowAnyOrigin ? true : corsOrigins,
+    origin: (requestOrigin, callback) => {
+      if (allowAnyOrigin) {
+        return callback(null, true);
+      }
+
+      const normalizedRequest = normalizeOriginForCompare(requestOrigin);
+      if (!requestOrigin) {
+        // requests without origin (server-to-server, curl, mobile native)
+        return callback(null, true);
+      }
+
+      const inStaticList = staticOrigins.some(
+        (o) => normalizeOriginForCompare(o) === normalizedRequest,
+      );
+      const matchesBricola = isBricolaOrigin(requestOrigin);
+
+      if (inStaticList || matchesBricola) {
+        return callback(null, requestOrigin);
+      }
+
+      console.warn('[CORS] blocked origin', {
+        origin: requestOrigin,
+        staticOrigins,
+      });
+      return callback(new Error(`Origin not allowed: ${requestOrigin}`), false);
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
     allowedHeaders: 'Content-Type,Authorization,Accept',
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   });
 
   // Set global prefix

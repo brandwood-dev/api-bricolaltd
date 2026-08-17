@@ -8,11 +8,29 @@ import { UserPreference } from '../users/entities/user-preference.entity';
 import { FcmPushService } from './fcm-push.service';
 
 type ExpoPushResult = {
+  id?: string;
   status?: 'ok' | 'error';
   details?: {
     error?: string;
+    errorSubtype?: string;
   };
   message?: string;
+};
+
+type ExpoPushReceipt = {
+  status: 'ok' | 'error';
+  message?: string;
+  details?: {
+    error?: string;
+    errorSubtype?: string;
+    sentAt?: number;
+    deliveredAt?: number;
+    openedAt?: number;
+    /** ISO error categories from Expo Push Receipts docs */
+    apnsErrorCode?: string;
+    fcmErrorCode?: string;
+  };
+  __internalToken?: PushDeviceToken | null;
 };
 
 @Injectable()
@@ -201,10 +219,21 @@ export class NotificationDispatcherService {
         miscError: 0,
       };
 
+      const receiptIdToToken: Record<string, PushDeviceToken> = {};
+
       await Promise.all(
         results.map(async (result, index) => {
           const token = validExpoTokens[index];
           if (!token) return;
+
+          const receiptId = result?.id;
+          if (receiptId) {
+            receiptIdToToken[receiptId] = token;
+          }
+
+          this.logger.verbose?.(
+            `Expo push token result tokenId=${token.id} tokenPreview=${token.expoPushToken.slice(0, 24)}... receiptId=${receiptId ?? 'none'} status=${result?.status ?? 'unknown'}`,
+          );
 
           if (result?.status === 'ok') {
             summary.ok += 1;
@@ -254,9 +283,36 @@ export class NotificationDispatcherService {
         }),
       );
 
+      const receiptIds = Object.keys(receiptIdToToken);
+
       this.logger.log(
-        `Expo push summary user=${notification.userId}: ok=${summary.ok}, error=${summary.error} (DeviceNotRegistered=${summary.deviceNotRegistered}, invalidTokens=${summary.invalidToken}, misc=${summary.miscError})`,
+        `Expo push summary user=${notification.userId}: ok=${summary.ok}, error=${summary.error} (DeviceNotRegistered=${summary.deviceNotRegistered}, invalidTokens=${summary.invalidToken}, misc=${summary.miscError}). receiptIds=${receiptIds.length > 0 ? receiptIds.join(',') : 'none'}`,
       );
+
+      if (receiptIds.length > 0 && useExpoV2) {
+        const delayMs = 12_000;
+        this.logger.log(
+          `[Receipts] Scheduling deferred Expo Push Receipts lookup in ${delayMs}ms for ${receiptIds.length} receipt(s): ${receiptIds.join(',')}`,
+        );
+        const notificationIdForLog = notification.id;
+        const userIdForLog = notification.userId;
+        const clonedMap: Record<string, PushDeviceToken> = {};
+        for (const rid of receiptIds) clonedMap[rid] = receiptIdToToken[rid];
+        setTimeout(() => {
+          this.lookupExpoPushReceipts(receiptIds, clonedMap, {
+            notificationId: notificationIdForLog,
+            userId: userIdForLog,
+          }).catch((err) => {
+            this.logger.warn(
+              `[Receipts] Deferred lookup failed for user ${userIdForLog}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          });
+        }, delayMs).unref?.();
+      } else if (receiptIds.length === 0 && useExpoV2) {
+        this.logger.warn(
+          '[Receipts] Expo V2 response did not include receipt ids; cannot inspect deferred FCM/APNs errors via Receipts API. This usually indicates the V2 response format has changed.',
+        );
+      }
 
       if (summary.ok === 0 && validExpoTokens.length > 0) {
         this.logger.warn(
@@ -269,6 +325,135 @@ export class NotificationDispatcherService {
         `Expo push dispatch fetch failed for user ${notification.userId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+  }
+
+  private async lookupExpoPushReceipts(
+    receiptIds: string[],
+    receiptIdToToken: Record<string, PushDeviceToken>,
+    context: { notificationId?: string; userId?: string },
+  ): Promise<void> {
+    if (receiptIds.length === 0) return;
+    const accessToken = this.getExpoAccessToken();
+    if (!accessToken) {
+      this.logger.warn(
+        `[Receipts] Skipping lookup for user ${context.userId ?? '?'} notification ${context.notificationId ?? '?'}: no EXPO_ACCESS_TOKEN (V2 required).`,
+      );
+      return;
+    }
+
+    const endpoint = 'https://api.expo.dev/v2/push/getReceipts';
+    const body = JSON.stringify({ ids: receiptIds });
+
+    let resp: globalThis.Response | null = null;
+    let text = '';
+    try {
+      resp = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body,
+      });
+      text = await resp.text().catch(() => '');
+    } catch (err) {
+      this.logger.warn(
+        `[Receipts] HTTP fetch failure for user ${context.userId ?? '?'}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return;
+    }
+
+    let parsed: { data?: Record<string, ExpoPushReceipt>; errors?: any[] } = {};
+    try {
+      parsed = text && text.trim().length > 0 ? JSON.parse(text) : {};
+    } catch {
+      this.logger.warn(
+        `[Receipts] Non-JSON response for user ${context.userId ?? '?'}: ${text.slice(0, 400)}`,
+      );
+      return;
+    }
+
+    if (!resp || !resp.ok) {
+      this.logger.warn(
+        `[Receipts] HTTP ${resp?.status ?? 'no-resp'} for user ${context.userId ?? '?'}: ${text.slice(0, 600)}`,
+      );
+      return;
+    }
+
+    const receipts = parsed?.data ?? {};
+    const receiptEntries = Object.entries(receipts);
+
+    if (receiptEntries.length === 0) {
+      this.logger.warn(
+        `[Receipts] Empty data map for user ${context.userId ?? '?'} receiptIds=${receiptIds.join(',')}. Raw first 600 chars: ${text.slice(0, 600)}`,
+      );
+      return;
+    }
+
+    let okCount = 0;
+    let errCount = 0;
+
+    await Promise.all(
+      receiptEntries.map(async ([receiptId, receipt]) => {
+        const token = receiptIdToToken[receiptId];
+        if (!token) return;
+
+        const status = receipt?.status;
+        const errCode =
+          receipt?.details?.error ??
+          receipt?.details?.fcmErrorCode ??
+          receipt?.details?.apnsErrorCode;
+        const errMessage = receipt?.message;
+
+        if (status === 'ok') {
+          okCount += 1;
+          this.logger.log(
+            `[Receipts] OK receiptId=${receiptId} tokenId=${token.id} tokenPreview=${token.expoPushToken.slice(0, 24)}... user=${token.userId} notification=${context.notificationId ?? '?'} details=${JSON.stringify(receipt.details ?? {})}`,
+          );
+          return;
+        }
+
+        errCount += 1;
+        const receiptSummary = `[Receipts] ERROR receiptId=${receiptId} tokenId=${token.id} tokenPreview=${token.expoPushToken.slice(0, 24)}... user=${token.userId} notification=${context.notificationId ?? '?'} status=${status} error=${errCode ?? 'unknown'} message=${errMessage ?? 'none'} details=${JSON.stringify(receipt.details ?? {})}`;
+
+        this.logger.warn(receiptSummary);
+
+        const finalErrorCode = String(errCode ?? '').toLowerCase();
+        const isFatal =
+          finalErrorCode.includes('devicenotregistered') ||
+          finalErrorCode.includes('invalidcredentials') ||
+          finalErrorCode.includes('invalidpushtoken') ||
+          finalErrorCode.includes('mismatchsenderid') ||
+          finalErrorCode.includes('invalidapnscredential') ||
+          finalErrorCode.includes('push_too_many_experience_ids') ||
+          finalErrorCode.includes('messagetoobig') ||
+          finalErrorCode.includes('messagetoo');
+
+        const storedErr =
+          `${receiptSummary.slice(0, 900)}` +
+          (receiptSummary.length > 900 ? '…' : '');
+
+        if (isFatal) {
+          this.logger.warn(
+            `[Receipts] Marking token inactive tokenId=${token.id} due to fatal error=${errCode}`,
+          );
+          await this.pushDeviceTokenRepository.update(token.id, {
+            isActive: false,
+            lastError: storedErr,
+          });
+          return;
+        }
+
+        await this.pushDeviceTokenRepository.update(token.id, {
+          lastError: storedErr,
+        });
+      }),
+    );
+
+    this.logger.log(
+      `[Receipts] Summary user=${context.userId ?? '?'} notification=${context.notificationId ?? '?'}: ok=${okCount}, errors=${errCount}, receiptsEvaluated=${receiptEntries.length}`,
+    );
   }
 
   private async attemptFcmFallback(
