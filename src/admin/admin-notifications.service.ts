@@ -431,17 +431,17 @@ export class AdminNotificationsService {
       notification.priority === NotificationPriority.URGENT
         ? 'Urgent'
         : notification.priority === NotificationPriority.HIGH
-          ? 'Élevé'
+          ? 'High'
           : notification.priority === NotificationPriority.MEDIUM
-            ? 'Moyen'
-            : 'Faible';
+            ? 'Medium'
+            : 'Low';
 
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Alerte Admin</title>
+        <title>Admin Alert</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }

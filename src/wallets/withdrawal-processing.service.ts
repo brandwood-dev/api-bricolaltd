@@ -62,15 +62,17 @@ export class WithdrawalProcessingService {
     });
 
     if (!transaction) {
-      throw new BadRequestException('Transaction de retrait introuvable');
+      throw new BadRequestException('Withdrawal transaction not found');
     }
 
     if (transaction.type !== TransactionType.WITHDRAWAL) {
-      throw new BadRequestException("Cette transaction n'est pas un retrait");
+      throw new BadRequestException('This transaction is not a withdrawal');
     }
 
     if (transaction.status !== TransactionStatus.PENDING) {
-      throw new BadRequestException('Cette transaction a déjà été traitée');
+      throw new BadRequestException(
+        'This transaction has already been processed',
+      );
     }
 
     try {
@@ -352,7 +354,7 @@ export class WithdrawalProcessingService {
           requiresManualFunding: (transaction as any).requiresManualFunding,
         });
       } else {
-        throw new BadRequestException('Aucune méthode de paiement spécifiée');
+        throw new BadRequestException('No payment method specified');
       }
 
       // Set transaction status based on funding method
@@ -374,7 +376,7 @@ export class WithdrawalProcessingService {
       } else {
         transaction.status = TransactionStatus.COMPLETED;
         transaction.processedAt = new Date();
-        this.logger.log(`Retrait traité avec succès: ${transaction.id}`);
+        this.logger.log(`Withdrawal processed successfully: ${transaction.id}`);
 
         // Create admin notification for successful withdrawal
         await this.adminNotificationsService.createAdminNotification({
@@ -671,17 +673,17 @@ export class WithdrawalProcessingService {
     });
 
     if (!transaction) {
-      throw new BadRequestException('Transaction introuvable');
+      throw new BadRequestException('Transaction not found');
     }
 
     if (transaction.status !== TransactionStatus.PENDING) {
       throw new BadRequestException(
-        'Seules les transactions en attente peuvent être annulées',
+        'Only pending transactions can be cancelled',
       );
     }
 
     transaction.status = TransactionStatus.CANCELLED;
-    transaction.description = `${transaction.description} - Annulé: ${reason}`;
+    transaction.description = `${transaction.description} - Cancelled: ${reason}`;
 
     const savedTransaction =
       await this.transactionsRepository.save(transaction);
@@ -699,8 +701,8 @@ export class WithdrawalProcessingService {
       await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_FAILED,
-        'Retrait échoué',
-        `Votre retrait n'a pas pu être finalisé. Raison: ${reason}.`,
+        'Withdrawal failed',
+        `Your withdrawal could not be finalized. Reason: ${reason}.`,
         transaction.id,
         'transaction',
         '/wallet',
@@ -731,11 +733,11 @@ export class WithdrawalProcessingService {
     });
 
     if (!transaction) {
-      throw new BadRequestException('Transaction de retrait introuvable');
+      throw new BadRequestException('Withdrawal transaction not found');
     }
 
     if (transaction.type !== TransactionType.WITHDRAWAL) {
-      throw new BadRequestException("Cette transaction n'est pas un retrait");
+      throw new BadRequestException('This transaction is not a withdrawal');
     }
 
     if (transaction.status === TransactionStatus.COMPLETED) {
@@ -750,7 +752,7 @@ export class WithdrawalProcessingService {
       ].includes(transaction.status)
     ) {
       throw new BadRequestException(
-        "Impossible de terminer un retrait deja annule ou echoue",
+        'Cannot complete an already cancelled or failed withdrawal',
       );
     }
 
@@ -793,8 +795,8 @@ export class WithdrawalProcessingService {
       await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_COMPLETED,
-        'Retrait termine',
-        `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
+        'Withdrawal completed',
+        `Your withdrawal of ${transaction.amount} was processed successfully.`,
         transaction.id,
         'transaction',
       );

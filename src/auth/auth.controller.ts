@@ -209,7 +209,7 @@ export class AuthController {
   async getUserInfo(@Body() body: { email: string }) {
     const user = await this.usersService.findByEmail(body.email);
     if (!user) {
-      return { found: false, message: 'Utilisateur non trouvé' };
+      return { found: false, message: 'User not found' };
     }
     return {
       found: true,
@@ -230,7 +230,7 @@ export class AuthController {
     status: 400,
     description: 'Mot de passe manquant ou invalide',
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async validatePassword(
     @Request() req,
     @Body() validatePasswordDto: ValidatePasswordDto,
@@ -297,7 +297,7 @@ export class AuthController {
     description:
       'Mot de passe actuel incorrect ou nouveau mot de passe invalide',
   })
-  @ApiResponse({ status: 401, description: 'Non autorisé' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async changePassword(
     @Request() req,
     @Body() changePasswordDto: ChangePasswordDto,

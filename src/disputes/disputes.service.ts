@@ -50,7 +50,7 @@ export class DisputesService {
 
     if (existingActiveDispute) {
       throw new BadRequestException(
-        "Vous avez déjà une réclamation en cours pour cette réservation. Veuillez attendre sa résolution avant d'en créer une nouvelle.",
+        'You already have an active dispute for this booking. Please wait for its resolution before creating a new one.',
       );
     }
 
@@ -121,7 +121,7 @@ export class DisputesService {
 
     if (existingActiveDispute) {
       throw new BadRequestException(
-        "Vous avez déjà une réclamation en cours pour cette réservation. Veuillez attendre sa résolution avant d'en créer une nouvelle.",
+        'You already have an active dispute for this booking. Please wait for its resolution before creating a new one.',
       );
     }
 
@@ -183,8 +183,8 @@ export class DisputesService {
       await this.notificationsService.createSystemNotification(
         respondentId,
         NotificationType.DISPUTE_CREATED,
-        'Nouvelle réclamation',
-        `${initiator.firstName} ${initiator.lastName} a créé une réclamation concernant "${tool?.title || "l'outil"}". Motif: ${dispute.reason}`,
+        'New dispute',
+        `${initiator.firstName} ${initiator.lastName} has created a dispute regarding "${tool?.title || 'the tool'}". Reason: ${dispute.reason}`,
         dispute.id,
         'dispute',
         `/disputes/${dispute.id}`,
@@ -193,15 +193,15 @@ export class DisputesService {
           messageKey: 'notifications.content.dispute_created.message',
           translationParams: {
             userName: `${initiator.firstName} ${initiator.lastName}`,
-            toolName: tool?.title || "l'outil",
+            toolName: tool?.title || 'the tool',
             reason: dispute.reason,
           },
         },
       );
 
       await this.adminNotificationsService.createDisputeNotification(
-        'Litige créé',
-        `Un litige a été créé pour la réservation ${booking.id} (${tool?.title || 'outil'}).`,
+        'Dispute created',
+        `A dispute has been created for booking ${booking.id} (${tool?.title || 'tool'}).`,
         dispute.id,
         initiator.id,
         `${initiator.firstName} ${initiator.lastName}`,

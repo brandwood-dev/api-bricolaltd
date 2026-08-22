@@ -152,7 +152,7 @@ export class AuthService {
     );
 
     if (!user) {
-      throw new BadRequestException('Token de vérification invalide ou expiré');
+      throw new BadRequestException('Invalid or expired verification token');
     }
 
     await this.usersService.update(user.id, { verifiedEmail: true });
@@ -179,7 +179,7 @@ export class AuthService {
     }
 
     if (!user) {
-      throw new BadRequestException('Code de vérification invalide ou expiré');
+      throw new BadRequestException('Invalid or expired verification code');
     }
 
     await this.usersService.update(user.id, { verifiedEmail: true });
@@ -192,11 +192,11 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) {
-      throw new NotFoundException('Utilisateur non trouvé');
+      throw new NotFoundException('User not found');
     }
 
     if (user.verifiedEmail) {
-      throw new BadRequestException('Email déjà vérifié');
+      throw new BadRequestException('Email already verified');
     }
 
     // Générer uniquement le code de vérification
@@ -207,7 +207,7 @@ export class AuthService {
     // Envoyer l'email de vérification avec SendGrid (code uniquement)
     await this.sendGridService.sendVerificationEmail(user.email, verifyCode);
 
-    return { message: 'Email de vérification renvoyé' };
+    return { message: 'Verification email resent' };
   }
 
   async forgotPassword(email: string): Promise<{ message: string }> {
@@ -217,7 +217,7 @@ export class AuthService {
       // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
       return {
         message:
-          'Si cet email existe, un code de réinitialisation a été envoyé',
+          'If this email exists, a reset code has been sent',
       };
     }
 
@@ -230,7 +230,7 @@ export class AuthService {
     await this.sendGridService.sendPasswordResetEmail(user.email, resetCode);
 
     return {
-      message: 'Si cet email existe, un code de réinitialisation a été envoyé',
+      message: 'If this email exists, a reset code has been sent',
     };
   }
 
@@ -291,7 +291,7 @@ export class AuthService {
 
     if (!user) {
       throw new BadRequestException(
-        'Code de réinitialisation invalide ou expiré',
+        'Invalid or expired reset code',
       );
     }
 
@@ -315,7 +315,7 @@ export class AuthService {
       // Ne pas révéler si l'email existe ou non pour des raisons de sécurité
       return {
         message:
-          'Si cet email existe, un nouveau code de réinitialisation a été envoyé',
+          'If this email exists, a new reset code has been sent',
       };
     }
 
@@ -329,7 +329,7 @@ export class AuthService {
 
     return {
       message:
-        'Si cet email existe, un nouveau code de réinitialisation a été envoyé',
+        'If this email exists, a new reset code has been sent',
     };
   }
 
@@ -375,7 +375,7 @@ export class AuthService {
     if (!user) {
       console.log('ERREUR: Token ou code invalide/expiré');
       throw new BadRequestException(
-        'Token ou code de réinitialisation invalide ou expiré',
+        'Invalid or expired reset token or code',
       );
     }
 

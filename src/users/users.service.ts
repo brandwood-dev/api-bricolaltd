@@ -879,14 +879,14 @@ export class UsersService {
       console.log('Résultat bcrypt.compare:', passwordMatch);
 
       if (passwordMatch) {
-        console.log('Validation réussie - utilisateur retourné');
+        console.log('Validation succeeded - user returned');
         console.log('=== FIN DEBUG validateUser ===');
         return user;
       } else {
         console.log('Validation échouée - mot de passe incorrect');
       }
     } else {
-      console.log('Validation échouée - utilisateur non trouvé');
+      console.log('Validation failed - user not found');
     }
 
     console.log('=== FIN DEBUG validateUser ===');

@@ -86,7 +86,7 @@ export async function seedNotificationTemplates(dataSource: DataSource) {
     },
     {
       notificationType: NotificationType.TOOL_APPROVED,
-      titleTemplate: 'Outil approuvé',
+      titleTemplate: 'Tool approved',
       messageTemplate:
         'Votre outil {{toolName}} a été approuvé et est maintenant visible.',
       emailSubject: 'Outil approuvé - Bricola',
@@ -96,7 +96,7 @@ export async function seedNotificationTemplates(dataSource: DataSource) {
     },
     {
       notificationType: NotificationType.TOOL_REJECTED,
-      titleTemplate: 'Outil rejeté',
+      titleTemplate: 'Tool rejected',
       messageTemplate:
         'Votre outil {{toolName}} a été rejeté. Raison: {{reason}}',
       emailSubject: 'Outil rejeté - Bricola',

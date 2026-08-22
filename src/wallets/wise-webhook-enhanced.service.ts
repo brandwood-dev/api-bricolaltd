@@ -375,8 +375,8 @@ export class WiseWebhookService {
       await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_COMPLETED,
-        'Retrait termine',
-        `Votre retrait de ${transaction.amount} a ete effectue avec succes.`,
+        'Withdrawal completed',
+        `Your withdrawal of ${transaction.amount} was processed successfully.`,
         transaction.id,
         'transaction',
       );
@@ -395,8 +395,8 @@ export class WiseWebhookService {
       await this.notificationsService.createSystemNotification(
         transaction.senderId,
         NotificationType.WITHDRAWAL_FAILED,
-        'Retrait echoue',
-        `Votre retrait n'a pas pu etre finalise. Statut Wise: ${status}.`,
+        'Withdrawal failed',
+        `Your withdrawal could not be finalized. Wise status: ${status}.`,
         transaction.id,
         'transaction',
       );

@@ -289,10 +289,10 @@ export class AdminTransactionsService {
         (transaction as any)?.sender?.email ||
         (transaction as any)?.recipient?.email;
       const amount = Number(transaction.amount || 0).toFixed(2);
-      const title = 'Votre demande de retrait a été annulée';
+      const title = 'Your withdrawal request has been cancelled';
       const message = reason
-        ? `Votre demande de retrait de £${amount} a été annulée. Motif: ${reason}.`
-        : `Votre demande de retrait de £${amount} a été annulée.`;
+        ? `Your withdrawal request of £${amount} has been cancelled. Reason: ${reason}.`
+        : `Your withdrawal request of £${amount} has been cancelled.`;
       this.logger.log(
         `Cancel withdrawal: tx=${transaction.id} userId=${userId} email=${userEmail} amount=£${amount} reason=${reason || ''}`,
       );
@@ -316,12 +316,12 @@ export class AdminTransactionsService {
             <html><body>
               <h2>${title}</h2>
               <p>${message}</p>
-              <p>Identifiant de la demande: ${transaction.id}</p>
+              <p>Request ID: ${transaction.id}</p>
             </body></html>
           `;
           const sent = await this.sendGridService.sendEmail({
             to: userEmail,
-            subject: '🔔 Notification de retrait annulé - Bricola',
+            subject: '🔔 Cancelled Withdrawal Notification - Bricola',
             html,
             userId,
           });

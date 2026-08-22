@@ -201,8 +201,8 @@ export class AdminToolsService {
     // Notify admins of moderation approval
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil approuvé',
-        `L'outil "${hydratedTool.title}" a été approuvé.`,
+        'Tool approved',
+        `The tool "${hydratedTool.title}" has been approved.`,
         hydratedTool.owner?.id,
         hydratedTool.owner
           ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
@@ -254,8 +254,8 @@ export class AdminToolsService {
     // Notify admins of moderation rejection
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil rejeté',
-        `L'outil "${hydratedTool.title}" a été rejeté. Raison: ${hydratedTool.rejectionReason}.`,
+        'Tool rejected',
+        `The tool "${hydratedTool.title}" has been rejected. Reason: ${hydratedTool.rejectionReason}.`,
         hydratedTool.owner?.id,
         hydratedTool.owner
           ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
@@ -276,8 +276,8 @@ export class AdminToolsService {
         await this.notificationsService.createSystemNotification(
           ownerId,
           NotificationType.TOOL_REJECTED,
-          'Outil rejeté',
-          `Votre outil "${hydratedTool.title}" a été rejeté. Raison: ${hydratedTool.rejectionReason}.`,
+          'Tool rejected',
+          `Your tool "${hydratedTool.title}" has been rejected. Reason: ${hydratedTool.rejectionReason}.`,
           hydratedTool.id,
           'tool',
           `/tool/${hydratedTool.id}`,
@@ -426,8 +426,8 @@ export class AdminToolsService {
     // Notify admins of status update
     try {
       await this.adminNotificationsService.createUserNotification(
-        "Statut de l'outil mis à jour",
-        `Le statut de l'outil "${hydratedTool.title}" a été mis à jour à ${hydratedTool.toolStatus}.`,
+        'Tool status updated',
+        `The status of tool "${hydratedTool.title}" has been updated to ${hydratedTool.toolStatus}.`,
         hydratedTool.owner?.id,
         hydratedTool.owner
           ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
@@ -490,8 +490,8 @@ export class AdminToolsService {
     // Notify admins of deletion
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil supprimé',
-        `L'outil "${tool.title}" a été supprimé par un administrateur.`,
+        'Tool deleted',
+        `The tool "${tool.title}" has been deleted by an administrator.`,
         tool.owner?.id,
         tool.owner
           ? `${tool.owner.firstName} ${tool.owner.lastName}`
@@ -537,8 +537,8 @@ export class AdminToolsService {
     // Notify admins of archiving
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil archivé',
-        `L'outil "${hydratedTool.title}" a été archivé.`,
+        'Tool archived',
+        `The tool "${hydratedTool.title}" has been archived.`,
         hydratedTool.owner?.id,
         hydratedTool.owner
           ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`
@@ -581,8 +581,8 @@ export class AdminToolsService {
     // Notify admins of restoration
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil restauré',
-        `L'outil "${hydratedTool.title}" a été restauré et republié.`,
+        'Tool restored',
+        `The tool "${hydratedTool.title}" has been restored and republished.`,
         hydratedTool.owner?.id,
         hydratedTool.owner
           ? `${hydratedTool.owner.firstName} ${hydratedTool.owner.lastName}`

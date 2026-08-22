@@ -188,8 +188,8 @@ export class ToolsService {
 
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil créé',
-        `Un nouvel outil "${finalTool.title}" a été créé.`,
+        'Tool created',
+        `A new tool "${finalTool.title}" has been created.`,
         finalTool.owner?.id,
         finalTool.owner
           ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}`
@@ -541,8 +541,8 @@ export class ToolsService {
     // Notify admins of tool update
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil modifié',
-        `L'outil "${finalTool.title}" a été modifié.`,
+        'Tool updated',
+        `The tool "${finalTool.title}" has been updated.`,
         finalTool.owner?.id,
         finalTool.owner
           ? `${finalTool.owner.firstName} ${finalTool.owner.lastName}`
@@ -591,8 +591,8 @@ export class ToolsService {
     // Notify admins of tool deletion
     try {
       await this.adminNotificationsService.createUserNotification(
-        'Outil supprimé',
-        `L'outil "${tool.title}" a été supprimé par son propriétaire.`,
+        'Tool deleted',
+        `The tool "${tool.title}" has been deleted by its owner.`,
         tool.owner?.id,
         tool.owner
           ? `${tool.owner.firstName} ${tool.owner.lastName}`

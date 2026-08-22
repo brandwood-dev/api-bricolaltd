@@ -49,13 +49,13 @@ export class StripeWebhookService {
         this.configService.get('STRIPE_WEBHOOK_SECRET'),
       );
     } catch (error) {
-      this.logger.error('Erreur de vérification de signature webhook:', error);
+      this.logger.error('Webhook signature verification error:', error);
       throw new BadRequestException(
-        `Erreur de signature webhook: ${error.message}`,
+        `Webhook signature error: ${error.message}`,
       );
     }
 
-    this.logger.log(`Webhook reçu: ${event.type} - ID: ${event.id}`);
+    this.logger.log(`Webhook received: ${event.type} - ID: ${event.id}`);
 
     try {
       // Traiter l'événement selon son type
@@ -67,7 +67,7 @@ export class StripeWebhookService {
       };
     } catch (error) {
       this.logger.error(
-        `Erreur lors du traitement de l'événement ${event.type}:`,
+        `Error processing event ${event.type}:`,
         error,
       );
       throw error;
@@ -175,7 +175,7 @@ export class StripeWebhookService {
         break;
 
       default:
-        this.logger.warn(`Événement non géré: ${type}`);
+        this.logger.warn(`Unhandled event: ${type}`);
         break;
     }
   }
@@ -184,7 +184,7 @@ export class StripeWebhookService {
   private async handlePaymentIntentSucceeded(
     paymentIntent: any,
   ): Promise<void> {
-    this.logger.log(`Payment Intent réussi: ${paymentIntent.id}`);
+    this.logger.log(`Payment Intent succeeded: ${paymentIntent.id}`);
 
     await this.updateTransactionFromPaymentIntent(
       paymentIntent.id,
@@ -199,8 +199,8 @@ export class StripeWebhookService {
 
     // Créer une notification admin pour paiement réussi
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Paiement confirmé',
-      message: `Payment Intent ${paymentIntent.id} confirmé pour réservation ${paymentIntent.metadata?.booking_id ?? 'N/A'}. Montant: ${(paymentIntent.amount_received ?? paymentIntent.amount) / 100} ${paymentIntent.currency?.toUpperCase()}`,
+      title: 'Payment confirmed',
+      message: `Payment Intent ${paymentIntent.id} confirmed for booking ${paymentIntent.metadata?.booking_id ?? 'N/A'}. Amount: ${(paymentIntent.amount_received ?? paymentIntent.amount) / 100} ${paymentIntent.currency?.toUpperCase()}`,
       type: AdminNotificationType.SUCCESS,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
@@ -208,7 +208,7 @@ export class StripeWebhookService {
   }
 
   private async handlePaymentIntentFailed(paymentIntent: any): Promise<void> {
-    this.logger.log(`Payment Intent échoué: ${paymentIntent.id}`);
+    this.logger.log(`Payment Intent failed: ${paymentIntent.id}`);
 
     await this.updateTransactionFromPaymentIntent(
       paymentIntent.id,
@@ -220,8 +220,8 @@ export class StripeWebhookService {
 
     // Créer notification admin pour échec de paiement
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Échec de paiement',
-      message: `Payment Intent ${paymentIntent.id} échoué. Raison: ${paymentIntent.last_payment_error?.message ?? 'Inconnue'}. Réservation: ${paymentIntent.metadata?.booking_id ?? 'N/A'}`,
+      title: 'Payment failed',
+      message: `Payment Intent ${paymentIntent.id} failed. Reason: ${paymentIntent.last_payment_error?.message ?? 'Unknown'}. Booking: ${paymentIntent.metadata?.booking_id ?? 'N/A'}`,
       type: AdminNotificationType.ERROR,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.PAYMENT,
@@ -229,7 +229,7 @@ export class StripeWebhookService {
   }
 
   private async handlePaymentIntentCanceled(paymentIntent: any): Promise<void> {
-    this.logger.log(`Payment Intent annulé: ${paymentIntent.id}`);
+    this.logger.log(`Payment Intent canceled: ${paymentIntent.id}`);
 
     await this.updateTransactionFromPaymentIntent(
       paymentIntent.id,
@@ -247,7 +247,7 @@ export class StripeWebhookService {
     paymentIntent: any,
   ): Promise<void> {
     this.logger.log(
-      `Montant capturable mis à jour pour Payment Intent: ${paymentIntent.id}`,
+      `Capturable amount updated for Payment Intent: ${paymentIntent.id}`,
     );
     // Logique spécifique si nécessaire
   }
@@ -256,7 +256,7 @@ export class StripeWebhookService {
     paymentIntent: any,
   ): Promise<void> {
     this.logger.log(
-      `Payment Intent partiellement financé: ${paymentIntent.id}`,
+      `Payment Intent partially funded: ${paymentIntent.id}`,
     );
     // Logique spécifique si nécessaire
   }
@@ -265,7 +265,7 @@ export class StripeWebhookService {
     paymentIntent: any,
   ): Promise<void> {
     this.logger.log(
-      `Payment Intent en cours de traitement: ${paymentIntent.id}`,
+      `Payment Intent processing: ${paymentIntent.id}`,
     );
 
     await this.updateTransactionFromPaymentIntent(
@@ -277,22 +277,22 @@ export class StripeWebhookService {
   private async handlePaymentIntentRequiresAction(
     paymentIntent: any,
   ): Promise<void> {
-    this.logger.log(`Payment Intent nécessite une action: ${paymentIntent.id}`);
+    this.logger.log(`Payment Intent requires action: ${paymentIntent.id}`);
     // Logique pour notifier l'utilisateur si nécessaire
   }
 
   private async handlePaymentIntentCreated(paymentIntent: any): Promise<void> {
-    this.logger.log(`Payment Intent créé: ${paymentIntent.id}`);
+    this.logger.log(`Payment Intent created: ${paymentIntent.id}`);
     // Logique spécifique si nécessaire
   }
 
   // Gestionnaires d'événements Charge
   private async handleChargeSucceeded(charge: any): Promise<void> {
-    this.logger.log(`Charge réussi: ${charge.id}`);
+    this.logger.log(`Charge succeeded: ${charge.id}`);
     // Notification admin pour charge réussie
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Charge réussie',
-      message: `Charge ${charge.id} réussie. Montant: ${charge.amount / 100} ${charge.currency?.toUpperCase()} — PaymentIntent: ${charge.payment_intent ?? 'N/A'}`,
+      title: 'Charge succeeded',
+      message: `Charge ${charge.id} succeeded. Amount: ${charge.amount / 100} ${charge.currency?.toUpperCase()} — PaymentIntent: ${charge.payment_intent ?? 'N/A'}`,
       type: AdminNotificationType.SUCCESS,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
@@ -300,10 +300,10 @@ export class StripeWebhookService {
   }
 
   private async handleChargeFailed(charge: any): Promise<void> {
-    this.logger.log(`Charge échoué: ${charge.id}`);
+    this.logger.log(`Charge failed: ${charge.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Charge échouée',
-      message: `Charge ${charge.id} échouée. Raison: ${charge.failure_message ?? 'Inconnue'} — Code: ${charge.failure_code ?? 'N/A'}`,
+      title: 'Charge failed',
+      message: `Charge ${charge.id} failed. Reason: ${charge.failure_message ?? 'Unknown'} — Code: ${charge.failure_code ?? 'N/A'}`,
       type: AdminNotificationType.ERROR,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.PAYMENT,
@@ -311,10 +311,10 @@ export class StripeWebhookService {
   }
 
   private async handleChargeCaptured(charge: any): Promise<void> {
-    this.logger.log(`Charge capturé: ${charge.id}`);
+    this.logger.log(`Charge captured: ${charge.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Charge capturée',
-      message: `Charge ${charge.id} capturée. Montant: ${charge.amount_captured / 100} ${charge.currency?.toUpperCase()}`,
+      title: 'Charge captured',
+      message: `Charge ${charge.id} captured. Amount: ${charge.amount_captured / 100} ${charge.currency?.toUpperCase()}`,
       type: AdminNotificationType.INFO,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
@@ -322,11 +322,11 @@ export class StripeWebhookService {
   }
 
   private async handleChargeRefunded(charge: any): Promise<void> {
-    this.logger.log(`Charge remboursé: ${charge.id}`);
+    this.logger.log(`Charge refunded: ${charge.id}`);
     const totalRefunded = (charge.amount_refunded ?? 0) / 100;
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Remboursement traité',
-      message: `Charge ${charge.id} remboursée. Montant remboursé: ${totalRefunded} ${charge.currency?.toUpperCase()}`,
+      title: 'Refund processed',
+      message: `Charge ${charge.id} refunded. Refunded amount: ${totalRefunded} ${charge.currency?.toUpperCase()}`,
       type: AdminNotificationType.INFO,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.PAYMENT,
@@ -334,15 +334,15 @@ export class StripeWebhookService {
   }
 
   private async handleChargeUpdated(charge: any): Promise<void> {
-    this.logger.log(`Charge mis à jour: ${charge.id}`);
+    this.logger.log(`Charge updated: ${charge.id}`);
     // Logique spécifique si nécessaire
   }
 
   private async handleChargePending(charge: any): Promise<void> {
-    this.logger.log(`Charge en attente: ${charge.id}`);
+    this.logger.log(`Charge pending: ${charge.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Charge en attente',
-      message: `Charge ${charge.id} en attente d'autorisation/capture.`,
+      title: 'Charge pending',
+      message: `Charge ${charge.id} pending authorization/capture.`,
       type: AdminNotificationType.INFO,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
@@ -350,10 +350,10 @@ export class StripeWebhookService {
   }
 
   private async handleChargeExpired(charge: any): Promise<void> {
-    this.logger.log(`Charge expiré: ${charge.id}`);
+    this.logger.log(`Charge expired: ${charge.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Charge expirée',
-      message: `Charge ${charge.id} expirée — aucune capture effectuée à temps.`,
+      title: 'Charge expired',
+      message: `Charge ${charge.id} expired — no capture performed in time.`,
       type: AdminNotificationType.WARNING,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.PAYMENT,
@@ -362,10 +362,10 @@ export class StripeWebhookService {
 
   // Gestionnaires d'événements Dispute
   private async handleDisputeCreated(dispute: any): Promise<void> {
-    this.logger.log(`Litige créé: ${dispute.id}`);
+    this.logger.log(`Dispute created: ${dispute.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Litige initié',
-      message: `Litige ${dispute.id} créé sur charge ${dispute.charge}. Montant contesté: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
+      title: 'Dispute initiated',
+      message: `Dispute ${dispute.id} created on charge ${dispute.charge}. Contested amount: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
       type: AdminNotificationType.WARNING,
       priority: AdminNotificationPriority.URGENT,
       category: AdminNotificationCategory.DISPUTE,
@@ -373,10 +373,10 @@ export class StripeWebhookService {
   }
 
   private async handleDisputeUpdated(dispute: any): Promise<void> {
-    this.logger.log(`Litige mis à jour: ${dispute.id}`);
+    this.logger.log(`Dispute updated: ${dispute.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Litige mis à jour',
-      message: `Litige ${dispute.id} mis à jour. Statut: ${dispute.status}`,
+      title: 'Dispute updated',
+      message: `Dispute ${dispute.id} updated. Status: ${dispute.status}`,
       type: AdminNotificationType.INFO,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.DISPUTE,
@@ -384,10 +384,10 @@ export class StripeWebhookService {
   }
 
   private async handleDisputeClosed(dispute: any): Promise<void> {
-    this.logger.log(`Litige fermé: ${dispute.id}`);
+    this.logger.log(`Dispute closed: ${dispute.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Litige fermé',
-      message: `Litige ${dispute.id} fermé. Résultat: ${dispute.status}`,
+      title: 'Dispute closed',
+      message: `Dispute ${dispute.id} closed. Result: ${dispute.status}`,
       type: AdminNotificationType.SUCCESS,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.DISPUTE,
@@ -395,10 +395,10 @@ export class StripeWebhookService {
   }
 
   private async handleDisputeFundsWithdrawn(dispute: any): Promise<void> {
-    this.logger.log(`Fonds retirés pour litige: ${dispute.id}`);
+    this.logger.log(`Funds withdrawn for dispute: ${dispute.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Fonds retirés (litige)',
-      message: `Fonds retirés pour litige ${dispute.id}. Montant: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
+      title: 'Funds withdrawn (dispute)',
+      message: `Funds withdrawn for dispute ${dispute.id}. Amount: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
       type: AdminNotificationType.ERROR,
       priority: AdminNotificationPriority.URGENT,
       category: AdminNotificationCategory.DISPUTE,
@@ -406,10 +406,10 @@ export class StripeWebhookService {
   }
 
   private async handleDisputeFundsReinstated(dispute: any): Promise<void> {
-    this.logger.log(`Fonds rétablis pour litige: ${dispute.id}`);
+    this.logger.log(`Funds reinstated for dispute: ${dispute.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Fonds rétablis (litige)',
-      message: `Fonds rétablis pour litige ${dispute.id}. Montant: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
+      title: 'Funds reinstated (dispute)',
+      message: `Funds reinstated for dispute ${dispute.id}. Amount: ${(dispute.amount ?? 0) / 100} ${dispute.currency?.toUpperCase()}`,
       type: AdminNotificationType.SUCCESS,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.DISPUTE,
@@ -418,10 +418,10 @@ export class StripeWebhookService {
 
   // Gestionnaires d'événements Invoice
   private async handleInvoicePaymentSucceeded(invoice: any): Promise<void> {
-    this.logger.log(`Paiement de facture réussi: ${invoice.id}`);
+    this.logger.log(`Invoice payment succeeded: ${invoice.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Paiement facture réussi',
-      message: `Facture ${invoice.id} payée avec succès. Montant: ${(invoice.amount_paid ?? invoice.amount_due ?? 0) / 100} ${(invoice.currency ?? 'eur').toUpperCase()}`,
+      title: 'Invoice payment succeeded',
+      message: `Invoice ${invoice.id} paid successfully. Amount: ${(invoice.amount_paid ?? invoice.amount_due ?? 0) / 100} ${(invoice.currency ?? 'eur').toUpperCase()}`,
       type: AdminNotificationType.SUCCESS,
       priority: AdminNotificationPriority.MEDIUM,
       category: AdminNotificationCategory.PAYMENT,
@@ -429,10 +429,10 @@ export class StripeWebhookService {
   }
 
   private async handleInvoicePaymentFailed(invoice: any): Promise<void> {
-    this.logger.log(`Paiement de facture échoué: ${invoice.id}`);
+    this.logger.log(`Invoice payment failed: ${invoice.id}`);
     await this.adminNotificationsService.createAdminNotification({
-      title: 'Paiement facture échoué',
-      message: `Facture ${invoice.id} paiement échoué. Client: ${invoice.customer ?? 'N/A'}`,
+      title: 'Invoice payment failed',
+      message: `Invoice ${invoice.id} payment failed. Customer: ${invoice.customer ?? 'N/A'}`,
       type: AdminNotificationType.ERROR,
       priority: AdminNotificationPriority.HIGH,
       category: AdminNotificationCategory.PAYMENT,
@@ -454,15 +454,15 @@ export class StripeWebhookService {
         transaction.processedAt = new Date();
         await this.transactionsRepository.save(transaction);
 
-        this.logger.log(`Transaction ${transaction.id} mise à jour: ${status}`);
+        this.logger.log(`Transaction ${transaction.id} updated: ${status}`);
       } else {
         this.logger.warn(
-          `Transaction introuvable pour Payment Intent: ${paymentIntentId}`,
+          `Transaction not found for Payment Intent: ${paymentIntentId}`,
         );
       }
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la mise à jour de la transaction pour ${paymentIntentId}:`,
+        `Error updating transaction for ${paymentIntentId}:`,
         error,
       );
     }
@@ -487,15 +487,15 @@ export class StripeWebhookService {
           await this.bookingsRepository.save(booking);
 
           this.logger.log(
-            `Réservation ${bookingId} mise à jour: ${paymentStatus}`,
+            `Booking ${bookingId} updated: ${paymentStatus}`,
           );
         } else {
-          this.logger.warn(`Réservation introuvable: ${bookingId}`);
+          this.logger.warn(`Booking not found: ${bookingId}`);
         }
       }
     } catch (error) {
       this.logger.error(
-        `Erreur lors de la mise à jour de la réservation:`,
+        `Error updating booking:`,
         error,
       );
     }
