@@ -155,20 +155,12 @@ export class BookingsCancellationService {
       // ACCEPTED: Check 24h rule
       const pickupDate = new Date(booking.startDate);
       // Parse pickup hour if possible, otherwise default to start of day or specific time
-      // Assuming booking.pickupHour is "HH:mm" string
-      if (booking.pickupHour) {
-        let hours = 0;
-        let minutes = 0;
-
-        if (booking.pickupHour instanceof Date) {
-          hours = booking.pickupHour.getHours();
-          minutes = booking.pickupHour.getMinutes();
-        } else if (typeof booking.pickupHour === 'string') {
-          const parts = (booking.pickupHour as string).split(':');
-          hours = parseInt(parts[0], 10);
-          minutes = parseInt(parts[1], 10);
-        }
-
+      // booking.pickupHour est "HH:mm" string (depuis migration FixPickupHourType)
+      const pickupHourStr = booking.pickupHour as unknown;
+      if (typeof pickupHourStr === 'string' && pickupHourStr) {
+        const parts = pickupHourStr.split(':');
+        const hours = parseInt(parts[0], 10) || 0;
+        const minutes = parseInt(parts[1], 10) || 0;
         pickupDate.setHours(hours, minutes, 0, 0);
       }
 

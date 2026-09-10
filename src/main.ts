@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { Reflector } from '@nestjs/core';
 import * as bodyParser from 'body-parser';
+import { BookingGlobalExceptionFilter } from './common/filters/booking-errors.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -109,6 +110,9 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Global exception filter: structured error payloads with codes, never raw 500 stack to users
+  app.useGlobalFilters(new BookingGlobalExceptionFilter());
 
   // Add global interceptors: response wrapper only (avoid class serializer globally)
   app.useGlobalInterceptors(new ResponseInterceptor());

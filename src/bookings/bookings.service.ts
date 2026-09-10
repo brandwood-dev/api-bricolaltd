@@ -62,6 +62,11 @@ import { Dispute } from '../disputes/entities/dispute.entity';
 import { DisputeStatus } from '../disputes/enums/dispute-status.enum';
 import { ADMIN_USER_ID, ADMIN_EMAIL } from '../config/constants';
 import { DataSyncService } from '../data-sync/data-sync.service';
+import {
+  calculateRentalDays,
+  parseCalendarDate,
+  toCalendarString,
+} from '../common/utils/date.utils';
 
 @Injectable()
 export class BookingsService {
@@ -95,6 +100,69 @@ export class BookingsService {
     return subtotal + this.calculateReservationFees(subtotal);
   }
 
+  async getUnavailableDatesForTool(toolId: string): Promise<{
+    toolId: string;
+    unavailableDates: string[];
+    upcomingConflicts: Array<{
+      startDate: string;
+      endDate: string;
+      status: string;
+    }>;
+  }> {
+    const today = parseCalendarDate(new Date());
+
+    const bookings = await this.bookingsRepository.find({
+      where: [
+        {
+          toolId,
+          status: BookingStatus.PENDING,
+          endDate: MoreThanOrEqual(today),
+        },
+        {
+          toolId,
+          status: BookingStatus.ACCEPTED,
+          endDate: MoreThanOrEqual(today),
+        },
+        {
+          toolId,
+          status: BookingStatus.ONGOING,
+          endDate: MoreThanOrEqual(today),
+        },
+      ],
+      order: { startDate: 'ASC' },
+    });
+
+    const dates: string[] = [];
+    const conflicts: Array<{
+      startDate: string;
+      endDate: string;
+      status: string;
+    }> = [];
+
+    for (const b of bookings) {
+      const s = parseCalendarDate(b.startDate);
+      const e = parseCalendarDate(b.endDate);
+      conflicts.push({
+        startDate: toCalendarString(s),
+        endDate: toCalendarString(e),
+        status: b.status,
+      });
+      for (
+        let d = new Date(s.getTime());
+        d.getTime() <= e.getTime();
+        d.setDate(d.getDate() + 1)
+      ) {
+        dates.push(toCalendarString(d));
+      }
+    }
+
+    return {
+      toolId,
+      unavailableDates: [...new Set(dates)].sort(),
+      upcomingConflicts: conflicts,
+    };
+  }
+
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     console.log('🔍 [BookingService] create called with:', createBookingDto);
 
@@ -122,32 +190,126 @@ export class BookingsService {
       pickupHour,
     });
 
-    // Validate dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // ================ DOUBLE CHECK FINAL (DERNIER FILET DE SÉCURITÉ) ================
+    let startParsed: Date;
+    let endParsed: Date;
+
+    try {
+      startParsed = parseCalendarDate(startDate);
+    } catch (err) {
+      throw new BadRequestException(
+        'Format de date de début invalide. Format attendu : AAAA-MM-JJ (ex: 2026-09-15).',
+      );
+    }
+    try {
+      endParsed = parseCalendarDate(endDate);
+    } catch (err) {
+      throw new BadRequestException(
+        'Format de date de fin invalide. Format attendu : AAAA-MM-JJ (ex: 2026-09-15).',
+      );
+    }
+
+    if (Number.isNaN(startParsed.getTime())) {
+      throw new BadRequestException(
+        'Date de début invalide (non reconnue). Format attendu : AAAA-MM-JJ.',
+      );
+    }
+
+    const todayMidnight = parseCalendarDate(new Date());
+    if (startParsed < todayMidnight) {
+      throw new BadRequestException(
+        "La date de début ne peut pas être antérieure à aujourd'hui. " +
+          'Veuillez sélectionner une date à partir de demain.',
+      );
+    }
+
+    const tomorrow = parseCalendarDate(
+      new Date(Date.now() + 24 * 60 * 60 * 1000),
+    );
+    if (startParsed < tomorrow) {
+      throw new BadRequestException(
+        "La réservation doit être effectuée au minimum 1 jour à l'avance (dès demain).",
+      );
+    }
+
+    if (startParsed >= endParsed) {
+      throw new BadRequestException(
+        'La date de fin doit être strictement après la date de début. ' +
+          'La durée minimum de location est de 1 jour complet.',
+      );
+    }
+
+    const rentalDays = calculateRentalDays(startParsed, endParsed);
+    if (rentalDays < 1) {
+      throw new BadRequestException(
+        'Durée minimum de location : 1 jour complet.',
+      );
+    }
+
+    if (
+      pickupHour !== undefined &&
+      pickupHour !== null &&
+      pickupHour !== '' &&
+      !/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(pickupHour))
+    ) {
+      throw new BadRequestException(
+        `Format de l'heure de récupération invalide. Format attendu "HH:MM" (ex: "09:00"). Reçu : "${pickupHour}"`,
+      );
+    }
+
+    const finalConflicts = await this.bookingsRepository.count({
+      where: [
+        {
+          toolId,
+          status: BookingStatus.ACCEPTED,
+          startDate: LessThanOrEqual(endParsed),
+          endDate: MoreThanOrEqual(startParsed),
+        },
+        {
+          toolId,
+          status: BookingStatus.PENDING,
+          startDate: LessThanOrEqual(endParsed),
+          endDate: MoreThanOrEqual(startParsed),
+        },
+        {
+          toolId,
+          status: BookingStatus.ONGOING,
+          startDate: LessThanOrEqual(endParsed),
+          endDate: MoreThanOrEqual(startParsed),
+        },
+      ],
+    });
+    if (finalConflicts > 0) {
+      throw new BadRequestException(
+        "Dommage ! Cet outil vient d'être réservé par un autre client pour cette période " +
+          'entre le moment où vous avez validé et celui de la création. ' +
+          'Veuillez rafraîchir le calendrier et choisir de nouvelles dates.',
+      );
+    }
+    // ==========================================================================
+
+    const start = startParsed;
+    const end = endParsed;
     const now = new Date();
 
     // Create start date with pickup hour for proper comparison (with timezone handling)
     const startWithPickupTime = new Date(start);
     if (pickupHour) {
-      const [hours, minutes] = pickupHour.split(':').map(Number);
-      // Use local timezone for pickup time calculation
+      const [hours, minutes] = String(pickupHour).split(':').map(Number);
       const localStartDate = new Date(
         start.getFullYear(),
         start.getMonth(),
         start.getDate(),
-        hours,
+        hours || 0,
         minutes || 0,
         0,
         0,
       );
       startWithPickupTime.setTime(localStartDate.getTime());
     } else {
-      // Default to start of day if no pickup hour specified
       startWithPickupTime.setHours(0, 0, 0, 0);
     }
 
-    // Set end date to start of day for comparison
     const endOfDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
 
     console.log('🔍 [BookingService] Date validation:', {
@@ -173,54 +335,11 @@ export class BookingsService {
       console.log(
         '❌ [BookingService] Date validation failed: End date must be after start date',
       );
-      console.log('❌ [BookingService] Detailed comparison:', {
-        startDate: startDate,
-        endDate: endDate,
-        startParsed: start.toISOString(),
-        endParsed: end.toISOString(),
-        startWithPickupTime: startWithPickupTime.toISOString(),
-        endOfDay: endOfDay.toISOString(),
-        isStartGreaterOrEqual: start >= end,
-      });
-      throw new BadRequestException('End date must be after start date');
+      throw new BadRequestException(
+        'La date de fin doit être strictement après la date de début. ' +
+          'La durée minimum de location est de 1 jour complet.',
+      );
     }
-
-    // // Minimum 48 hours advance booking requirement
-    // // This allows time for: owner confirmation, deposit jobs (24h before), and notifications
-    // const minimumAdvanceHours = 48;
-    // const minimumStartTime = new Date(
-    //   now.getTime() + minimumAdvanceHours * 60 * 60 * 1000,
-    // );
-
-    // console.log('🔍 [BookingService] 48-hour advance booking validation:', {
-    //   now: now.toISOString(),
-    //   startWithPickupTime: startWithPickupTime.toISOString(),
-    //   minimumStartTime: minimumStartTime.toISOString(),
-    //   minimumAdvanceHours: minimumAdvanceHours,
-    //   hoursUntilPickup:
-    //     (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60),
-    //   pickupHour: pickupHour,
-    // });
-
-    // if (startWithPickupTime < minimumStartTime) {
-    //   const hoursUntilPickup =
-    //     (startWithPickupTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    //   console.log(
-    //     '❌ [BookingService] Date validation failed: Booking must be made at least 48 hours in advance',
-    //   );
-    //   console.log('❌ [BookingService] 48-hour validation details:', {
-    //     startWithPickupTime: startWithPickupTime.toISOString(),
-    //     now: now.toISOString(),
-    //     minimumStartTime: minimumStartTime.toISOString(),
-    //     hoursUntilPickup: hoursUntilPickup,
-    //     minimumRequired: minimumAdvanceHours,
-    //   });
-    //   throw new BadRequestException(
-    //     `Les réservations doivent être faites au moins ${minimumAdvanceHours} heures à l'avance. ` +
-    //       `Cette réservation n'est que ${Math.round(hoursUntilPickup)} heures à l'avance. ` +
-    //       `Veuillez sélectionner une date et une heure au moins 48 heures à partir de maintenant.`,
-    //   );
-    // }
 
     // Validate tool exists and is available
     console.log('🔍 [BookingService] Fetching tool:', toolId);
@@ -242,7 +361,10 @@ export class BookingsService {
         '❌ [BookingService] Tool not available:',
         tool.availabilityStatus,
       );
-      throw new BadRequestException('Tool is not available for booking');
+      throw new BadRequestException(
+        "Cet outil n'est plus disponible à la location. " +
+          "Le propriétaire l'a probablement retiré de la location temporairement.",
+      );
     }
 
     // Get ownerId from tool if not provided
@@ -269,6 +391,12 @@ export class BookingsService {
           startDate: LessThanOrEqual(end),
           endDate: MoreThanOrEqual(start),
         },
+        {
+          toolId,
+          status: BookingStatus.ONGOING,
+          startDate: LessThanOrEqual(end),
+          endDate: MoreThanOrEqual(start),
+        },
       ],
     });
 
@@ -282,7 +410,8 @@ export class BookingsService {
         '❌ [BookingService] Tool already booked for requested dates',
       );
       throw new BadRequestException(
-        'Tool is already booked for the requested dates',
+        'Cet outil est déjà réservé par un autre client pour les dates sélectionnées. ' +
+          "Veuillez choisir d'autres dates ou contacter le propriétaire.",
       );
     }
 
@@ -297,24 +426,14 @@ export class BookingsService {
       totalPrice: totalPrice,
       paymentMethod: paymentMethod,
       message: message,
-      pickupHour: pickupHour,
+      pickupHour:
+        pickupHour && pickupHour !== '' ? String(pickupHour) : '09:00',
       paymentStatus: createBookingDto.paymentStatus || 'pending', // Use provided payment status or default to pending
     };
 
     console.log('🔍 [BookingService] Booking data to save:', bookingData);
 
-    // Convert pickupHour string to Date if provided
-    if (createBookingDto.pickupHour) {
-      // Create a date object with today's date and the specified time
-      const [hours, minutes] = createBookingDto.pickupHour.split(':');
-      const pickupDate = new Date();
-      pickupDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      bookingData.pickupHour = pickupDate;
-      console.log(
-        '🔍 [BookingService] Converted pickup hour:',
-        pickupDate.toISOString(),
-      );
-    }
+    // ⚠️ pickupHour stocké en tant que VARCHAR(5) "HH:MM" — plus de conversion Date()
 
     try {
       const booking = this.bookingsRepository.create(bookingData);
@@ -367,7 +486,7 @@ export class BookingsService {
     startDate: Date,
     endDate: Date,
   ): number {
-    const diffDays = this.calculateDays(startDate, endDate);
+    const diffDays = calculateRentalDays(startDate, endDate);
     return pricePerDay * diffDays;
   }
 
@@ -782,7 +901,7 @@ export class BookingsService {
 
       // Calculate rental amount (without deposit) for immediate capture
       const tool = await this.toolsService.findOne(booking.toolId);
-      const totalDays = this.calculateDays(booking.startDate, booking.endDate);
+      const totalDays = calculateRentalDays(booking.startDate, booking.endDate);
       const subtotal = tool.basePrice * totalDays;
       const fees = this.calculateReservationFees(subtotal);
       const rentalAmount = this.calculateReservationTotal(subtotal); // Amount to capture immediately (without deposit)
@@ -944,7 +1063,7 @@ export class BookingsService {
     console.log(`[BOOKING_ACCEPT] Starting acceptance for booking ${id}`);
 
     const booking = await this.findOne(id);
-    const __days = this.calculateDays(
+    const __days = calculateRentalDays(
       new Date(booking.startDate),
       new Date(booking.endDate),
     );
@@ -979,7 +1098,7 @@ export class BookingsService {
       const tool = await this.toolsService.findOne(booking.toolId);
       const startDate = new Date(booking.startDate);
       const endDate = new Date(booking.endDate);
-      const totalDays = this.calculateDays(startDate, endDate);
+      const totalDays = calculateRentalDays(startDate, endDate);
       const subtotal = Number(tool.basePrice) * Number(totalDays);
       const fees = this.calculateReservationFees(subtotal);
       const totalAmount = this.calculateReservationTotal(subtotal);
@@ -1358,7 +1477,7 @@ export class BookingsService {
     const adjustement = 0.25;
     const feesRate = 5.25;
     const wa = totalAmount - adjustement;
-    const fees = (wa / 105.25 ) * feesRate;
+    const fees = (wa / 105.25) * feesRate;
 
     const net = totalAmount - fees - adjustement;
 
@@ -1557,17 +1676,15 @@ export class BookingsService {
         basePrice: tool.basePrice,
       });
 
-      // Parse dates from YYYY-MM-DD format
-      const startDate = new Date(
-        calculatePricingDto.startDate + 'T00:00:00.000Z',
-      );
-      const endDate = new Date(calculatePricingDto.endDate + 'T00:00:00.000Z');
+      // Parse dates avec parseur unique UTC-safe
+      const startDate = parseCalendarDate(calculatePricingDto.startDate);
+      const endDate = parseCalendarDate(calculatePricingDto.endDate);
 
       console.log('🔍 [BookingService] Parsed dates:', {
         startDateInput: calculatePricingDto.startDate,
         endDateInput: calculatePricingDto.endDate,
-        startDateParsed: startDate.toISOString(),
-        endDateParsed: endDate.toISOString(),
+        startDateParsed: toCalendarString(startDate),
+        endDateParsed: toCalendarString(endDate),
       });
 
       // Validate dates - la date de fin ne peut JAMAIS être la même que la date de début
@@ -1575,23 +1692,13 @@ export class BookingsService {
         console.log(
           '❌ [BookingService] Date validation failed: End date must be after start date',
         );
-        throw new BadRequestException('End date must be after start date');
+        throw new BadRequestException(
+          'La date de fin doit être strictement après la date de début. ' +
+            'La durée minimum de location est de 1 jour complet.',
+        );
       }
 
-      // Temporarily disable past date validation for testing
-      console.log(
-        '🔍 [BookingService] Date validation (temporarily disabled):',
-        {
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString(),
-        },
-      );
-
-      // if (startDate < new Date()) {
-      //   throw new BadRequestException('Start date cannot be in the past');
-      // }
-
-      const totalDays = this.calculateDays(startDate, endDate);
+      const totalDays = calculateRentalDays(startDate, endDate);
       console.log('🔍 [BookingService] Total days calculated:', totalDays);
 
       const subtotal = tool.basePrice * totalDays;
@@ -1723,9 +1830,16 @@ export class BookingsService {
   ): Promise<AvailabilityResponseDto> {
     const { toolId, startDate, endDate } = checkAvailabilityDto;
 
-    // Validate dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    let start: Date;
+    let end: Date;
+    try {
+      start = parseCalendarDate(startDate);
+      end = parseCalendarDate(endDate);
+    } catch (err) {
+      throw new BadRequestException(
+        'Format de date invalide. Format attendu : AAAA-MM-JJ (ex: 2026-09-15).',
+      );
+    }
     const now = new Date();
 
     console.log('🔍 [BookingService] Date validation:', {
@@ -1733,8 +1847,8 @@ export class BookingsService {
       endDateInput: endDate,
       startDateType: typeof startDate,
       endDateType: typeof endDate,
-      start: start.toISOString(),
-      end: end.toISOString(),
+      start: toCalendarString(start),
+      end: toCalendarString(end),
       now: now.toISOString(),
       startTime: start.getTime(),
       endTime: end.getTime(),
@@ -1747,28 +1861,19 @@ export class BookingsService {
       console.log(
         '❌ [BookingService] Date validation failed: End date must be after start date',
       );
-      console.log('❌ [BookingService] Detailed comparison:', {
-        startDate: startDate,
-        endDate: endDate,
-        startParsed: start.toISOString(),
-        endParsed: end.toISOString(),
-        startTime: start.getTime(),
-        endTime: end.getTime(),
-        isStartGreaterOrEqual: start >= end,
-      });
-      throw new BadRequestException('End date must be after start date');
+      throw new BadRequestException(
+        'La date de fin doit être strictement après la date de début. ' +
+          'La durée minimum de location est de 1 jour complet.',
+      );
     }
 
     // Enhanced date validation logic (consistent with create method)
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const startDay = new Date(
-      start.getFullYear(),
-      start.getMonth(),
-      start.getDate(),
-    );
-
-    if (startDay < today) {
-      throw new BadRequestException('Start date cannot be in the past');
+    const today = parseCalendarDate(new Date());
+    if (start < today) {
+      throw new BadRequestException(
+        'Impossible de sélectionner une date déjà passée. ' +
+          'Veuillez choisir une date à partir de demain.',
+      );
     }
 
     // Check for conflicting bookings
@@ -1966,13 +2071,9 @@ export class BookingsService {
     };
   }
 
-  private calculateDays(startDate: Date, endDate: Date): number {
-    const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-    const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    // Si début = 10 oct, fin = 11 oct → diffTime = 1 jour → return 1
-    // Si début = 10 oct, fin = 12 oct → diffTime = 2 jours → return 2
-    return days;
-  }
+  // NOTE: L'ancienne méthode privée `calculateDays` a été remplacée
+  // par `calculateRentalDays(...)` importée de ../common/utils/date.utils.ts.
+  // Voir API-1.1. Ce commentaire permet de garder trace de la migration.
 
   // Admin-specific methods
   async getBookingAnalytics(

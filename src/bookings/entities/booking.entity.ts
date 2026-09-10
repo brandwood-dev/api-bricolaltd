@@ -27,9 +27,12 @@ export class Booking {
   @ApiProperty({ description: 'The end date of the booking' })
   endDate: Date;
 
-  @Column({ name: 'pickup_hour', type: 'time' })
-  @ApiProperty({ description: 'The pickup hour of the booking' })
-  pickupHour: Date;
+  @Column({ name: 'pickup_hour', type: 'varchar', length: 5, default: '09:00' })
+  @ApiProperty({
+    description: 'The pickup hour of the booking (HH:MM string format)',
+    example: '09:00',
+  })
+  pickupHour: string;
 
   @Column({ name: 'total_price', type: 'decimal', precision: 10, scale: 2 })
   @ApiProperty({

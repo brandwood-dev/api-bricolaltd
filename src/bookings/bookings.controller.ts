@@ -222,6 +222,21 @@ export class BookingsController {
     return this.bookingsService.findByToolId(toolId);
   }
 
+  @Get(':toolId/unavailable-dates')
+  @ApiOperation({
+    summary:
+      "Liste des dates indisponibles d'un outil (réservations PENDING / ACCEPTED / ONGOING)",
+  })
+  @ApiParam({ name: 'toolId', description: "Identifiant de l'outil" })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Retourne la liste des dates indisponibles ainsi que les réservations conflictuelles.',
+  })
+  getUnavailableDates(@Param('toolId') toolId: string) {
+    return this.bookingsService.getUnavailableDatesForTool(toolId);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

@@ -141,10 +141,10 @@ export async function seedRefundsData(dataSource: DataSource) {
 
   for (const scenario of scenarios) {
     // Create Booking
-    const booking = bookingRepository.create({
+    const bookingList = bookingRepository.create([{
       startDate: new Date(),
       endDate: new Date(Date.now() + 86400000), // +1 day
-      pickupHour: new Date(),
+      pickupHour: '09:00',
       totalPrice: 100, // Original price
       status: scenario.bookingStatus,
       toolId: tool.id,
@@ -152,8 +152,10 @@ export async function seedRefundsData(dataSource: DataSource) {
       ownerId: owner.id,
       paymentStatus: 'captured',
       paymentIntentId: `pi_test_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-    });
-    const savedBooking = await bookingRepository.save(booking);
+    }]);
+    const booking = Array.isArray(bookingList) ? bookingList[0] : bookingList;
+    const savedBookingArray = await bookingRepository.save(booking);
+    const savedBooking = Array.isArray(savedBookingArray) ? savedBookingArray[0] : savedBookingArray;
 
     // Create Transaction
     const ownerWallet = await walletRepository.findOne({
@@ -168,7 +170,7 @@ export async function seedRefundsData(dataSource: DataSource) {
       recipientId: owner.id,
       walletId: ownerWallet?.id,
       bookingId: savedBooking.id,
-      externalReference: booking.paymentIntentId,
+      externalReference: savedBooking.paymentIntentId,
       paymentProvider: 'STRIPE',
       paymentMethod: 'CARD' as any,
     });
