@@ -118,8 +118,8 @@ export class BookingNotificationsService {
     // Notification au locataire
     await this.notificationsService.create({
       userId: renter.id,
-      title: 'Réservation confirmée',
-      message: `Votre réservation pour "${tool.title}" a été confirmée par le propriétaire.`,
+      title: 'Booking confirmed',
+      message: `Your booking for "${tool.title}" has been confirmed.`,
       type: NotificationType.BOOKING_CONFIRMED,
       ...this.getI18nMetadata(
         'notifications.content.booking_confirmed_renter.title',
@@ -133,8 +133,8 @@ export class BookingNotificationsService {
     // Notification au propriétaire
     await this.notificationsService.create({
       userId: owner.id,
-      title: 'Réservation confirmée',
-      message: `Vous avez confirmé la réservation de ${renter.firstName} ${renter.lastName}.`,
+      title: 'Booking confirmed',
+      message: `You have confirmed the booking of ${renter.firstName} ${renter.lastName}.`,
       type: NotificationType.BOOKING_CONFIRMED,
       ...this.getI18nMetadata(
         'notifications.content.booking_confirmed_owner.title',
@@ -171,8 +171,8 @@ export class BookingNotificationsService {
     // Notification à l'autre partie
     await this.notificationsService.create({
       userId: otherParty.id,
-      title: 'Réservation annulée',
-      message: `La réservation pour "${tool.title}" a été annulée par ${cancellerName}.`,
+      title: 'Booking cancelled',
+      message: `Your booking for "${tool.title}" has been cancelled by ${cancellerName}.`,
       type: NotificationType.BOOKING_CANCELLED,
       ...this.getI18nMetadata(
         cancelledBy === 'client'
@@ -191,8 +191,8 @@ export class BookingNotificationsService {
     // Notification admin si montant élevé
     if (booking.totalPrice > 500) {
       await this.adminNotificationsService.createAdminNotification({
-        title: 'Annulation de réservation',
-        message: `Réservation #${booking.id} annulée par ${cancelledBy} (${booking.totalPrice}€)`,
+        title: 'Booking cancelled',
+        message: `Booking #${booking.id} cancelled by ${cancelledBy} (${booking.totalPrice}€)`,
         type: AdminNotificationType.WARNING,
         priority: AdminNotificationPriority.HIGH,
         category: AdminNotificationCategory.BOOKING,
@@ -221,8 +221,8 @@ export class BookingNotificationsService {
     // Notification au locataire pour évaluation
     await this.notificationsService.create({
       userId: renter.id,
-      title: 'Location terminée',
-      message: `Votre location de "${tool.title}" est terminée. N'oubliez pas de laisser un avis !`,
+      title: 'Booking completed',
+      message: `Your booking for "${tool.title}" has been completed.`,
       type: NotificationType.BOOKING_COMPLETED,
       ...this.getI18nMetadata(
         'notifications.content.booking_completed_legacy.title',
@@ -236,8 +236,8 @@ export class BookingNotificationsService {
     // Notification au propriétaire
     await this.notificationsService.create({
       userId: owner.id,
-      title: 'Location terminée',
-      message: `La location de votre outil "${tool.title}" par ${renter.firstName} ${renter.lastName} est terminée.`,
+      title: 'Booking completed',
+      message: `Your booking for "${tool.title}" by ${renter.firstName} ${renter.lastName} has been completed.`,
       type: NotificationType.BOOKING_COMPLETED,
       ...this.getI18nMetadata(
         'notifications.content.booking_completed_legacy.title',
@@ -265,8 +265,8 @@ export class BookingNotificationsService {
 
     await this.notificationsService.create({
       userId: owner.id,
-      title: 'Paiement reçu',
-      message: `Le paiement pour la location de "${tool.title}" a été traité (${booking.totalPrice}€).`,
+      title: 'Payment received',
+      message: `Payment for "${tool.title}" has been received (${booking.totalPrice}£).`,
       type: NotificationType.PAYMENT_RECEIVED,
       ...this.getI18nMetadata(
         'notifications.content.payment_received_owner.title',
