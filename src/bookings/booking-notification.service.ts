@@ -133,7 +133,6 @@ export class BookingNotificationService {
         'notifications.content.booking_accepted_renter.message',
         {
           toolName: tool.title,
-          validationCode,
         },
       ),
     );
@@ -152,8 +151,7 @@ export class BookingNotificationService {
         'notifications.content.booking_accepted_owner.message',
         {
           toolName: tool.title,
-          userName: `${renter.firstName} ${renter.lastName}`,
-          validationCode,
+          userName: `${renter.firstName} ${renter.lastName}`
         },
       ),
     );
