@@ -1,6 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
 import { Booking } from './entities/booking.entity';
 import { DepositCaptureJob } from './entities/deposit-capture-job.entity';
 import { User } from '../users/entities/user.entity';
@@ -35,7 +34,6 @@ import { DataSyncModule } from '../data-sync/data-sync.module';
       Tool,
       Transaction,
     ]),
-    ScheduleModule.forRoot(),
     forwardRef(() => WalletsModule),
     forwardRef(() => UsersModule),
     ToolsModule,

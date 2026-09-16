@@ -318,7 +318,7 @@ export class BookingSchedulerService {
   }
 
   // Manual method to schedule deposit reminder for a specific booking
-  async scheduleDepositReminder(bookingId: string): Promise<void> {
+  scheduleDepositReminder(bookingId: string): void {
     // try {
     //   const booking = await this.bookingsRepository.findOne({
     //     where: { id: bookingId },
