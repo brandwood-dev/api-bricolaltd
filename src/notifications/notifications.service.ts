@@ -15,10 +15,7 @@ import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { NotificationType } from './enums/notification-type';
 import { NotificationDispatcherService } from './notification-dispatcher.service';
 
-type NotificationTranslationParams = Record<
-  string,
-  string | number | boolean
->;
+type NotificationTranslationParams = Record<string, string | number | boolean>;
 
 type NotificationI18nMetadata = {
   titleKey?: string;
@@ -45,7 +42,8 @@ export class NotificationsService {
     const notification = this.notificationRepository.create(
       createNotificationDto,
     );
-    const savedNotification = await this.notificationRepository.save(notification);
+    const savedNotification =
+      await this.notificationRepository.save(notification);
 
     if (savedNotification.userId) {
       try {
@@ -85,7 +83,8 @@ export class NotificationsService {
 
     if (existing) {
       const previousUserId = existing.userId;
-      const ownerChanged = String(existing.userId ?? '') !== String(userId ?? '');
+      const ownerChanged =
+        String(existing.userId ?? '') !== String(userId ?? '');
       existing.userId = userId;
       existing.deviceId = input.deviceId?.trim() || existing.deviceId || null;
       existing.platform = input.platform?.trim() || existing.platform || null;
@@ -166,6 +165,7 @@ export class NotificationsService {
       );
     } catch (error) {
       this.logger.warn(
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         `[push] Failed to deduplicate active push tokens for user ${userId}: ${error?.message ?? String(error)}`,
       );
     }
@@ -192,8 +192,7 @@ export class NotificationsService {
 
     const matchedUserId = String(existing.userId ?? '');
     const belongsToCaller =
-      matchedUserId.length > 0 &&
-      matchedUserId === String(userId ?? '');
+      matchedUserId.length > 0 && matchedUserId === String(userId ?? '');
 
     await this.pushDeviceTokenRepository.update(existing.id, {
       isActive: false,

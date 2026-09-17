@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdminNotificationsService } from '../admin/admin-notifications.service';
 import { Booking } from './entities/booking.entity';
-import { BookingStatus } from './enums/booking-status.enum';
 import { User } from '../users/entities/user.entity';
 import { Tool } from '../tools/entities/tool.entity';
 import { NotificationType } from '../notifications/enums/notification-type';

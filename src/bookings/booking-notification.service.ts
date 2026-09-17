@@ -116,8 +116,7 @@ export class BookingNotificationService {
   async notifyBookingAccepted(booking: Booking): Promise<void> {
     const tool = await this.toolsService.findOne(booking.toolId);
     const renter = await this.usersService.findOne(booking.renterId);
-    const owner = await this.usersService.findOne(tool.ownerId);
-    const validationCode = booking.validationCode ?? '';
+    
 
     // Notify renter with validation code
     await this.notificationsService.createSystemNotification(
@@ -151,7 +150,7 @@ export class BookingNotificationService {
         'notifications.content.booking_accepted_owner.message',
         {
           toolName: tool.title,
-          userName: `${renter.firstName} ${renter.lastName}`
+          userName: `${renter.firstName} ${renter.lastName}`,
         },
       ),
     );

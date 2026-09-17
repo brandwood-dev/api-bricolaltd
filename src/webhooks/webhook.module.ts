@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { ScheduleModule } from '@nestjs/schedule';
+// import { ScheduleModule } from '@nestjs/schedule';
 
 // Original webhook components
 import { StripeWebhookController } from './stripe-webhook.controller';
@@ -35,9 +35,14 @@ import { WebhookCronService } from './webhook-cron.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Transaction, Booking, StripeWebhookEvent, Wallet]),
+    TypeOrmModule.forFeature([
+      Transaction,
+      Booking,
+      StripeWebhookEvent,
+      Wallet,
+    ]),
     ConfigModule,
-    ScheduleModule.forRoot(), // For cron jobs
+    // ScheduleModule.forRoot(), // For cron jobs
     PaymentModule,
     AdminModule,
     WalletsModule,
