@@ -330,21 +330,62 @@ export class UsersService {
     return user;
   }
 
-  async findPublicProfile(id: string) {
+  async findPublicProfile(ownerId: string) {
     const user = await this.usersRepository.findOne({
-      where: { id },
+      where: { id : ownerId },
       relations: ['country'],
     });
 
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with ID ${ownerId} not found`);
     }
-
-    const totalTools = await this.toolRepository.count({
-      where: { ownerId: id },
+    // Récupérer les outils actifs de l'utilisateur
+    const activeAds = await this.toolRepository.count({
+      where: {
+        ownerId: ownerId,
+        toolStatus: ToolStatus.PUBLISHED,
+      },
     });
 
-    return {
+    // Récupérer les locations réalisées (bookings complétés pour les outils de l'utilisateur)
+    const completedRentals = await this.bookingRepository
+      .createQueryBuilder('booking')
+      .innerJoin('booking.tool', 'tool')
+      .where('tool.ownerId = :ownerId', { ownerId })
+      .andWhere('booking.status = :status', {
+        status: BookingStatus.COMPLETED,
+      })
+      .getCount();
+
+    // Utiliser les données du wallet pour les gains totaux (cohérence avec le composant Wallet)
+    let totalEarnings = 0;
+    try {
+      const walletStats = await this.walletsService.calculateStats(ownerId);
+      totalEarnings = walletStats.cumulativeBalance;
+    } catch (error) {
+      console.log('Erreur lors du calcul des statistiques wallet:', error);
+      // Fallback vers l'ancien calcul si le wallet n'est pas disponible
+     const earningsResult = await this.bookingRepository
+       .createQueryBuilder('booking')
+       .innerJoin('booking.tool', 'tool')
+       .select('SUM(booking.totalPrice)', 'totalEarnings')
+       .where('tool.ownerId = :ownerId', { ownerId })
+       .andWhere('booking.status = :status', {
+         status: BookingStatus.COMPLETED,
+       })
+       .getRawOne();
+      totalEarnings = parseFloat(earningsResult?.totalEarnings || '0');
+    }
+
+    const ratingResult = await this.reviewToolRepository
+      .createQueryBuilder('review')
+      .select('AVG(review.rating)', 'averageRating')
+      .where('review.reviewee_id = :ownerId', { ownerId })
+      .getRawOne();
+
+    const averageRating = parseFloat(ratingResult?.averageRating || '0');
+
+    const data = {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
@@ -354,11 +395,13 @@ export class UsersService {
       address: user.address ?? null,
       country: user.country?.name ?? user.countryId ?? null,
       isVerified: Boolean(user.isVerified),
-      rating: Number(user.ratingAsOwner ?? 0),
-      completedRentals: Number(user.completedRentals ?? 0),
-      totalTools,
+      rating: Math.round(averageRating * 100) / 100,
+      completedRentals: completedRentals,
+      activeAds: activeAds,
+      totalEarnings: Math.round(totalEarnings * 100) / 100,
       memberSince: user.createdAt,
     };
+    return data;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -1116,7 +1159,7 @@ export class UsersService {
           status: BookingStatus.COMPLETED,
         })
         .getCount();
-
+ 
       // Utiliser les données du wallet pour les gains totaux (cohérence avec le composant Wallet)
       let totalEarnings = 0;
       try {
